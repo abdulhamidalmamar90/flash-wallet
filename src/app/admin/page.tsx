@@ -3,6 +3,7 @@
 
 import { useMemo, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { 
   ShieldAlert, 
@@ -20,7 +21,8 @@ import {
   Save, 
   User as UserIcon,
   ArrowDownCircle,
-  ArrowUpCircle
+  ArrowUpCircle,
+  LayoutDashboard
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -170,9 +172,11 @@ export default function AdminPage() {
     <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
       <header className="flex justify-between items-center p-5 glass-card rounded-[2rem] border-primary/20 gold-glow">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-1 hover:text-primary"><ShieldAlert className="h-6 w-6 text-primary" /></button>
+          <Link href="/dashboard" className="p-2 hover:bg-primary/10 rounded-xl transition-all text-primary group">
+            <LayoutDashboard className="h-6 w-6 group-hover:scale-110 transition-transform" />
+          </Link>
           <div>
-            <h1 className="text-xs font-headline font-bold tracking-widest">ADMIN COMMAND</h1>
+            <h1 className="text-xs font-headline font-bold tracking-widest uppercase">Admin Command</h1>
             <p className="text-[8px] text-muted-foreground uppercase font-black">Secure Shell v2.5</p>
           </div>
         </div>
