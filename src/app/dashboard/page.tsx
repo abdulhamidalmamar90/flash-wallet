@@ -1,10 +1,10 @@
+
 "use client"
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useStore } from '@/app/lib/store';
 import { 
   Download, 
-  LayoutGrid, 
   Bell, 
   User, 
   ArrowUpRight, 
@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   Send,
   X,
-  Camera,
   UserCheck,
   ArrowDown,
   Moon,

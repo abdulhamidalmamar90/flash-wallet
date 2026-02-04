@@ -93,14 +93,10 @@ export default function LoginPage() {
 
   const handleBiometricLogin = async () => {
     toast({ title: t.biometricAuth, description: language === 'ar' ? 'يرجى لمس حساس البصمة' : 'Please touch the fingerprint sensor' });
-    
-    // محاكاة عملية البصمة
     setTimeout(() => {
-      const success = true; // محاكاة نجاح العملية
+      const success = true; 
       if (success) {
         toast({ title: t.biometricSuccess });
-        // في التطبيق الحقيقي سنقوم بتسجيل الدخول التلقائي هنا
-        // للمحاكاة سنكتفي بالرسالة لأننا نحتاج بيانات الاعتماد الأصلية
       } else {
         toast({ variant: "destructive", title: t.biometricError });
       }

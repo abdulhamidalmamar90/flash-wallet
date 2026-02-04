@@ -20,7 +20,6 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
   const { user } = useUser();
   const db = useFirestore();
 
-  // Fix: Stabilize docRef with useMemo to prevent infinite render loop
   const userDocRef = useMemo(() => 
     (user && db) ? doc(db, 'users', user.uid) : null, 
     [db, user?.uid]
@@ -28,7 +27,6 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
   
   const { data: profile } = useDoc(userDocRef);
 
-  // Filter to show only on Dashboard/Home as per user request
   const isDashboard = pathname === '/dashboard' || pathname === '/dashboard/';
   if (!isDashboard) return null;
 
