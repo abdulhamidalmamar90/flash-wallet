@@ -3,7 +3,6 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { BottomNav } from '@/components/layout/BottomNav';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Building2, Bitcoin, ChevronLeft, CreditCard, Hash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, collection, addDoc, updateDoc, increment, runTransaction } from 'firebase/firestore';
+import { doc, collection, increment, runTransaction } from 'firebase/firestore';
 
 export default function WithdrawPage() {
   const router = useRouter();
@@ -38,7 +37,6 @@ export default function WithdrawPage() {
         const userRef = doc(db, 'users', user.uid);
         transaction.update(userRef, { balance: increment(-amountNum) });
         
-        // Add to global withdrawals queue
         const globalWithdrawRef = doc(collection(db, 'withdrawals'));
         transaction.set(globalWithdrawRef, {
           userId: user.uid,
@@ -50,7 +48,6 @@ export default function WithdrawPage() {
           date: new Date().toISOString()
         });
 
-        // Add to user transactions
         const txRef = doc(collection(db, 'users', user.uid, 'transactions'));
         transaction.set(txRef, {
           type: 'withdraw',
@@ -122,7 +119,6 @@ export default function WithdrawPage() {
         <div><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Vault Status</p><p className="text-sm font-headline text-primary">ENCRYPTED & READY</p></div>
         <div className="text-right"><p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Balance</p><p className="text-sm font-headline text-foreground">${profile?.balance?.toLocaleString() || '0'}</p></div>
       </div>
-      <BottomNav />
     </div>
   );
 }

@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { BottomNav } from '@/components/layout/BottomNav';
 import { useStore } from '@/app/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -164,8 +163,6 @@ export default function TransferPage() {
           <p className="text-xl font-headline font-black text-primary">${profile?.balance?.toLocaleString() || '0'}</p>
         </div>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

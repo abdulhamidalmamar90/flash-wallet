@@ -3,13 +3,12 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { BottomNav } from '@/components/layout/BottomNav';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronLeft, Gamepad2, Gift, PhoneCall, Zap } from 'lucide-react';
+import { Search, ChevronLeft, Gamepad2, Gift } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, collection, addDoc, updateDoc, increment, runTransaction } from 'firebase/firestore';
+import { doc, collection, increment, runTransaction } from 'firebase/firestore';
 
 const SERVICES = [
   { id: 1, name: 'PUBG MOBILE UC', price: 9.99, category: 'Games', icon: Gamepad2, color: 'text-orange-400' },
@@ -94,7 +93,6 @@ export default function MarketplacePage() {
           </div>
         ))}
       </section>
-      <BottomNav />
     </div>
   );
 }

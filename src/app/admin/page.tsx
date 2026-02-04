@@ -3,21 +3,18 @@
 
 import { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BottomNav } from '@/components/layout/BottomNav';
 import { Badge } from '@/components/ui/badge';
 import { ShieldAlert, Check, X, Building2, Bitcoin, Clock, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
 import { collection, doc, updateDoc, increment, query, orderBy, runTransaction } from 'firebase/firestore';
-import { useStore } from '@/app/lib/store';
 
 export default function AdminPage() {
   const router = useRouter();
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
-  const { language } = useStore();
   
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -54,8 +51,6 @@ export default function AdminPage() {
         
         transaction.update(reqRef, { status: 'rejected' });
         transaction.update(userRef, { balance: increment(amount) });
-        
-        // Record recovery in transactions is optional but recommended
       });
       toast({ variant: "destructive", title: "WITHDRAWAL REJECTED", description: "Funds have been returned to user vault." });
     } catch (e: any) {
@@ -86,9 +81,7 @@ export default function AdminPage() {
     <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
       <header className="flex justify-between items-center p-5 glass-card rounded-[2rem] border-primary/20 gold-glow">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-            <ShieldAlert className="h-6 w-6 text-primary" />
-          </div>
+          <button onClick={() => router.back()} className="p-1 hover:text-primary"><ShieldAlert className="h-6 w-6 text-primary" /></button>
           <div>
             <h1 className="text-xs font-headline font-bold tracking-widest">ADMIN COMMAND</h1>
             <p className="text-[8px] text-muted-foreground uppercase font-black">Secure Shell v2.4</p>
@@ -171,7 +164,6 @@ export default function AdminPage() {
           )}
         </div>
       </section>
-      <BottomNav />
     </div>
   );
 }

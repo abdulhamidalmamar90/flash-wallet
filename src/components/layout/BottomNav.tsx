@@ -3,11 +3,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LayoutGrid, ArrowDownToLine, User, ScanLine } from 'lucide-react';
+import { Home, LayoutGrid, ArrowDownToLine, User, ScanLine, QrCode, X, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/app/lib/store';
 import { useState, useMemo } from 'react';
-import { QrCode, X, Copy } from 'lucide-react';
 import { useDoc, useUser, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
