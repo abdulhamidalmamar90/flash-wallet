@@ -272,7 +272,7 @@ export default function Dashboard() {
 
       {isQrOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-2xl p-4 animate-in fade-in duration-300" onClick={() => setIsQrOpen(false)}>
-          <div className="bg-black/40 p-8 rounded-[3rem] shadow-[0_0_50px_rgba(212,175,55,0.1)] border border-primary/20 relative text-center max-w-[90%] w-[360px] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-black/40 p-8 rounded-[3rem] shadow-[0_0_50px_rgba(212,175,55,0.1)] border border-primary/20 relative text-center max-w-[90%] w-[380px] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <div className="mb-8 w-full text-center">
                <h3 className="font-headline font-black text-2xl uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">{t.qrTitle}</h3>
                <p className="text-primary/60 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">{t.qrSub}</p>
@@ -292,7 +292,7 @@ export default function Dashboard() {
             </div>
 
             <div 
-              className="bg-primary/5 py-4 px-6 rounded-2xl border border-primary/20 flex flex-col items-center gap-1 cursor-pointer hover:bg-primary/10 transition-all w-full group overflow-hidden" 
+              className="bg-primary/5 py-4 px-4 rounded-2xl border border-primary/20 flex flex-col items-center gap-1 cursor-pointer hover:bg-primary/10 transition-all w-full group overflow-hidden" 
               onClick={() => { 
                 if(profile?.customId) { 
                   navigator.clipboard.writeText(profile.customId); 
@@ -300,9 +300,11 @@ export default function Dashboard() {
                 }
               }}
             >
-              <span className="text-[9px] text-primary/40 font-bold uppercase tracking-[0.2em]">{t.yourIdLabel}</span>
-              <div className="flex items-center justify-center gap-2 w-full">
-                <span className="font-headline font-black tracking-[0.05em] text-xl text-primary whitespace-nowrap overflow-hidden">{profile?.customId || '---'}</span>
+              <span className="text-[10px] text-primary/40 font-bold uppercase tracking-[0.3em]">{t.yourIdLabel}</span>
+              <div className="flex items-center justify-center gap-2 w-full max-w-full px-2">
+                <span className="font-headline font-black tracking-[0.05em] text-lg text-primary whitespace-nowrap overflow-hidden text-ellipsis">
+                  {profile?.customId || '---'}
+                </span>
                 <Copy size={16} className="text-primary/40 group-hover:text-primary transition-colors shrink-0" />
               </div>
             </div>
