@@ -25,15 +25,12 @@ import {
   Languages,
   Moon,
   Sun,
-  UserEdit,
   ExternalLink,
   ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LanguageToggle } from '@/components/ui/LanguageToggle';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
 import { doc, collection, query, orderBy, limit, runTransaction, increment, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
@@ -117,7 +114,6 @@ export default function Dashboard() {
     }
     setIsSending(true);
     try {
-      // Simple implementation for demo; in real app, find recipient by customId first
       await runTransaction(db, async (transaction) => {
         const senderRef = doc(db, 'users', user.uid);
         transaction.update(senderRef, { balance: increment(-amountNum) });
@@ -151,12 +147,12 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden">
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
         <div className="relative">
-          <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors">
+          <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors text-start">
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border relative">
               {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={20} className="text-primary" />}
               {profile?.verified && <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-primary/20 shadow-lg"><Star size={10} className="text-primary fill-primary" /></div>}
             </div>
-            <div className="text-start hidden sm:block">
+            <div className="hidden sm:block">
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
               <div className="flex items-center gap-1"><p className="font-headline font-bold text-sm">{profile?.username}</p><ChevronDown size={12} /></div>
             </div>
@@ -173,6 +169,9 @@ export default function Dashboard() {
       {/* Profile & Settings Dialog */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{t.profileSettings}</DialogTitle>
+          </DialogHeader>
           <div className="p-8 space-y-8">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="w-24 h-24 rounded-full bg-muted overflow-hidden flex items-center justify-center border-4 border-primary/20 relative">
@@ -228,10 +227,10 @@ export default function Dashboard() {
       {/* Notification Dialog */}
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
         <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden">
-          <div className="p-6 border-b border-white/5 bg-muted/30 flex justify-between items-center">
-            <h3 className="font-headline font-black text-xs uppercase tracking-widest text-primary">{t.notifHeader}</h3>
+          <DialogHeader className="p-6 border-b border-white/5 bg-muted/30 flex justify-between items-center space-y-0">
+            <DialogTitle className="font-headline font-black text-xs uppercase tracking-widest text-primary">{t.notifHeader}</DialogTitle>
             {unreadCount > 0 && <button onClick={markAllAsRead} className="text-[8px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest">{t.markAllRead}</button>}
-          </div>
+          </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3">
             {notifications.length === 0 ? (
               <div className="py-20 text-center space-y-4 opacity-30"><Inbox className="mx-auto h-12 w-12" /><p className="text-[10px] font-headline uppercase">{t.noNotif}</p></div>
