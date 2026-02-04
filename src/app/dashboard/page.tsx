@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useStore } from '@/app/lib/store';
 import { 
   Download, 
@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   ShieldCheck,
   Send,
-  X
+  X,
+  Camera,
+  UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -28,9 +30,10 @@ import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
-import { doc, collection, query, orderBy, limit, runTransaction, increment } from 'firebase/firestore';
+import { doc, collection, query, orderBy, limit, runTransaction, increment, where, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -43,11 +46,17 @@ export default function Dashboard() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
-  const [recipient, setRecipient] = useState('');
+  const [recipient, setRecipient] = useState(''); // Stores the Custom ID (e.g. F123...)
+  const [recipientName, setRecipientName] = useState<string | null>(null);
+  const [recipientUid, setRecipientUid] = useState<string | null>(null);
   const [sendAmount, setSendAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -85,8 +94,8 @@ export default function Dashboard() {
     logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
     sendHeader: language === 'ar' ? 'تحويل سريع' : 'Quick Transfer',
     confirmSend: language === 'ar' ? 'تأكيد التحويل' : 'Authorize Transfer',
-    recipientLabel: language === 'ar' ? 'اسم مستخدم المستلم' : 'Recipient Username',
-    recipientPlaceholder: language === 'ar' ? 'مثال: Mostafa88' : 'Ex: CryptoWhale',
+    recipientLabel: language === 'ar' ? 'معرف المستلم (Flash ID)' : 'Recipient Flash ID',
+    recipientPlaceholder: language === 'ar' ? 'مثال: F123456789012' : 'Ex: F123456789012',
     amountLabel: language === 'ar' ? 'المبلغ (دولار)' : 'Amount (USD)',
     deposit: language === 'ar' ? 'شحن رصيد' : 'Deposit',
     withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal',
@@ -97,26 +106,87 @@ export default function Dashboard() {
     sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...',
     showQr: language === 'ar' ? 'عرض رمز QR' : 'Show My QR',
     qrTitle: language === 'ar' ? 'معرف الفلاش الخاص بي' : 'My Flash ID',
-    qrSub: language === 'ar' ? 'امسح الكود للإرسال فوراً' : 'Scan to send money instantly'
+    qrSub: language === 'ar' ? 'امسح الكود للإرسال فوراً' : 'Scan to send money instantly',
+    scanTitle: language === 'ar' ? 'ماسح الفلاش الضوئي' : 'Flash Scanner',
+    scanSub: language === 'ar' ? 'وجه الكاميرا نحو الكود' : 'Point camera at the QR code',
+    verifying: language === 'ar' ? 'جاري التحقق من الهوية...' : 'Verifying Identity...',
+    userFound: language === 'ar' ? 'مستلم مؤكد' : 'Confirmed Recipient',
+    userNotFound: language === 'ar' ? 'المستلم غير موجود' : 'Recipient not found',
+    selfTransfer: language === 'ar' ? 'لا يمكنك التحويل لنفسك' : 'Cannot transfer to self'
   };
 
-  const handleCopyId = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (profile?.customId) {
-      navigator.clipboard.writeText(profile.customId);
-      toast({ title: t.idCopied, description: profile.customId });
+  // Logic to verify ID owner name
+  useEffect(() => {
+    if (recipient.length >= 13 && db) {
+      setIsVerifying(true);
+      const q = query(collection(db, 'users'), where('customId', '==', recipient.toUpperCase()));
+      getDocs(q).then((snap) => {
+        if (!snap.empty) {
+          const target = snap.docs[0];
+          if (target.id === user?.uid) {
+            setRecipientName('SELF');
+            setRecipientUid(null);
+          } else {
+            setRecipientName(target.data().username);
+            setRecipientUid(target.id);
+          }
+        } else {
+          setRecipientName(null);
+          setRecipientUid(null);
+        }
+        setIsVerifying(false);
+      }).catch(() => {
+        setIsVerifying(false);
+      });
+    } else {
+      setRecipientName(null);
+      setRecipientUid(null);
     }
+  }, [recipient, db, user?.uid]);
+
+  const startScanner = async () => {
+    setIsScannerOpen(true);
+    setTimeout(() => {
+      const html5QrCode = new Html5Qrcode("reader");
+      scannerRef.current = html5QrCode;
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          setRecipient(decodedText);
+          stopScanner();
+          setIsSendModalOpen(true);
+        },
+        () => {}
+      ).catch(() => {
+        toast({ variant: "destructive", title: "Camera Error", description: "Could not access camera." });
+        setIsScannerOpen(false);
+      });
+    }, 300);
   };
 
-  const handleLogout = () => {
-    if (auth) {
-      signOut(auth).then(() => router.push('/'));
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().then(() => {
+        scannerRef.current = null;
+        setIsScannerOpen(false);
+      }).catch(() => {
+        setIsScannerOpen(false);
+      });
+    } else {
+      setIsScannerOpen(false);
     }
   };
 
   const handleSendMoney = async () => {
-    if (!user || !recipient || !sendAmount || !profile || !db) return;
+    if (!user || !recipientUid || !sendAmount || !profile || !db) return;
     const amountNum = parseFloat(sendAmount);
+    
+    if (recipientUid === user.uid) {
+      toast({ variant: "destructive", title: t.errorSendTitle, description: t.selfTransfer });
+      return;
+    }
+
     if ((profile.balance || 0) < amountNum) {
       toast({ variant: "destructive", title: t.errorSendTitle, description: t.insufficientFunds });
       return;
@@ -125,14 +195,30 @@ export default function Dashboard() {
     setIsSending(true);
     try {
       await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', user.uid);
-        transaction.update(userRef, { balance: increment(-amountNum) });
+        const senderRef = doc(db, 'users', user.uid);
+        const receiverRef = doc(db, 'users', recipientUid);
         
-        const txRef = doc(collection(db, 'users', user.uid, 'transactions'));
-        transaction.set(txRef, {
+        // Deduct from sender
+        transaction.update(senderRef, { balance: increment(-amountNum) });
+        // Add to receiver
+        transaction.update(receiverRef, { balance: increment(amountNum) });
+        
+        // Record for sender
+        const senderTxRef = doc(collection(db, 'users', user.uid, 'transactions'));
+        transaction.set(senderTxRef, {
           type: 'send',
           amount: amountNum,
-          recipient: recipient,
+          recipient: recipientName,
+          status: 'completed',
+          date: new Date().toISOString()
+        });
+
+        // Record for receiver
+        const receiverTxRef = doc(collection(db, 'users', recipientUid, 'transactions'));
+        transaction.set(receiverTxRef, {
+          type: 'receive',
+          amount: amountNum,
+          sender: profile.username,
           status: 'completed',
           date: new Date().toISOString()
         });
@@ -141,8 +227,8 @@ export default function Dashboard() {
       toast({
         title: t.successSendTitle,
         description: language === 'ar' 
-          ? `لقد أرسلت $${sendAmount} إلى @${recipient}` 
-          : `You sent $${sendAmount} to @${recipient}`,
+          ? `لقد أرسلت $${sendAmount} إلى @${recipientName}` 
+          : `You sent $${sendAmount} to @${recipientName}`,
       });
       setIsSendModalOpen(false);
       setRecipient('');
@@ -172,40 +258,39 @@ export default function Dashboard() {
   if (!user) return null;
 
   return (
-    <div 
-      className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden"
-      onClick={() => setIsProfileOpen(false)}
-    >
+    <div className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden" onClick={() => setIsProfileOpen(false)}>
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      {/* QR Modal */}
+      {/* Scanner Modal */}
+      {isScannerOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
+           <div className="w-full max-w-sm p-6 text-center space-y-8">
+             <div className="space-y-2">
+                <h3 className="text-xl font-headline font-black uppercase text-white tracking-widest">{t.scanTitle}</h3>
+                <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">{t.scanSub}</p>
+             </div>
+             <div id="reader" className="w-full aspect-square overflow-hidden rounded-3xl border-2 border-primary/20 gold-glow bg-black"></div>
+             <button onClick={stopScanner} className="bg-white/5 border border-white/10 text-white px-8 py-3 rounded-2xl font-headline text-[10px] tracking-widest uppercase hover:bg-white/10 transition-all">Cancel Scan</button>
+           </div>
+        </div>
+      )}
+
+      {/* My QR Modal */}
       {isQrOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-300" onClick={() => setIsQrOpen(false)}>
           <div className="bg-card p-8 rounded-[2.5rem] shadow-2xl border border-border relative text-center max-w-[90%] w-[340px] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6 w-full">
+            <div className="mb-6 w-full text-center">
                <h3 className="font-headline font-black text-xl uppercase tracking-tighter text-center">{t.qrTitle}</h3>
-               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1 text-center">
-                 {t.qrSub}
-               </p>
+               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1 text-center">{t.qrSub}</p>
             </div>
             <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 mx-auto w-fit shadow-inner mb-6">
-              {qrCodeUrl ? (
-                <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" />
-              ) : (
-                <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg">
-                  <QrCode className="h-12 w-12 text-muted-foreground opacity-20" />
-                </div>
-              )}
+              {qrCodeUrl ? <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" /> : <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg"><QrCode className="h-12 w-12 text-muted-foreground opacity-20" /></div>}
             </div>
-            
-            <div className="bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all w-full text-center" onClick={() => handleCopyId()}>
+            <div className="bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all w-full text-center" onClick={() => { if(profile?.customId) { navigator.clipboard.writeText(profile.customId); toast({ title: t.idCopied }); }}}>
               <span className="font-headline font-black tracking-widest text-lg leading-none text-center flex-1">{profile?.customId || '---'}</span>
               <Copy size={16} className="text-muted-foreground shrink-0" />
             </div>
-
-            <button onClick={() => setIsQrOpen(false)} className="absolute -bottom-20 left-1/2 -translate-x-1/2 bg-card/20 text-white p-3 rounded-full border border-white/10 backdrop-blur-md">
-              <X size={24} />
-            </button>
+            <button onClick={() => setIsQrOpen(false)} className="absolute -bottom-20 left-1/2 -translate-x-1/2 bg-card/20 text-white p-3 rounded-full border border-white/10 backdrop-blur-md"><X size={24} /></button>
           </div>
         </div>
       )}
@@ -220,18 +305,41 @@ export default function Dashboard() {
               <button onClick={() => setIsSendModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X size={20} className="text-muted-foreground" /></button>
             </div>
             <div className="p-6 space-y-6">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-2 font-bold uppercase tracking-widest">{t.recipientLabel}</label>
-                <div className="relative">
-                   <input 
-                    type="text" 
-                    placeholder={t.recipientPlaceholder}
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    className={cn("w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'text-right' : 'text-left')} 
-                   />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-2 font-bold uppercase tracking-widest">{t.recipientLabel}</label>
+                  <div className="relative">
+                     <input 
+                      type="text" 
+                      placeholder={t.recipientPlaceholder}
+                      value={recipient}
+                      onChange={(e) => setRecipient(e.target.value.toUpperCase())}
+                      className={cn("w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 text-center font-headline tracking-widest uppercase")} 
+                     />
+                  </div>
+                </div>
+
+                {/* Recipient Verification Display */}
+                <div className={cn(
+                  "p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
+                  isVerifying ? "bg-muted/20 border-border" :
+                  recipientName === 'SELF' ? "bg-red-500/5 border-red-500/20" :
+                  recipientName ? "bg-primary/5 border-primary/20" : "bg-muted/10 border-border"
+                )}>
+                   <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center border border-border">
+                     {isVerifying ? <Loader2 size={18} className="animate-spin text-primary" /> : <UserCheck size={18} className={recipientName ? "text-primary" : "text-muted-foreground/20"} />}
+                   </div>
+                   <div>
+                     <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-0.5">
+                       {isVerifying ? t.verifying : recipientName ? t.userFound : t.userNotFound}
+                     </p>
+                     <p className={cn("text-xs font-headline font-bold uppercase", recipientName ? "text-foreground" : "text-muted-foreground/30")}>
+                        {recipientName === 'SELF' ? t.selfTransfer : (recipientName || '---')}
+                     </p>
+                   </div>
                 </div>
               </div>
+
               <div>
                 <label className="block text-xs text-muted-foreground mb-2 font-bold uppercase tracking-widest">{t.amountLabel}</label>
                 <input 
@@ -246,7 +354,7 @@ export default function Dashboard() {
             <div className="p-6 pt-0">
               <button 
                 onClick={handleSendMoney}
-                disabled={isSending || !recipient || !sendAmount}
+                disabled={isSending || !recipientUid || !sendAmount || recipientName === 'SELF'}
                 className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-headline font-black py-4 rounded-xl transition-all flex items-center justify-center gap-2"
               >
                 <span>{isSending ? t.sending : t.confirmSend}</span>
@@ -261,11 +369,7 @@ export default function Dashboard() {
         <div className="relative">
           <button onClick={(e) => { e.stopPropagation(); setIsProfileOpen(!isProfileOpen); }} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors group">
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border">
-              {profile?.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <User size={20} className="text-primary" />
-              )}
+              {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <User size={20} className="text-primary" />}
             </div>
             <div className={cn("text-start hidden sm:block", language === 'ar' ? 'text-right' : 'text-left')}>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
@@ -282,36 +386,21 @@ export default function Dashboard() {
                    <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
                 </div>
-                {/* Centered ID Button */}
-                <div className="flex items-center justify-center bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2 w-full text-center" onClick={(e) => handleCopyId(e)}>
+                <div className="flex items-center justify-center bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2 w-full text-center" onClick={() => { if(profile?.customId) { navigator.clipboard.writeText(profile.customId); toast({ title: t.idCopied }); }}}>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-primary font-headline tracking-wider font-bold">ID: {profile?.customId || '...'}</span>
                     <Copy size={11} className="text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0" />
                   </div>
                 </div>
-                {/* QR Code Button */}
-                <button 
-                  onClick={() => { setIsQrOpen(true); setIsProfileOpen(false); }}
-                  className="w-full flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 p-2 rounded-lg border border-primary/20 transition-all group"
-                >
+                <button onClick={() => { setIsQrOpen(true); setIsProfileOpen(false); }} className="w-full flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 p-2 rounded-lg border border-primary/20 transition-all group">
                   <span className="text-[9px] text-primary font-headline font-bold uppercase tracking-widest">{t.showQr}</span>
                   <QrCode size={14} className="text-primary" />
                 </button>
               </div>
               <div className="p-2">
-                <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all">
-                  <Settings size={16} className="text-secondary" />{t.editAccount}
-                </Link>
-                
-                {profile?.role === 'admin' && (
-                  <Link href="/admin" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/10 text-[11px] font-bold uppercase tracking-widest text-primary transition-all mt-1">
-                    <ShieldCheck size={16} />{t.adminPanel}
-                  </Link>
-                )}
-
-                <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-foreground/80 hover:text-red-400 transition-all mt-1">
-                  <LogOut size={16} />{t.logout}
-                </button>
+                <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all"><Settings size={16} className="text-secondary" />{t.editAccount}</Link>
+                {profile?.role === 'admin' && <Link href="/admin" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/10 text-[11px] font-bold uppercase tracking-widest text-primary transition-all mt-1"><ShieldCheck size={16} />{t.adminPanel}</Link>}
+                <button onClick={() => { if(auth) signOut(auth).then(() => router.push('/')); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-foreground/80 hover:text-red-400 transition-all mt-1"><LogOut size={16} />{t.logout}</button>
               </div>
             </div>
           )}
@@ -343,21 +432,15 @@ export default function Dashboard() {
 
       <section className="px-6 grid grid-cols-3 gap-6 mb-10 relative z-10">
         <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300">
-            <ArrowUpRight size={28} className="text-primary-foreground" />
-          </div>
+          <div className="w-16 h-16 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300"><ArrowUpRight size={28} className="text-primary-foreground" /></div>
           <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.send}</span>
         </button>
         <Link href="/withdraw" className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center hover:border-secondary/30 group-hover:bg-muted transition-all duration-300">
-            <ArrowDownLeft size={28} className="text-secondary" />
-          </div>
+          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center hover:border-secondary/30 group-hover:bg-muted transition-all duration-300"><ArrowDownLeft size={28} className="text-secondary" /></div>
           <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.withdraw}</span>
         </Link>
         <Link href="/marketplace" className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center group-hover:bg-muted transition-all duration-300">
-            <LayoutGrid size={28} className="text-foreground" />
-          </div>
+          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center group-hover:bg-muted transition-all duration-300"><LayoutGrid size={28} className="text-foreground" /></div>
           <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.services}</span>
         </Link>
       </section>
@@ -382,7 +465,7 @@ export default function Dashboard() {
                   <div>
                     <p className="font-headline font-black text-[11px] uppercase tracking-wide text-foreground">
                        {tx.type === 'send' && `${t.sentTo} @${tx.recipient}`}
-                       {tx.type === 'receive' && t.deposit}
+                       {tx.type === 'receive' && `${t.deposit} ${tx.sender ? `(From @${tx.sender})` : ''}`}
                        {tx.type === 'withdraw' && t.withdrawal}
                        {tx.type === 'purchase' && tx.service}
                     </p>
@@ -402,7 +485,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <BottomNav onQrClick={() => setIsQrOpen(true)} />
+      <BottomNav onScanClick={startScanner} />
     </div>
   );
 }

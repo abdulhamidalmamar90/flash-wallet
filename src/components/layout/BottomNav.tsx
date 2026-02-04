@@ -11,10 +11,10 @@ import { useDoc, useUser, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
 
 interface BottomNavProps {
-  onQrClick?: () => void;
+  onScanClick?: () => void;
 }
 
-export function BottomNav({ onQrClick }: BottomNavProps) {
+export function BottomNav({ onScanClick }: BottomNavProps) {
   const pathname = usePathname();
   const { language } = useStore();
   const { user } = useUser();
@@ -45,7 +45,7 @@ export function BottomNav({ onQrClick }: BottomNavProps) {
                 <button
                   onClick={(e) => {
                     e.preventDefault();
-                    onQrClick?.();
+                    onScanClick?.();
                   }}
                   className="relative -top-10 w-16 h-16 shrink-0 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary),0.3)] border-4 border-background hover:scale-105 transition-all duration-300 gold-glow active:scale-95"
                 >
