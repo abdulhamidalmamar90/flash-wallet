@@ -1,9 +1,8 @@
-
 "use client"
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, ArrowRight, Loader2, X } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, X, Eye, EyeOff } from 'lucide-react';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
@@ -25,6 +24,7 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const { language } = useStore();
@@ -178,13 +178,20 @@ export default function LoginPage() {
           <div className="group relative">
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Lock size={20} /></div>
             <input 
-              type="password" 
+              type={showPassword ? "text" : "password"} 
               placeholder={t.password} 
-              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
+              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required 
             />
+            <button 
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className={cn("absolute top-3.5 text-white/20 hover:text-primary transition-colors", language === 'ar' ? 'left-4' : 'right-4')}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
 
           <div className="flex justify-end">

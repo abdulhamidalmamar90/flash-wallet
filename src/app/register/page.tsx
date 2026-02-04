@@ -1,9 +1,8 @@
-
 "use client"
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, User, Phone, ArrowRight, Loader2, ChevronDown } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, Loader2, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
@@ -35,6 +34,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
@@ -230,13 +230,20 @@ export default function RegisterPage() {
           <div className="group relative">
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Lock size={18} /></div>
             <input 
-              type="password" 
+              type={showPassword ? "text" : "password"} 
               placeholder={t.password} 
-              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
+              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required 
             />
+            <button 
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className={cn("absolute top-3.5 text-white/20 hover:text-primary transition-colors", language === 'ar' ? 'left-4' : 'right-4')}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-headline font-black py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 mt-4 active:scale-95 disabled:opacity-50">
