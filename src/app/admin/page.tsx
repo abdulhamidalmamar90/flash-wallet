@@ -18,7 +18,9 @@ import {
   Wallet, 
   Edit2, 
   Save, 
-  User as UserIcon 
+  User as UserIcon,
+  ArrowDownCircle,
+  ArrowUpCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -45,7 +47,14 @@ export default function AdminPage() {
     collection(db, 'withdrawals'),
     orderBy('date', 'desc')
   ), [db]);
-  const { data: withdrawals = [], loading: listLoading } = useCollection(withdrawalsQuery);
+  const { data: withdrawals = [], loading: withdrawLoading } = useCollection(withdrawalsQuery);
+
+  // Fetch Deposits
+  const depositsQuery = useMemo(() => query(
+    collection(db, 'deposits'),
+    orderBy('date', 'desc')
+  ), [db]);
+  const { data: deposits = [], loading: depositLoading } = useCollection(depositsQuery);
 
   // Fetch Users for Management
   const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
@@ -58,7 +67,7 @@ export default function AdminPage() {
     }
   }, [profile, profileLoading, authLoading, router, toast]);
 
-  const handleApprove = async (id: string) => {
+  const handleApproveWithdrawal = async (id: string) => {
     try {
       const ref = doc(db, 'withdrawals', id);
       await updateDoc(ref, { status: 'approved' });
@@ -68,7 +77,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleReject = async (id: string, userId: string, amount: number) => {
+  const handleRejectWithdrawal = async (id: string, userId: string, amount: number) => {
     try {
       await runTransaction(db, async (transaction) => {
         const reqRef = doc(db, 'withdrawals', id);
@@ -78,6 +87,38 @@ export default function AdminPage() {
         transaction.update(userRef, { balance: increment(amount) });
       });
       toast({ variant: "destructive", title: "WITHDRAWAL REJECTED", description: "Funds have been returned to user vault." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "ERROR", description: e.message });
+    }
+  };
+
+  const handleApproveDeposit = async (id: string, userId: string, amount: number) => {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const depRef = doc(db, 'deposits', id);
+        const userRef = doc(db, 'users', userId);
+        const txRef = doc(collection(db, 'users', userId, 'transactions'));
+        
+        transaction.update(depRef, { status: 'approved' });
+        transaction.update(userRef, { balance: increment(amount) });
+        transaction.set(txRef, {
+          type: 'deposit',
+          amount: amount,
+          status: 'completed',
+          date: new Date().toISOString()
+        });
+      });
+      toast({ title: "DEPOSIT APPROVED", description: "User balance has been increased." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "ERROR", description: e.message });
+    }
+  };
+
+  const handleRejectDeposit = async (id: string) => {
+    try {
+      const ref = doc(db, 'deposits', id);
+      await updateDoc(ref, { status: 'rejected' });
+      toast({ variant: "destructive", title: "DEPOSIT REJECTED", description: "The request has been dismissed." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "ERROR", description: e.message });
     }
@@ -139,87 +180,77 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
-            <Clock className="h-3 w-3 mr-2" /> Withdrawals
+        <TabsList className="grid w-full grid-cols-3 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1">
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[8px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
+            <ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraw
           </TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
-            <Users className="h-3 w-3 mr-2" /> User Control
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[8px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
+            <ArrowDownCircle className="h-3 w-3 mr-1" /> Deposit
+          </TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[8px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
+            <Users className="h-3 w-3 mr-1" /> Users
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="withdrawals" className="space-y-6">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-[10px] font-headline font-bold text-muted-foreground tracking-widest uppercase">Global Queue</h3>
+            <h3 className="text-[10px] font-headline font-bold text-muted-foreground tracking-widest uppercase">Withdrawal Queue</h3>
             <span className="text-[10px] font-headline text-primary">
               {withdrawals.filter(w => w.status === 'pending').length} Action(s) Required
             </span>
           </div>
-
           <div className="space-y-4">
-            {listLoading ? (
-              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div>
-            ) : withdrawals.length === 0 ? (
-              <div className="text-center py-20 glass-card rounded-[2.5rem] border-dashed border-white/5 opacity-50">
-                <Clock className="h-10 w-10 mx-auto mb-4 text-muted-foreground/30" />
-                <p className="text-[10px] font-headline uppercase tracking-widest">No requests in queue</p>
-              </div>
-            ) : (
-              withdrawals.map((req: any) => (
-                <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-primary/20 transition-all duration-500">
-                  <div className={cn(
-                    "absolute top-0 left-0 w-1.5 h-full",
-                    req.status === 'pending' ? "bg-orange-500/40" : req.status === 'approved' ? "bg-primary/40" : "bg-red-500/40"
-                  )} />
-                  
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5">
-                        {req.type === 'bank' ? <Building2 className="h-6 w-6 text-primary" /> : <Bitcoin className="h-6 w-6 text-secondary" />}
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p>
-                        <p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1">ID: {req.id?.slice(0, 8)}...</p>
-                      </div>
+            {withdrawLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : withdrawals.length === 0 ? <p className="text-center text-[10px] opacity-30 py-10 uppercase font-headline">No withdrawals</p> : withdrawals.map((req: any) => (
+              <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-primary/20 transition-all duration-500">
+                <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-orange-500/40" : req.status === 'approved' ? "bg-primary/40" : "bg-red-500/40")} />
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5">
+                      {req.type === 'bank' ? <Building2 className="h-6 w-6 text-primary" /> : <Bitcoin className="h-6 w-6 text-secondary" />}
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-headline font-black text-primary">${req.amount}</p>
-                      <Badge className={cn(
-                        "text-[8px] px-2 py-0.5 h-5 border-none uppercase tracking-widest font-black mt-1",
-                        req.status === 'pending' ? "bg-orange-500/20 text-orange-400" :
-                        req.status === 'approved' ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-400"
-                      )}>
-                        {req.status}
-                      </Badge>
-                    </div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1">ID: {req.id?.slice(0, 8)}...</p></div>
                   </div>
-
-                  <div className="bg-muted/30 p-4 rounded-2xl border border-white/5">
-                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mb-2">Transaction Details</p>
-                    <pre className="text-[9px] font-mono text-foreground/70 overflow-x-auto">
-                      {JSON.stringify(req.details, null, 2)}
-                    </pre>
-                  </div>
-
-                  {req.status === 'pending' && (
-                    <div className="flex gap-4 pt-2">
-                      <button 
-                        onClick={() => handleApprove(req.id)} 
-                        className="flex-1 h-12 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all active:scale-95"
-                      >
-                        <Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Authorize</span>
-                      </button>
-                      <button 
-                        onClick={() => handleReject(req.id, req.userId, req.amount)} 
-                        className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                      >
-                        <X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Revoke</span>
-                      </button>
-                    </div>
-                  )}
+                  <div className="text-right"><p className="text-lg font-headline font-black text-primary">${req.amount}</p><Badge className={cn("text-[8px] px-2 py-0.5 h-5 border-none uppercase tracking-widest font-black mt-1", req.status === 'pending' ? "bg-orange-500/20 text-orange-400" : req.status === 'approved' ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-400")}>{req.status}</Badge></div>
                 </div>
-              ))
-            )}
+                {req.status === 'pending' && (
+                  <div className="flex gap-4 pt-2">
+                    <button onClick={() => handleApproveWithdrawal(req.id)} className="flex-1 h-12 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
+                    <button onClick={() => handleRejectWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="deposits" className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-[10px] font-headline font-bold text-muted-foreground tracking-widest uppercase">Deposit Queue</h3>
+            <span className="text-[10px] font-headline text-secondary">
+              {deposits.filter(d => d.status === 'pending').length} Verification(s) Required
+            </span>
+          </div>
+          <div className="space-y-4">
+            {depositLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : deposits.length === 0 ? <p className="text-center text-[10px] opacity-30 py-10 uppercase font-headline">No deposits</p> : deposits.map((req: any) => (
+              <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-secondary/20 transition-all duration-500">
+                <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-blue-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5">
+                      {req.type === 'bank' ? <Building2 className="h-6 w-6 text-primary" /> : <Bitcoin className="h-6 w-6 text-secondary" />}
+                    </div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1">ID: {req.id?.slice(0, 8)}...</p></div>
+                  </div>
+                  <div className="text-right"><p className="text-lg font-headline font-black text-secondary">${req.amount}</p><Badge className={cn("text-[8px] px-2 py-0.5 h-5 border-none uppercase tracking-widest font-black mt-1", req.status === 'pending' ? "bg-blue-500/20 text-blue-400" : req.status === 'approved' ? "bg-secondary/20 text-secondary" : "bg-red-500/20 text-red-400")}>{req.status}</Badge></div>
+                </div>
+                {req.status === 'pending' && (
+                  <div className="flex gap-4 pt-2">
+                    <button onClick={() => handleApproveDeposit(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Confirm</span></button>
+                    <button onClick={() => handleRejectDeposit(req.id)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Decline</span></button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </TabsContent>
 
@@ -233,90 +264,34 @@ export default function AdminPage() {
               className="pl-12 h-14 bg-card/40 border-white/10 rounded-2xl font-headline text-[10px] tracking-widest uppercase"
             />
           </div>
-
           <div className="space-y-4">
-            {usersLoading ? (
-              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-20 glass-card rounded-[2.5rem] border-dashed border-white/5 opacity-50">
-                <Users className="h-10 w-10 mx-auto mb-4 text-muted-foreground/30" />
-                <p className="text-[10px] font-headline uppercase tracking-widest">No users found</p>
-              </div>
-            ) : (
-              filteredUsers.map((u: any) => (
-                <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5 group hover:border-primary/20 transition-all duration-500">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border border-white/5">
-                        {u.avatarUrl ? (
-                          <img src={u.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
-                        ) : (
-                          <UserIcon className="h-6 w-6 text-primary/40" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground flex items-center gap-2">
-                          @{u.username}
-                          {u.role === 'admin' && <ShieldAlert size={12} className="text-primary" />}
-                        </p>
-                        <p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1 truncate max-w-[150px]">{u.email}</p>
-                      </div>
+            {usersLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : filteredUsers.length === 0 ? <p className="text-center text-[10px] opacity-30 py-10 uppercase font-headline">No users found</p> : filteredUsers.map((u: any) => (
+              <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5 group hover:border-primary/20 transition-all duration-500">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border border-white/5">
+                      {u.avatarUrl ? <img src={u.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" /> : <UserIcon className="h-6 w-6 text-primary/40" />}
                     </div>
-                    <div className="text-right">
-                      <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest mb-1">ID: {u.customId}</p>
-                      <div className="flex items-center justify-end gap-2">
-                        <Wallet size={14} className="text-primary/60" />
-                        <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString() || '0'}</p>
-                      </div>
-                    </div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground flex items-center gap-2">@{u.username}{u.role === 'admin' && <ShieldAlert size={12} className="text-primary" />}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1 truncate max-w-[150px]">{u.email}</p></div>
                   </div>
-
-                  <div className="pt-4 border-t border-white/5">
-                    {editingUserId === u.id ? (
-                      <div className="flex gap-2 animate-in slide-in-from-right-2">
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-headline">$</span>
-                          <Input 
-                            type="number"
-                            placeholder="NEW BALANCE"
-                            value={newBalance}
-                            onChange={(e) => setNewBalance(e.target.value)}
-                            className="pl-8 h-12 bg-background border-primary/20 rounded-xl font-headline text-xs"
-                          />
-                        </div>
-                        <button 
-                          onClick={() => handleUpdateBalance(u.id)}
-                          className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all"
-                        >
-                          <Save size={20} />
-                        </button>
-                        <button 
-                          onClick={() => setEditingUserId(null)}
-                          className="w-12 h-12 bg-muted/20 text-foreground/40 rounded-xl flex items-center justify-center hover:bg-red-500/20 hover:text-red-400 transition-all"
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          setEditingUserId(u.id);
-                          setNewBalance(u.balance?.toString() || '0');
-                        }}
-                        className="w-full h-12 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 text-[10px] font-headline font-bold tracking-widest uppercase hover:bg-primary/10 hover:border-primary/30 transition-all group"
-                      >
-                        <Edit2 size={14} className="group-hover:text-primary transition-colors" />
-                        Modify User Balance
-                      </button>
-                    )}
-                  </div>
+                  <div className="text-right"><p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest mb-1">ID: {u.customId}</p><div className="flex items-center justify-end gap-2"><Wallet size={14} className="text-primary/60" /><p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString() || '0'}</p></div></div>
                 </div>
-              ))
-            )}
+                <div className="pt-4 border-t border-white/5">
+                  {editingUserId === u.id ? (
+                    <div className="flex gap-2 animate-in slide-in-from-right-2">
+                      <div className="relative flex-1"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-headline">$</span><Input type="number" placeholder="NEW BALANCE" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="pl-8 h-12 bg-background border-primary/20 rounded-xl font-headline text-xs" /></div>
+                      <button onClick={() => handleUpdateBalance(u.id)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all"><Save size={20} /></button>
+                      <button onClick={() => setEditingUserId(null)} className="w-12 h-12 bg-muted/20 text-foreground/40 rounded-xl flex items-center justify-center transition-all"><X size={20} /></button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString() || '0'); }} className="w-full h-12 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 text-[10px] font-headline font-bold tracking-widest uppercase hover:bg-primary/10 hover:border-primary/30 transition-all group"><Edit2 size={14} className="group-hover:text-primary transition-colors" />Modify User Balance</button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-
