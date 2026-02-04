@@ -1,4 +1,3 @@
-
 "use client"
 
 import { create } from 'zustand';
@@ -28,14 +27,25 @@ export interface WithdrawalRequest {
 export type Language = 'en' | 'ar';
 
 export const useStore = () => {
-  // Mocking the behavior for the prototype
   if (typeof window === 'undefined') return {} as any;
+
+  // Initial dummy data for visual matching if store is empty
+  const init = () => {
+    if (!localStorage.getItem('flash_balance')) {
+      localStorage.setItem('flash_balance', '1000');
+      localStorage.setItem('flash_transactions', JSON.stringify([
+        { id: '1', type: 'receive', amount: 120, status: 'completed', date: new Date().toISOString() },
+        { id: '2', type: 'send', amount: 35, recipient: 'Alpha', status: 'completed', date: new Date().toISOString() },
+      ]));
+    }
+  };
+  init();
 
   const getBalance = () => Number(localStorage.getItem('flash_balance') || '1000');
   const getTransactions = () => JSON.parse(localStorage.getItem('flash_transactions') || '[]');
   const getWithdrawals = () => JSON.parse(localStorage.getItem('flash_withdrawals') || '[]');
   const getUsername = () => localStorage.getItem('flash_username') || 'AlexFlash';
-  const getLanguage = () => (localStorage.getItem('flash_lang') as Language) || 'en';
+  const getLanguage = () => (localStorage.getItem('flash_lang') as Language) || 'ar'; // Default to Arabic for requested visual
 
   const saveBalance = (val: number) => localStorage.setItem('flash_balance', val.toString());
   const saveTransactions = (val: any[]) => localStorage.setItem('flash_transactions', JSON.stringify(val));
@@ -53,7 +63,6 @@ export const useStore = () => {
       const current = getLanguage();
       const next = current === 'en' ? 'ar' : 'en';
       saveLanguage(next);
-      // Trigger a re-render by refreshing or using a more robust state management if this was production
       window.location.reload();
     },
 
@@ -101,7 +110,6 @@ export const useStore = () => {
       const current = getBalance();
       if (current < amount) return false;
       
-      // Deduct immediately for pending request
       const newBalance = current - amount;
       saveBalance(newBalance);
       
@@ -159,7 +167,6 @@ export const useStore = () => {
         ws[index].status = 'rejected';
         saveWithdrawals(ws);
         
-        // Refund
         const current = getBalance();
         saveBalance(current + amount);
 

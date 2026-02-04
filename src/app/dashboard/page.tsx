@@ -1,21 +1,20 @@
-
 "use client"
 
 import { useEffect, useState } from 'react';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { useStore, Transaction } from '@/app/lib/store';
 import { 
-  Zap, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Wallet, 
-  ShoppingBag, 
-  ChevronRight,
-  TrendingUp
+  Send, 
+  ArrowDownToLine, 
+  LayoutGrid, 
+  ShieldCheck, 
+  TrendingUp,
+  History,
+  ArrowUpRight,
+  Plus
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 
 export default function Dashboard() {
@@ -28,136 +27,157 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
-  const { balance, transactions, username, language } = store;
+  const { balance, transactions, language } = store;
 
   const t = {
-    welcome: language === 'ar' ? 'مرحباً بعودتك،' : 'Welcome back,',
-    balance: language === 'ar' ? 'إجمالي الرصيد' : 'Total Balance',
-    trending: language === 'ar' ? '+2.5% هذا الشهر' : '+2.5% this month',
+    brand: "FLASH",
+    subtitle: language === 'ar' ? 'محفظة مستقبلية' : 'Future Wallet',
+    totalBalance: language === 'ar' ? 'الرصيد الكلي' : 'Total Balance',
+    available: language === 'ar' ? 'متاح للاستخدام فوراً' : 'Available for immediate use',
+    smartProtection: language === 'ar' ? 'حماية ذكية' : 'Smart Shield',
     send: language === 'ar' ? 'إرسال' : 'Send',
     withdraw: language === 'ar' ? 'سحب' : 'Withdraw',
+    withdrawSub: language === 'ar' ? 'بلا فيزا' : 'No Card',
     services: language === 'ar' ? 'خدمات' : 'Services',
-    activity: language === 'ar' ? 'النشاط الأخير' : 'Recent Activity',
+    recent: language === 'ar' ? 'آخر العمليات' : 'Recent Transactions',
     seeAll: language === 'ar' ? 'عرض الكل' : 'See All',
-    noActivity: language === 'ar' ? 'لم يتم العثور على نشاط' : 'No activity found',
+    noActivity: language === 'ar' ? 'لا توجد عمليات' : 'No transactions found',
   };
 
   return (
-    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
-            <span className="font-headline text-primary font-bold">{username.charAt(0)}</span>
+    <div className="relative min-h-screen bg-[#0a0a0a] text-white">
+      {/* Background Grid Pattern */}
+      <div className="fixed inset-0 grid-overlay pointer-events-none" />
+      
+      <div className="relative max-w-lg mx-auto p-6 space-y-8 pb-32">
+        {/* Header */}
+        <header className="flex justify-between items-center">
+          <div className="z-10">
+            <LanguageToggle />
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">{t.welcome}</p>
-            <p className="font-headline font-bold text-sm tracking-wide">{username}</p>
+          <div className="text-right flex flex-col items-end">
+            <h1 className="text-2xl font-headline font-black tracking-widest text-white leading-none">
+              {t.brand}
+            </h1>
+            <span className="text-[10px] font-headline text-secondary tracking-widest uppercase opacity-80">
+              {t.subtitle}
+            </span>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <LanguageToggle />
-          <div className="relative">
-            <div className="absolute inset-0 bg-secondary/20 blur-xl rounded-full animate-pulse-slow" />
-            <Zap className="h-6 w-6 text-secondary relative" />
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <section className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-primary via-secondary to-primary rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-        <div className="relative glass-card p-8 rounded-3xl space-y-4 overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 circuit-pattern translate-x-12 -translate-y-12" />
-          <div className="space-y-1">
-            <p className="text-xs font-headline text-muted-foreground tracking-[0.2em]">{t.balance}</p>
-            <h2 className="text-5xl font-headline font-black text-primary tracking-tight">
-              ${balance?.toLocaleString()}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2 text-secondary text-xs font-medium">
-            <TrendingUp className="h-3 w-3" />
-            <span className="uppercase tracking-widest">{t.trending}</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-3 gap-4">
-        <Link href="/transfer" className="flex flex-col items-center gap-2 p-4 glass-card rounded-2xl group transition-all duration-300 hover:cyan-glow">
-          <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20 group-hover:bg-secondary/20 transition-all">
-            <ArrowUpRight className="h-6 w-6 text-secondary" />
-          </div>
-          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">{t.send}</span>
-        </Link>
-        <Link href="/withdraw" className="flex flex-col items-center gap-2 p-4 glass-card rounded-2xl group transition-all duration-300 hover:gold-glow">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:bg-primary/20 transition-all">
-            <ArrowDownLeft className="h-6 w-6 text-primary" />
-          </div>
-          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">{t.withdraw}</span>
-        </Link>
-        <Link href="/marketplace" className="flex flex-col items-center gap-2 p-4 glass-card rounded-2xl group transition-all duration-300 hover:cyan-glow">
-          <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20 group-hover:bg-secondary/20 transition-all">
-            <ShoppingBag className="h-6 w-6 text-secondary" />
-          </div>
-          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">{t.services}</span>
-        </Link>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-headline font-bold text-muted-foreground tracking-widest">{t.activity}</h3>
-          <button className="text-[10px] text-primary hover:underline uppercase font-bold tracking-widest">{t.seeAll}</button>
-        </div>
-        
-        <div className="space-y-3 pb-24">
-          {transactions.length === 0 ? (
-            <div className="text-center py-10 glass-card rounded-3xl border-dashed border-white/5">
-              <p className="text-muted-foreground text-xs uppercase tracking-widest">{t.noActivity}</p>
+        {/* Main Balance Hero Card */}
+        <section className="relative group animate-in fade-in slide-in-from-top-4 duration-1000">
+          <div className="absolute -inset-0.5 bg-secondary/10 blur-2xl rounded-[2rem]" />
+          <div className="relative glass-card p-8 rounded-[2rem] cyan-glow-border flex flex-col items-center text-center overflow-hidden">
+            {/* Abstract decorative element */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-secondary/5 rounded-full blur-3xl" />
+            
+            <p className="text-[10px] font-headline uppercase tracking-[0.3em] mb-4 text-white/60">
+              {t.totalBalance}
+            </p>
+            
+            <div className="flex items-baseline gap-2 mb-2">
+              <h2 className="text-5xl font-digital font-black gold-text">
+                {balance?.toLocaleString()}
+              </h2>
+              <span className="text-xl font-headline text-white/40">USD</span>
             </div>
-          ) : (
-            transactions.map((tx: Transaction) => (
-              <div key={tx.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border-white/5 hover:border-white/10 transition-all">
-                <div className="flex items-center gap-4">
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center border",
-                    tx.type === 'send' ? "bg-red-500/10 border-red-500/20 text-red-400" : 
-                    tx.type === 'withdraw' ? "bg-orange-500/10 border-orange-500/20 text-orange-400" :
-                    tx.type === 'purchase' ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" :
-                    "bg-green-500/10 border-green-500/20 text-green-400"
-                  )}>
-                    {tx.type === 'send' && <ArrowUpRight className="h-5 w-5" />}
-                    {tx.type === 'withdraw' && <Wallet className="h-5 w-5" />}
-                    {tx.type === 'purchase' && <ShoppingBag className="h-5 w-5" />}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide">
-                      {tx.type === 'send' && (language === 'ar' ? `تم الإرسال إلى @${tx.recipient}` : `Sent to @${tx.recipient}`)}
-                      {tx.type === 'withdraw' && (language === 'ar' ? 'طلب سحب' : 'Withdrawal Request')}
-                      {tx.type === 'purchase' && (language === 'ar' ? `قسيمة: ${tx.service}` : `Voucher: ${tx.service}`)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                      {new Date(tx.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={cn(
-                    "font-headline text-sm font-bold",
-                    tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase' ? "text-foreground" : "text-primary"
-                  )}>
-                    {tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase' ? '-' : '+'}${tx.amount}
-                  </p>
-                  <Badge variant="outline" className={cn(
-                    "text-[8px] px-1 py-0 h-4 border-none uppercase tracking-[0.2em] font-bold",
-                    tx.status === 'completed' ? "text-primary" : 
-                    tx.status === 'pending' ? "text-orange-400" : "text-red-400"
-                  )}>
-                    {tx.status}
-                  </Badge>
-                </div>
+            
+            <div className="flex items-center gap-2 text-white/40 text-[9px] uppercase tracking-widest mb-6 font-medium">
+              <TrendingUp className="h-3 w-3 text-secondary" />
+              {t.available}
+            </div>
+
+            <button className="flex items-center gap-2 px-4 py-2 glass-card rounded-full border-white/5 hover:bg-white/10 transition-all group">
+              <ShieldCheck className="h-3 w-3 text-secondary group-hover:scale-110 transition-transform" />
+              <span className="text-[8px] font-headline font-bold uppercase tracking-widest">
+                {t.smartProtection}
+              </span>
+            </button>
+          </div>
+        </section>
+
+        {/* Action Buttons Row */}
+        <section className="grid grid-cols-3 gap-3">
+          <Link href="/transfer" className="flex flex-col items-center gap-3 p-4 glass-card rounded-2xl group transition-all duration-300 hover:border-secondary/40">
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center border border-secondary/20 group-hover:bg-secondary/20 transition-all neon-cyan">
+              <Send className="h-5 w-5 text-secondary" />
+            </div>
+            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">{t.send}</span>
+          </Link>
+          
+          <Link href="/withdraw" className="flex flex-col items-center gap-3 p-4 glass-card rounded-2xl group transition-all duration-300 hover:border-primary/40">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:bg-primary/20 transition-all">
+              <ArrowDownToLine className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[9px] font-headline font-bold uppercase tracking-widest">{t.withdraw}</span>
+              <span className="text-[7px] text-white/40 font-headline uppercase tracking-tighter">{t.withdrawSub}</span>
+            </div>
+          </Link>
+
+          <Link href="/marketplace" className="flex flex-col items-center gap-3 p-4 glass-card rounded-2xl group transition-all duration-300 hover:border-secondary/40">
+            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center border border-secondary/20 group-hover:bg-secondary/20 transition-all neon-cyan">
+              <LayoutGrid className="h-5 w-5 text-secondary" />
+            </div>
+            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">{t.services}</span>
+          </Link>
+        </section>
+
+        {/* Recent Transactions Section */}
+        <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+          <div className="flex justify-between items-center px-1">
+            <h3 className="text-[10px] font-headline font-bold text-white/60 tracking-[0.2em] uppercase flex items-center gap-2">
+              <History className="h-3 w-3" />
+              {t.recent}
+            </h3>
+            <button className="text-[8px] text-secondary hover:underline uppercase font-bold tracking-widest">
+              {t.seeAll}
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            {transactions.length === 0 ? (
+              <div className="text-center py-10 glass-card rounded-2xl border-dashed border-white/5">
+                <p className="text-white/40 text-[10px] uppercase tracking-widest">{t.noActivity}</p>
               </div>
-            ))
-          )}
-        </div>
-      </section>
+            ) : (
+              transactions.map((tx: Transaction) => (
+                <div key={tx.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border-white/5 hover:border-white/10 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center border",
+                      tx.type === 'receive' ? "bg-secondary/10 border-secondary/20 text-secondary" : 
+                      "bg-white/5 border-white/10 text-white/60"
+                    )}>
+                      {tx.type === 'receive' ? <Plus className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider">
+                        {tx.type === 'send' && (language === 'ar' ? `تحويل إلى @${tx.recipient}` : `Sent to @${tx.recipient}`)}
+                        {tx.type === 'receive' && (language === 'ar' ? 'شحن رصيد' : 'Deposit')}
+                        {tx.type === 'withdraw' && (language === 'ar' ? 'طلب سحب' : 'Withdrawal')}
+                        {tx.type === 'purchase' && (language === 'ar' ? tx.service : tx.service)}
+                      </p>
+                      <p className="text-[8px] text-white/30 uppercase tracking-widest mt-0.5">
+                        {language === 'ar' ? 'قبل ٢ ساعة' : '2 hours ago'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={cn(
+                      "font-headline text-xs font-bold",
+                      tx.type === 'receive' ? "text-secondary" : "text-white"
+                    )}>
+                      {tx.type === 'receive' ? '+' : '-'}${tx.amount}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
 
       <BottomNav />
     </div>

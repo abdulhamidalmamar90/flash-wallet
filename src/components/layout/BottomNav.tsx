@@ -2,22 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Send, ShoppingBag, ShieldCheck, User } from 'lucide-react';
+import { Home, LayoutGrid, ArrowDownToLine, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useStore } from '@/app/lib/store';
 
 export function BottomNav() {
   const pathname = usePathname();
+  const store = useStore();
+  const language = store.language;
 
   const navItems = [
-    { label: 'Home', icon: Home, href: '/dashboard' },
-    { label: 'Transfer', icon: Send, href: '/transfer' },
-    { label: 'Market', icon: ShoppingBag, href: '/marketplace' },
-    { label: 'Admin', icon: ShieldCheck, href: '/admin' },
+    { label: language === 'ar' ? 'الرئيسية' : 'Home', icon: Home, href: '/dashboard' },
+    { label: language === 'ar' ? 'الخدمات' : 'QR/Services', icon: LayoutGrid, href: '/marketplace' },
+    { label: language === 'ar' ? 'سحب' : 'Withdraw', icon: ArrowDownToLine, href: '/withdraw' },
+    { label: language === 'ar' ? 'حسابي' : 'Profile', icon: User, href: '/admin' },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-6 pt-2">
-      <div className="mx-auto max-w-lg glass-card rounded-2xl flex items-center justify-around py-3 px-2 border-white/5 cyan-glow">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-8 pt-2">
+      <div className="mx-auto max-w-lg glass-card rounded-[2rem] flex items-center justify-around py-3 px-2 border-white/5 cyan-glow-border">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -25,12 +28,12 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 px-4 py-1 transition-all duration-300 rounded-xl",
-                isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"
+                "flex flex-col items-center gap-1.5 px-4 py-2 transition-all duration-300 rounded-2xl",
+                isActive ? "text-secondary bg-secondary/10" : "text-white/40 hover:text-white"
               )}
             >
-              <item.icon className={cn("h-6 w-6", isActive && "animate-pulse-slow")} />
-              <span className="text-[10px] font-medium tracking-tighter uppercase">{item.label}</span>
+              <item.icon className={cn("h-5 w-5", isActive && "neon-cyan")} />
+              <span className="text-[7px] font-headline font-black tracking-widest uppercase">{item.label}</span>
             </Link>
           );
         })}
