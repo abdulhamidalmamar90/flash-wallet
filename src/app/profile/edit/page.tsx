@@ -11,13 +11,11 @@ import {
   Camera, 
   Check, 
   Loader2,
-  Upload,
   Fingerprint,
   ShieldCheck,
   FileText,
   Globe,
   CheckCircle2,
-  AlertCircle
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -205,7 +203,12 @@ export default function EditProfilePage() {
 
       <div className="flex flex-col items-center gap-4 py-6">
         <div className="relative group">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 gold-glow bg-white/5 flex items-center justify-center">
+          <div className={cn(
+            "w-32 h-32 rounded-full overflow-hidden border-4 transition-all duration-500 bg-white/5 flex items-center justify-center",
+            profile?.verified 
+              ? "border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" 
+              : "border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+          )}>
             {selectedAvatar ? (
               <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" />
             ) : (

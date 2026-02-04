@@ -14,7 +14,6 @@ import {
   Copy,
   ChevronDown,
   Loader2,
-  Star,
   Trash2,
   Inbox,
   Send,
@@ -248,9 +247,13 @@ export default function Dashboard() {
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
         <div className="relative">
           <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors text-start">
-            <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border relative">
+            <div className={cn(
+              "w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border-2 transition-all duration-500",
+              profile?.verified 
+                ? "border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.6)]" 
+                : "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]"
+            )}>
               {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" width={40} height={40} className="object-cover" /> : <User size={20} className="text-primary" />}
-              {profile?.verified && <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-primary/20 shadow-lg"><Star size={10} className="text-primary fill-primary" /></div>}
             </div>
             <div className="hidden sm:block">
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
@@ -274,9 +277,13 @@ export default function Dashboard() {
           </DialogHeader>
           <div className="p-8 space-y-8">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="w-24 h-24 rounded-full bg-muted overflow-hidden flex items-center justify-center border-4 border-primary/20 relative">
+              <div className={cn(
+                "w-24 h-24 rounded-full bg-muted overflow-hidden flex items-center justify-center border-4 transition-all duration-500",
+                profile?.verified 
+                  ? "border-green-500 shadow-[0_0_25px_rgba(34,197,94,0.7)]" 
+                  : "border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+              )}>
                 {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" width={96} height={96} className="object-cover" /> : <User size={40} className="text-primary" />}
-                {profile?.verified && <div className="absolute top-0 right-0 bg-primary rounded-full p-1.5 border-4 border-card"><Star size={12} className="text-background fill-background" /></div>}
               </div>
               <div>
                 <h3 className="text-lg font-headline font-black uppercase tracking-tight">@{profile?.username}</h3>

@@ -11,12 +11,9 @@ import {
   X, 
   Building2, 
   Bitcoin, 
-  Clock, 
   Loader2, 
-  AlertTriangle, 
   Users, 
   Search, 
-  Wallet, 
   Edit2, 
   Save, 
   User as UserIcon,
@@ -25,11 +22,6 @@ import {
   LayoutDashboard,
   ShieldCheck,
   FileCheck,
-  CheckCircle2,
-  Star,
-  Eye,
-  Globe,
-  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -278,7 +270,14 @@ export default function AdminPage() {
               <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border border-white/5 relative">{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover rounded-2xl" /> : <UserIcon className="h-6 w-6 text-primary/40" />}{u.verified && <div className="absolute -top-1 -right-1 bg-background rounded-full p-1"><Star size={10} className="text-primary fill-primary" /></div>}</div>
+                    <div className={cn(
+                      "w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border-2 transition-all duration-500 overflow-hidden",
+                      u.verified 
+                        ? "border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" 
+                        : "border-red-500 shadow-[0_0_5px_rgba(239,68,68,0.3)]"
+                    )}>
+                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="h-6 w-6 text-primary/40" />}
+                    </div>
                     <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p><p className="text-[8px] text-muted-foreground uppercase">{u.email}</p></div>
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p></div>
