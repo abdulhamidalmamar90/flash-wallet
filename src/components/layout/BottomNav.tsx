@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Home, LayoutGrid, ArrowDownToLine, User, ScanLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/app/lib/store';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { QrCode, X, Copy } from 'lucide-react';
 import { useDoc, useUser, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -20,7 +20,11 @@ export function BottomNav() {
   const { toast } = useToast();
   const [isQrOpen, setIsQrOpen] = useState(false);
 
-  const userDocRef = user ? doc(db, 'users', user.uid) : null;
+  const userDocRef = useMemo(() => 
+    (user && db) ? doc(db, 'users', user.uid) : null, 
+    [db, user]
+  );
+  
   const { data: profile } = useDoc(userDocRef);
 
   const navItems = [
