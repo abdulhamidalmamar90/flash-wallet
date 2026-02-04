@@ -197,9 +197,9 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all mx-auto w-fit" onClick={() => handleCopyId()}>
-              <span className="font-headline font-black tracking-widest text-lg">{profile?.customId || '---'}</span>
-              <Copy size={16} className="text-muted-foreground" />
+            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all mx-auto w-fit text-center" onClick={() => handleCopyId()}>
+              <span className="font-headline font-black tracking-widest text-lg leading-none">{profile?.customId || '---'}</span>
+              <Copy size={16} className="text-muted-foreground shrink-0" />
             </div>
             <button onClick={() => setIsQrOpen(false)} className="absolute -bottom-20 left-1/2 -translate-x-1/2 bg-card/20 text-white p-3 rounded-full border border-white/10 backdrop-blur-md">
               <X size={24} />
@@ -276,15 +276,16 @@ export default function Dashboard() {
           {isProfileOpen && (
             <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
               <div className="p-4 border-b border-border bg-muted/30">
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-2">
                    <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
                 </div>
-                <div className="flex items-center justify-center gap-2 bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2" onClick={(e) => handleCopyId(e)}>
-                  <span className="text-[10px] text-primary font-headline tracking-wider">ID: {profile?.customId || '...'}</span>
-                  <Copy size={12} className="text-muted-foreground/40" />
+                {/* Centered ID Button */}
+                <div className="flex items-center justify-center gap-2 bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2 w-full text-center" onClick={(e) => handleCopyId(e)}>
+                  <span className="text-[10px] text-primary font-headline tracking-wider font-bold">ID: {profile?.customId || '...'}</span>
+                  <Copy size={11} className="text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0" />
                 </div>
-                {/* QR Code Button under the ID */}
+                {/* QR Code Button */}
                 <button 
                   onClick={() => { setIsQrOpen(true); setIsProfileOpen(false); }}
                   className="w-full flex items-center justify-between bg-primary/10 hover:bg-primary/20 p-2 rounded-lg border border-primary/20 transition-all group"
