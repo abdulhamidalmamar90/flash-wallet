@@ -197,7 +197,7 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl inline-flex items-center gap-3 cursor-pointer hover:bg-muted/80 transition-all" onClick={() => handleCopyId()}>
+            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all mx-auto w-fit" onClick={() => handleCopyId()}>
               <span className="font-headline font-black tracking-widest text-lg">{profile?.customId || '---'}</span>
               <Copy size={16} className="text-muted-foreground" />
             </div>
@@ -280,7 +280,7 @@ export default function Dashboard() {
                    <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
                 </div>
-                <div className="flex items-center justify-between bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2" onClick={(e) => handleCopyId(e)}>
+                <div className="flex items-center justify-center gap-2 bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2" onClick={(e) => handleCopyId(e)}>
                   <span className="text-[10px] text-primary font-headline tracking-wider">ID: {profile?.customId || '...'}</span>
                   <Copy size={12} className="text-muted-foreground/40" />
                 </div>
