@@ -6,6 +6,12 @@
       "description": "Futuristic 3D metallic logo with blue and orange digital circuitry highlights",
       "imageUrl": "https://picsum.photos/seed/flash-brand-77/800/600",
       "imageHint": "futuristic logo"
+    },
+    {
+      "id": "login-bg",
+      "description": "Deep space futuristic digital background with subtle grid lines and nebula glows",
+      "imageUrl": "https://picsum.photos/seed/flash-bg-99/1920/1080",
+      "imageHint": "futuristic background"
     }
   ]
 }
