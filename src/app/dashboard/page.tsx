@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from 'react';
@@ -12,15 +13,22 @@ import {
   ScanLine, 
   ArrowUpRight, 
   ArrowDownLeft,
-  Wallet
+  Wallet,
+  Settings,
+  LogOut,
+  Copy,
+  ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
   const store = useStore();
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -44,26 +52,92 @@ export default function Dashboard() {
     wallet: language === 'ar' ? 'المحفظة' : 'Wallet',
     profile: language === 'ar' ? 'حسابي' : 'Profile',
     noActivity: language === 'ar' ? 'لا توجد عمليات' : 'No transactions found',
+    idCopied: language === 'ar' ? 'تم نسخ معرف الحساب!' : 'Account ID copied!',
+    editAccount: language === 'ar' ? 'تعديل بيانات الحساب' : 'Edit Account Info',
+    logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout'
+  };
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText("883-292-10");
+    toast({
+      title: t.idCopied,
+      description: "883-292-10"
+    });
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-body pb-32 relative overflow-hidden">
+    <div 
+      className="min-h-screen bg-[#0a0a0a] text-white font-body pb-32 relative overflow-hidden"
+      onClick={() => setIsProfileOpen(false)}
+    >
       
       {/* Aesthetic Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#00f3ff]/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-[#D4AF37]/5 rounded-full blur-[100px] pointer-events-none"></div>
 
       {/* Header Section */}
-      <header className="flex justify-between items-center p-6 pt-8 relative z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
-            <User size={20} className="text-[#D4AF37]" />
-          </div>
-          <div>
-            <p className="text-[10px] text-white/60 uppercase tracking-widest">{t.welcome}</p>
-            <p className="font-headline font-bold text-sm tracking-wide">{username}</p>
-          </div>
+      <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
+        <div className="relative">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsProfileOpen(!isProfileOpen);
+            }}
+            className="flex items-center gap-3 p-1 rounded-full hover:bg-white/5 transition-colors focus:outline-none group"
+          >
+            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/10 shadow-[0_0_10px_rgba(212,175,55,0.2)] group-hover:border-[#D4AF37]/30 transition-all">
+              <User size={20} className="text-[#D4AF37]" />
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-white/60 uppercase tracking-widest">{t.welcome}</p>
+              <div className="flex items-center gap-1">
+                <p className="font-headline font-bold text-sm tracking-wide">{username}</p>
+                <ChevronDown size={12} className={cn("text-white/40 transition-transform duration-300", isProfileOpen && "rotate-180")} />
+              </div>
+            </div>
+          </button>
+
+          {/* Profile Dropdown */}
+          {isProfileOpen && (
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              className={cn(
+                "absolute top-14 w-64 bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-[70]",
+                language === 'ar' ? 'right-0' : 'left-0'
+              )}
+            >
+              {/* Header Info */}
+              <div className="p-4 border-b border-white/5 bg-white/5">
+                <p className="text-sm font-headline font-bold text-white mb-1 uppercase">{username} Kamel</p>
+                <p className="text-[10px] text-white/50 mb-3 lowercase tracking-tight">mostafa@flash.digital</p>
+                
+                {/* ID Section */}
+                <div 
+                  className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-white/5 group cursor-pointer hover:bg-black/60 transition-colors"
+                  onClick={handleCopyId}
+                >
+                  <span className="text-[10px] text-[#D4AF37] font-headline tracking-wider">ID: 883-292-10</span>
+                  <Copy size={12} className="text-white/40 group-hover:text-white transition-colors" />
+                </div>
+              </div>
+
+              {/* Options */}
+              <div className="p-2">
+                <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-white/80 hover:text-white transition-all text-right">
+                  <Settings size={16} className="text-[#00f3ff]" />
+                  {t.editAccount}
+                </button>
+                
+                <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-white/80 hover:text-red-400 transition-all text-right mt-1">
+                  <LogOut size={16} />
+                  {t.logout}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
         <div className="flex items-center gap-4">
           <LanguageToggle />
           <div className="relative">
