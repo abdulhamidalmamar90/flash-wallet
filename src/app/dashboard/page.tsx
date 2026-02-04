@@ -48,7 +48,7 @@ export default function Dashboard() {
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   
-  const [recipient, setRecipient] = useState(''); // Stores the Custom ID (e.g. F123...)
+  const [recipient, setRecipient] = useState(''); 
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [recipientUid, setRecipientUid] = useState<string | null>(null);
   const [sendAmount, setSendAmount] = useState('');
@@ -116,7 +116,6 @@ export default function Dashboard() {
     yourIdLabel: language === 'ar' ? 'معرف الفلاش الخاص بك' : 'YOUR FLASH ID'
   };
 
-  // Logic to verify ID owner name
   useEffect(() => {
     if (recipient.length >= 13 && db) {
       setIsVerifying(true);
@@ -199,12 +198,9 @@ export default function Dashboard() {
         const senderRef = doc(db, 'users', user.uid);
         const receiverRef = doc(db, 'users', recipientUid);
         
-        // Deduct from sender
         transaction.update(senderRef, { balance: increment(-amountNum) });
-        // Add to receiver
         transaction.update(receiverRef, { balance: increment(amountNum) });
         
-        // Record for sender
         const senderTxRef = doc(collection(db, 'users', user.uid, 'transactions'));
         transaction.set(senderTxRef, {
           type: 'send',
@@ -214,7 +210,6 @@ export default function Dashboard() {
           date: new Date().toISOString()
         });
 
-        // Record for receiver
         const receiverTxRef = doc(collection(db, 'users', recipientUid, 'transactions'));
         transaction.set(receiverTxRef, {
           type: 'receive',
@@ -262,7 +257,6 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden" onClick={() => setIsProfileOpen(false)}>
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      {/* Scanner Modal */}
       {isScannerOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
            <div className="w-full max-w-sm p-6 text-center space-y-8">
@@ -276,7 +270,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* My QR Modal */}
       {isQrOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-2xl p-4 animate-in fade-in duration-300" onClick={() => setIsQrOpen(false)}>
           <div className="bg-black/40 p-8 rounded-[3rem] shadow-[0_0_50px_rgba(212,175,55,0.1)] border border-primary/20 relative text-center max-w-[90%] w-[360px] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
@@ -308,9 +301,9 @@ export default function Dashboard() {
               }}
             >
               <span className="text-[10px] text-primary/40 font-bold uppercase tracking-[0.2em]">{t.yourIdLabel}</span>
-              <div className="flex items-center gap-3">
-                <span className="font-headline font-black tracking-[0.2em] text-2xl text-primary">{profile?.customId || '---'}</span>
-                <Copy size={18} className="text-primary/40 group-hover:text-primary transition-colors" />
+              <div className="flex items-center justify-center gap-3 w-full">
+                <span className="font-headline font-black tracking-[0.1em] text-2xl text-primary break-all">{profile?.customId || '---'}</span>
+                <Copy size={18} className="text-primary/40 group-hover:text-primary transition-colors shrink-0" />
               </div>
             </div>
 
@@ -321,7 +314,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Send Modal */}
       {isSendModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSendModalOpen(false)}></div>
@@ -345,7 +337,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Recipient Verification Display */}
                 <div className={cn(
                   "p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4",
                   isVerifying ? "bg-muted/20 border-border" :
@@ -355,11 +346,11 @@ export default function Dashboard() {
                    <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center border border-border">
                      {isVerifying ? <Loader2 size={18} className="animate-spin text-primary" /> : <UserCheck size={18} className={recipientName ? "text-primary" : "text-muted-foreground/20"} />}
                    </div>
-                   <div>
+                   <div className="flex-1 overflow-hidden">
                      <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-0.5">
                        {isVerifying ? t.verifying : recipientName ? t.userFound : t.userNotFound}
                      </p>
-                     <p className={cn("text-xs font-headline font-bold uppercase", recipientName ? "text-foreground" : "text-muted-foreground/30")}>
+                     <p className={cn("text-xs font-headline font-bold uppercase truncate", recipientName ? "text-foreground" : "text-muted-foreground/30")}>
                         {recipientName === 'SELF' ? t.selfTransfer : (recipientName || '---')}
                      </p>
                    </div>
@@ -409,12 +400,12 @@ export default function Dashboard() {
             <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
               <div className="p-4 border-b border-border bg-muted/30">
                 <div className="flex items-center justify-between mb-3 px-1">
-                   <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
-                   {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
+                   <p className="text-sm font-headline font-bold text-foreground uppercase truncate flex-1">{profile?.username}</p>
+                   {profile?.verified && <CheckCircle2 size={14} className="text-secondary shrink-0 ml-2" />}
                 </div>
                 <div className="flex items-center justify-center bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2 w-full text-center" onClick={() => { if(profile?.customId) { navigator.clipboard.writeText(profile.customId); toast({ title: t.idCopied }); }}}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-primary font-headline tracking-wider font-bold">ID: {profile?.customId || '...'}</span>
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="text-[9px] text-primary font-headline tracking-tight font-bold truncate">ID: {profile?.customId || '...'}</span>
                     <Copy size={11} className="text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0" />
                   </div>
                 </div>
