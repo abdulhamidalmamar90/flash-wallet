@@ -17,18 +17,39 @@ import {
   Settings,
   LogOut,
   Copy,
-  ChevronDown
+  ChevronDown,
+  X,
+  Building2,
+  Smartphone,
+  CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { useToast } from '@/hooks/use-toast';
 
+const COUNTRIES = [
+  { code: 'SA', name: 'المملكة العربية السعودية', flag: '🇸🇦', prefix: '+966' },
+  { code: 'EG', name: 'جمهورية مصر العربية', flag: '🇪🇬', prefix: '+20' },
+  { code: 'AE', name: 'الإمارات العربية المتحدة', flag: '🇦🇪', prefix: '+971' },
+  { code: 'KW', name: 'الكويت', flag: '🇰🇼', prefix: '+965' },
+  { code: 'QA', name: 'قطر', flag: '🇶🇦', prefix: '+974' },
+  { code: 'TR', name: 'تركيا', flag: '🇹🇷', prefix: '+90' },
+  { code: 'US', name: 'الولايات المتحدة', flag: '🇺🇸', prefix: '+1' },
+  { code: 'UK', name: 'المملكة المتحدة', flag: '🇬🇧', prefix: '+44' },
+  { code: 'DE', name: 'ألمانيا', flag: '🇩🇪', prefix: '+49' },
+];
+
 export default function Dashboard() {
   const store = useStore();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
+  // Withdrawal Modal States
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -54,7 +75,13 @@ export default function Dashboard() {
     noActivity: language === 'ar' ? 'لا توجد عمليات' : 'No transactions found',
     idCopied: language === 'ar' ? 'تم نسخ معرف الحساب!' : 'Account ID copied!',
     editAccount: language === 'ar' ? 'تعديل بيانات الحساب' : 'Edit Account Info',
-    logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout'
+    logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
+    withdrawHeader: language === 'ar' ? 'سحب بنكي' : 'Bank Withdrawal',
+    confirmWithdraw: language === 'ar' ? 'تأكيد طلب السحب' : 'Confirm Withdrawal',
+    beneficiaryName: language === 'ar' ? 'اسم المستفيد (كما في البنك)' : 'Beneficiary Name',
+    ibanLabel: language === 'ar' ? 'رقم الآيبان (IBAN)' : 'IBAN Number',
+    phoneLabel: language === 'ar' ? 'رقم الهاتف المرتبط' : 'Associated Phone',
+    countryLabel: language === 'ar' ? 'الدولة' : 'Country'
   };
 
   const handleCopyId = (e: React.MouseEvent) => {
@@ -66,15 +93,149 @@ export default function Dashboard() {
     });
   };
 
+  const handleConfirmWithdrawal = () => {
+    // Basic logic for demonstration - in real app would validate inputs
+    toast({
+      title: language === 'ar' ? 'تم استلام طلبك' : 'Request Received',
+      description: language === 'ar' ? 'سيتم مراجعة طلب السحب فوراً' : 'Withdrawal request is being reviewed.',
+    });
+    setIsWithdrawModalOpen(false);
+  };
+
   return (
     <div 
       className="min-h-screen bg-[#0a0a0a] text-white font-body pb-32 relative overflow-hidden"
-      onClick={() => setIsProfileOpen(false)}
+      onClick={() => {
+        setIsProfileOpen(false);
+        setIsCountryDropdownOpen(false);
+      }}
     >
       
       {/* Aesthetic Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#00f3ff]/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-[#D4AF37]/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+      {/* ================= Bank Withdrawal Modal ================= */}
+      {isWithdrawModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
+            onClick={() => setIsWithdrawModalOpen(false)}
+          ></div>
+
+          <div className="relative w-full max-w-lg bg-[#0f0f0f] border-t sm:border border-white/10 sm:rounded-3xl rounded-t-3xl shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
+            <div className="flex justify-between items-center p-6 border-b border-white/5 bg-white/5">
+              <h2 className="text-xl font-headline font-bold text-white flex items-center gap-2">
+                <Building2 className="text-[#D4AF37]" />
+                {t.withdrawHeader}
+              </h2>
+              <button onClick={() => setIsWithdrawModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <X size={20} className="text-white/60" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+              {/* 1. Country Selection */}
+              <div className="relative z-50">
+                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.countryLabel}</label>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCountryDropdownOpen(!isCountryDropdownOpen);
+                  }}
+                  className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-xl p-3.5 hover:border-[#D4AF37]/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{selectedCountry.flag}</span>
+                    <span className="text-sm font-medium">{selectedCountry.name}</span>
+                  </div>
+                  <ChevronDown size={16} className={cn("text-white/40 transition-transform", isCountryDropdownOpen && "rotate-180")} />
+                </button>
+
+                {isCountryDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl max-h-60 overflow-y-auto z-50">
+                    {COUNTRIES.map((country) => (
+                      <button
+                        key={country.code}
+                        onClick={() => {
+                          setSelectedCountry(country);
+                          setIsCountryDropdownOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-white/5 text-right border-b border-white/5 last:border-0 transition-colors"
+                      >
+                        <span className="text-xl">{country.flag}</span>
+                        <span className="text-sm text-white/80">{country.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Beneficiary Name */}
+              <div>
+                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.beneficiaryName}</label>
+                <div className="relative group">
+                  <div className="absolute right-4 top-3.5 text-white/30 group-focus-within:text-[#D4AF37] transition-colors">
+                    <User size={18} />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder={language === 'ar' ? 'الاسم الثلاثي' : 'Full Legal Name'} 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 focus:bg-white/10 transition-all text-right"
+                  />
+                </div>
+              </div>
+
+              {/* 3. IBAN */}
+              <div>
+                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.ibanLabel}</label>
+                <div className="relative group">
+                  <div className="absolute right-4 top-3.5 text-white/30 group-focus-within:text-[#D4AF37] transition-colors">
+                    <CreditCard size={18} />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder={`${selectedCountry.code}00 0000 0000 0000 0000 00`} 
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 focus:bg-white/10 transition-all text-left font-mono"
+                    style={{direction: 'ltr'}} 
+                  />
+                </div>
+              </div>
+
+              {/* 4. Phone */}
+              <div>
+                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.phoneLabel}</label>
+                <div className="flex gap-3">
+                  <div className="bg-white/5 border border-white/10 rounded-xl px-3 flex items-center justify-center text-white/60 font-mono text-sm min-w-[70px]">
+                    {selectedCountry.prefix}
+                  </div>
+                  <div className="relative group flex-1">
+                    <div className="absolute right-4 top-3.5 text-white/30 group-focus-within:text-[#D4AF37] transition-colors">
+                      <Smartphone size={18} />
+                    </div>
+                    <input 
+                      type="tel" 
+                      placeholder="50 123 4567" 
+                      className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pr-11 pl-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#D4AF37]/50 focus:bg-white/10 transition-all text-left font-mono"
+                      style={{direction: 'ltr'}}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 pt-0">
+              <button 
+                onClick={handleConfirmWithdrawal}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-headline font-black py-4 rounded-xl shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2"
+              >
+                <span>{t.confirmWithdraw}</span>
+                <ArrowUpRight size={20} className="rotate-45" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header Section */}
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
@@ -107,12 +268,10 @@ export default function Dashboard() {
                 language === 'ar' ? 'right-0' : 'left-0'
               )}
             >
-              {/* Header Info */}
               <div className="p-4 border-b border-white/5 bg-white/5">
                 <p className="text-sm font-headline font-bold text-white mb-1 uppercase">{username} Kamel</p>
                 <p className="text-[10px] text-white/50 mb-3 lowercase tracking-tight">mostafa@flash.digital</p>
                 
-                {/* ID Section */}
                 <div 
                   className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-white/5 group cursor-pointer hover:bg-black/60 transition-colors"
                   onClick={handleCopyId}
@@ -122,13 +281,11 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Options */}
               <div className="p-2">
                 <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-white/80 hover:text-white transition-all text-right">
                   <Settings size={16} className="text-[#00f3ff]" />
                   {t.editAccount}
                 </button>
-                
                 <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-white/80 hover:text-red-400 transition-all text-right mt-1">
                   <LogOut size={16} />
                   {t.logout}
@@ -150,8 +307,6 @@ export default function Dashboard() {
       {/* Hero Balance Card */}
       <section className="px-6 mb-8 relative z-10 animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="relative w-full p-8 rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden group">
-          
-          {/* Subtle shine effect */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           
           <div className="relative z-10 text-center">
@@ -176,12 +331,15 @@ export default function Dashboard() {
           <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-white/80">{t.send}</span>
         </Link>
 
-        <Link href="/withdraw" className="flex flex-col items-center gap-3 group">
+        <button 
+          onClick={() => setIsWithdrawModalOpen(true)}
+          className="flex flex-col items-center gap-3 group"
+        >
           <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-[#00f3ff]/30 transition-all duration-300">
             <ArrowDownLeft size={28} className="text-[#00f3ff]" />
           </div>
           <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-white/80">{t.withdraw}</span>
-        </Link>
+        </button>
 
         <Link href="/marketplace" className="flex flex-col items-center gap-3 group">
           <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 transition-all duration-300">
@@ -250,7 +408,6 @@ export default function Dashboard() {
           <span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.wallet}</span>
         </button>
         
-        {/* Floating QR Center Button */}
         <div className="relative -top-10">
           <div className="w-16 h-16 rounded-full bg-[#D4AF37] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.5)] border-4 border-[#0a0a0a] active:scale-95 transition-transform">
             <ScanLine size={28} className="text-black" />
