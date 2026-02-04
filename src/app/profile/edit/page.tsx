@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -10,7 +11,8 @@ import {
   Camera, 
   Check, 
   Loader2,
-  Upload
+  Upload,
+  Fingerprint
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc } from '@/firebase';
@@ -21,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -44,6 +47,7 @@ export default function EditProfilePage() {
   const [phone, setPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
@@ -51,6 +55,7 @@ export default function EditProfilePage() {
     if (profile) {
       setPhone(profile.phone || '');
       setSelectedAvatar(profile.avatarUrl || AVATARS[0]);
+      setBiometricsEnabled(profile.biometricsEnabled || false);
     }
   }, [profile]);
 
@@ -59,6 +64,8 @@ export default function EditProfilePage() {
     phoneLabel: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
     passLabel: language === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
     passPlaceholder: language === 'ar' ? 'اتركه فارغاً إذا لا تريد التغيير' : 'Leave blank to keep current',
+    biometricLabel: language === 'ar' ? 'تفعيل الدخول بالبصمة' : 'Enable Fingerprint Login',
+    biometricDesc: language === 'ar' ? 'استخدم البصمة للوصول السريع لمحفظتك' : 'Use biometrics for fast vault access',
     saveBtn: language === 'ar' ? 'حفظ التغييرات' : 'Save Changes',
     saving: language === 'ar' ? 'جاري الحفظ...' : 'Saving...',
     success: language === 'ar' ? 'تم تحديث البيانات بنجاح' : 'Profile updated successfully',
@@ -91,7 +98,14 @@ export default function EditProfilePage() {
       await updateDoc(doc(db, 'users', user.uid), {
         phone,
         avatarUrl: selectedAvatar,
+        biometricsEnabled,
       });
+
+      if (biometricsEnabled) {
+        localStorage.setItem('flash_biometrics_uid', user.uid);
+      } else {
+        localStorage.removeItem('flash_biometrics_uid');
+      }
 
       if (newPassword) {
         await updatePassword(user, newPassword);
@@ -181,7 +195,7 @@ export default function EditProfilePage() {
       </div>
 
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl">
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
             <div className="relative group">
@@ -207,6 +221,22 @@ export default function EditProfilePage() {
                 placeholder={t.passPlaceholder}
               />
             </div>
+          </div>
+
+          <div className="pt-4 flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Fingerprint className="text-primary h-6 w-6" />
+              </div>
+              <div className={cn(language === 'ar' ? "text-right" : "text-left")}>
+                <p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">{t.biometricLabel}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-0.5">{t.biometricDesc}</p>
+              </div>
+            </div>
+            <Switch 
+              checked={biometricsEnabled}
+              onCheckedChange={setBiometricsEnabled}
+            />
           </div>
         </div>
 

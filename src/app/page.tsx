@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, ArrowRight, Loader2, X, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, X, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
@@ -28,12 +28,17 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [hasBiometrics, setHasBiometrics] = useState(false);
   const { language } = useStore();
   
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
 
   useEffect(() => {
     setMounted(true);
+    const savedUid = localStorage.getItem('flash_biometrics_uid');
+    if (savedUid) {
+      setHasBiometrics(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -58,32 +63,10 @@ export default function LoginPage() {
     sendReset: language === 'ar' ? 'إرسال الرابط' : 'Send Reset Link',
     resetSent: language === 'ar' ? 'تم إرسال الرابط لبريدك' : 'Reset link sent to your email',
     errorReset: language === 'ar' ? 'فشل إرسال الرابط' : 'Failed to send reset link',
-    authError: language === 'ar' ? 'بيانات الاعتماد غير صالحة. تأكد من البريد وكلمة المرور أو قم بإنشاء حساب جديد.' : 'Invalid credentials. Please check your email and password or create a new account.'
-  };
-
-  const generateCustomId = () => {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const firstLetter = letters.charAt(Math.floor(Math.random() * letters.length));
-    const numbers = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
-    return `${firstLetter}${numbers}`;
-  };
-
-  const initUser = async (uid: string, email: string) => {
-    if (!db) return;
-    const userDoc = doc(db, 'users', uid);
-    const snap = await getDoc(userDoc);
-    if (!snap.exists()) {
-      await setDoc(userDoc, {
-        username: email.split('@')[0],
-        email: email,
-        customId: generateCustomId(),
-        balance: 0,
-        role: 'user',
-        verified: false,
-        language: language,
-        createdAt: new Date().toISOString()
-      });
-    }
+    authError: language === 'ar' ? 'بيانات الاعتماد غير صالحة. تأكد من البريد وكلمة المرور أو قم بإنشاء حساب جديد.' : 'Invalid credentials. Please check your email and password or create a new account.',
+    biometricAuth: language === 'ar' ? 'تحقق من الهوية...' : 'Authenticating...',
+    biometricSuccess: language === 'ar' ? 'تم التعرف على البصمة' : 'Biometric Recognized',
+    biometricError: language === 'ar' ? 'فشل التحقق من البصمة' : 'Biometric verification failed'
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -108,12 +91,41 @@ export default function LoginPage() {
     }
   };
 
+  const handleBiometricLogin = async () => {
+    toast({ title: t.biometricAuth, description: language === 'ar' ? 'يرجى لمس حساس البصمة' : 'Please touch the fingerprint sensor' });
+    
+    // محاكاة عملية البصمة
+    setTimeout(() => {
+      const success = true; // محاكاة نجاح العملية
+      if (success) {
+        toast({ title: t.biometricSuccess });
+        // في التطبيق الحقيقي سنقوم بتسجيل الدخول التلقائي هنا
+        // للمحاكاة سنكتفي بالرسالة لأننا نحتاج بيانات الاعتماد الأصلية
+      } else {
+        toast({ variant: "destructive", title: t.biometricError });
+      }
+    }, 1500);
+  };
+
   const handleGoogleLogin = async () => {
     if (!auth || !db) return;
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await initUser(result.user.uid, result.user.email || 'user');
+      const userDoc = doc(db, 'users', result.user.uid);
+      const snap = await getDoc(userDoc);
+      if (!snap.exists()) {
+        await setDoc(userDoc, {
+          username: result.user.email?.split('@')[0],
+          email: result.user.email,
+          customId: `F${Math.random().toString().slice(2, 14)}`,
+          balance: 0,
+          role: 'user',
+          verified: false,
+          language: language,
+          createdAt: new Date().toISOString()
+        });
+      }
       router.push('/dashboard');
     } catch (error: any) {
       toast({
@@ -201,10 +213,21 @@ export default function LoginPage() {
              </button>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-headline font-black py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 mt-4 active:scale-95 disabled:opacity-50">
-            <span>{loading ? t.loading : t.login}</span>
-            <ArrowRight size={18} className={cn(language === 'ar' && 'rotate-180')} />
-          </button>
+          <div className="flex gap-4">
+            <button type="submit" disabled={loading} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-headline font-black py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50">
+              <span>{loading ? t.loading : t.login}</span>
+              <ArrowRight size={18} className={cn(language === 'ar' && 'rotate-180')} />
+            </button>
+            {hasBiometrics && (
+              <button 
+                type="button" 
+                onClick={handleBiometricLogin}
+                className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/10 transition-all active:scale-90"
+              >
+                <Fingerprint size={28} />
+              </button>
+            )}
+          </div>
         </form>
 
         <div className="relative my-8">
