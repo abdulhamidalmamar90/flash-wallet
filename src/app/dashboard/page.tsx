@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useMemo } from 'react';
@@ -20,7 +21,8 @@ import {
   X,
   QrCode,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -84,6 +86,7 @@ export default function Dashboard() {
     noActivity: language === 'ar' ? 'لا توجد عمليات' : 'No activity found',
     idCopied: language === 'ar' ? 'تم نسخ المعرف!' : 'ID copied!',
     editAccount: language === 'ar' ? 'تعديل الحساب' : 'Edit Account',
+    adminPanel: language === 'ar' ? 'لوحة التحكم للإدارة' : 'Admin Command',
     logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
     sendHeader: language === 'ar' ? 'تحويل سريع' : 'Quick Transfer',
     confirmSend: language === 'ar' ? 'تأكيد التحويل' : 'Authorize Transfer',
@@ -225,7 +228,7 @@ export default function Dashboard() {
                     placeholder={t.recipientPlaceholder}
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
-                    className={cn("w-full bg-muted/50 border border-border rounded-xl py-3 px-4 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'text-right' : 'text-left')} 
+                    className={cn("w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'text-right' : 'text-left')} 
                    />
                 </div>
               </div>
@@ -292,6 +295,13 @@ export default function Dashboard() {
                 <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all">
                   <Settings size={16} className="text-secondary" />{t.editAccount}
                 </Link>
+                
+                {profile?.role === 'admin' && (
+                  <Link href="/admin" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/10 text-[11px] font-bold uppercase tracking-widest text-primary transition-all mt-1">
+                    <ShieldCheck size={16} />{t.adminPanel}
+                  </Link>
+                )}
+
                 <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-foreground/80 hover:text-red-400 transition-all mt-1">
                   <LogOut size={16} />{t.logout}
                 </button>
@@ -392,7 +402,7 @@ export default function Dashboard() {
         <button className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><Wallet size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.wallet}</span></button>
         <div className="relative -top-10"><div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-lg border-4 border-background cursor-pointer" onClick={() => setIsQrModalOpen(true)}><ScanLine size={28} className="text-primary-foreground" /></div></div>
         <Link href="/marketplace" className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><LayoutGrid size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.services}</span></Link>
-        <Link href="/admin" className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><User size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.profile}</span></Link>
+        <Link href="/dashboard" className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><User size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.profile}</span></Link>
       </nav>
     </div>
   );
