@@ -27,11 +27,11 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 240 10% 4%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 240 10% 4%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
+    --popover: 240 10% 4%;
     --popover-foreground: 0 0% 98%;
     --primary: 46 65% 52%;
     --primary-foreground: 240 10% 3.9%;
@@ -94,4 +94,87 @@
 
 h1, h2, h3, h4 {
   @apply tracking-wider;
+}
+
+/* Custom Theme Switch Styling from Uiverse.io */
+.theme-switch {
+  font-size: 17px;
+  position: relative;
+  display: inline-block;
+  width: 64px;
+  height: 34px;
+}
+
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #73C0FC;
+  transition: .4s;
+  border-radius: 30px;
+  box-shadow: 0 0 10px rgba(115, 192, 252, 0.2);
+}
+
+.theme-slider:before {
+  position: absolute;
+  content: "";
+  height: 28px;
+  width: 28px;
+  border-radius: 20px;
+  left: 3px;
+  bottom: 3px;
+  z-index: 2;
+  background-color: #e8e8e8;
+  transition: .4s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.sun-icon svg {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  animation: rotate-sun 15s linear infinite;
+}
+
+.moon-icon svg {
+  fill: #73C0FC;
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  animation: tilt-moon 5s linear infinite;
+}
+
+@keyframes rotate-sun {
+  0% { transform: rotate(0); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes tilt-moon {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.theme-input:checked + .theme-slider {
+  background-color: #183153;
+}
+
+.theme-input:checked + .theme-slider:before {
+  transform: translateX(30px);
 }
