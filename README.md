@@ -1,5 +1,40 @@
-# Firebase Studio
+# FLASH | Futuristic Wallet Specification
 
-This is a NextJS starter in Firebase Studio.
+هذا الملف يحتوي على المواصفات الفنية الكاملة لمشروع محفظة FLASH، يمكنك استخدامه كمرجع لإعادة بناء التطبيق على منصات أخرى مثل Flutter.
 
-To get started, take a look at src/app/page.tsx.
+## 1. الهوية البصرية (Theme)
+- **الألوان:** 
+  - الأساسي (Primary): ذهبي (#D4AF37) - `hsl(46 65% 52%)`
+  - الثانوي (Secondary): سياان/أزرق جليدي (#00f3ff) - `hsl(184 100% 50%)`
+  - الخلفية: أسود داكن جداً (#0a0a0a)
+- **الخطوط:** Orbitron للعناوين (Futuristic) و Inter للنصوص العادية.
+- **التصميم:** زجاجي (Glassmorphism) مع توهج (Glow) حول العناصر المهمة.
+
+## 2. هيكل قاعدة البيانات (Firestore)
+- **المستخدمون (`/users/{userId}`):**
+  - `username`: اسم المستخدم.
+  - `email`: البريد الإلكتروني.
+  - `customId`: معرف فريد (حرف كبير + 12 رقم عشوائي).
+  - `balance`: رقم (يبدأ بـ 0).
+  - `role`: "user" أو "admin".
+  - `verified`: Boolean (Default: false).
+  - `language`: "ar" أو "en".
+- **العمليات (`/users/{userId}/transactions/{txId}`):**
+  - `type`: "send", "receive", "withdraw", "purchase".
+  - `amount`: رقم.
+  - `recipient/service`: اسم المستلم أو الخدمة.
+  - `status`: "completed", "pending", "rejected".
+  - `date`: ISO String.
+- **طلبات السحب (`/withdrawals/{withdrawalId}`):**
+  - طلبات عالمية للمسؤولين للموافقة عليها أو رفضها.
+
+## 3. المنطق البرمجي (Business Logic)
+- **التسجيل:** عند إنشاء حساب، يتم توليد `customId` فريد وتهيئة الرصيد بـ 0.
+- **التحويل:** عملية ذرية (Atomic Transaction) تخصم من المرسل وتضيف للمستقبل (أو تسجل كحوالة صادرة).
+- **السحب:** يخصم المبلغ فوراً من الرصيد ويتحول لحالة "Pending" في انتظار موافقة المسؤول.
+
+## 4. الصفحات الرئيسية
+- **الدخول/التسجيل:** دعم البريد و Google.
+- **لوحة التحكم:** عرض الرصيد، QR Code للمعرف الفريد، وآخر 10 عمليات.
+- **سوق الخدمات:** شراء بطاقات (PUBG, Google Play, etc) وخصمها من الرصيد.
+- **لوحة المسؤول:** للموافقة على عمليات السحب أو رفضها.
