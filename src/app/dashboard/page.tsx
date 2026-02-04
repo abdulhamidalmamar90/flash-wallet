@@ -95,6 +95,7 @@ export default function Dashboard() {
     adminPanel: language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel',
     qrTitle: language === 'ar' ? 'رمز الاستجابة السريعة' : 'Flash QR Code',
     qrDesc: language === 'ar' ? 'استخدم هذا الرمز لاستقبال الأموال بسرعة' : 'Use this code to receive funds quickly',
+    copyId: language === 'ar' ? 'نسخ المعرف' : 'Copy ID',
   };
 
   const copyId = () => {
@@ -196,6 +197,17 @@ export default function Dashboard() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+               <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="h-20 bg-primary/10 border border-primary/20 rounded-2xl flex flex-col items-center justify-center gap-2 group hover:bg-primary hover:text-background transition-all">
+                <QrCode size={20} />
+                <span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.qrTitle}</span>
+              </button>
+              <Link href="/profile/edit" onClick={() => setIsSettingsOpen(false)} className="h-20 bg-muted/30 border border-white/5 rounded-2xl flex flex-col items-center justify-center gap-2 group hover:bg-white/5 transition-all">
+                <Settings size={20} className="text-muted-foreground" />
+                <span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.editProfile}</span>
+              </Link>
+            </div>
+
             <div className="space-y-3">
               {profile?.role === 'admin' && (
                 <Link href="/admin" onClick={() => setIsSettingsOpen(false)} className="w-full h-14 bg-primary/10 border border-primary/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-primary hover:text-background transition-all">
@@ -224,14 +236,6 @@ export default function Dashboard() {
                 </div>
                 <span className="text-[10px] font-headline font-black text-secondary">{theme?.toUpperCase()}</span>
               </button>
-
-              <Link href="/profile/edit" onClick={() => setIsSettingsOpen(false)} className="w-full h-14 bg-muted/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-white/5 transition-all">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-white/5"><Settings size={18} className="text-muted-foreground" /></div>
-                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.editProfile}</span>
-                </div>
-                <ChevronRight size={14} className="text-muted-foreground/30" />
-              </Link>
             </div>
 
             <button onClick={handleLogout} className="w-full h-14 border border-red-500/20 rounded-2xl px-5 flex items-center justify-center gap-3 text-red-500 hover:bg-red-500 hover:text-white transition-all">
@@ -259,11 +263,14 @@ export default function Dashboard() {
               className="w-48 h-48"
             />
           </div>
-          <div className="p-4 bg-muted/50 rounded-2xl border border-white/5">
+          <div className="p-4 bg-muted/50 rounded-2xl border border-white/5 relative group">
             <p className="text-[11px] font-headline font-black text-foreground tracking-widest">{profile?.customId}</p>
+            <button onClick={copyId} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-primary/10 rounded-lg text-primary transition-all">
+              <Copy size={14} />
+            </button>
           </div>
-          <button onClick={copyId} className="w-full py-4 bg-primary text-background font-headline font-black rounded-xl text-[10px] uppercase tracking-widest">
-            {t.idCopied.replace('!', '')}
+          <button onClick={copyId} className="w-full py-4 bg-primary text-background font-headline font-black rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+            <Copy size={14} /> {t.copyId}
           </button>
         </DialogContent>
       </Dialog>
