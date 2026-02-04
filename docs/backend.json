@@ -3,15 +3,20 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Stored in /users/{userId}. Contains user balance and settings.",
+      "description": "Stored in /users/{userId}. Contains user identity, balance and settings.",
       "type": "object",
       "properties": {
         "username": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "customId": { "type": "string", "description": "Format: [A-Z][0-9]{12}" },
         "balance": { "type": "number" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "verified": { "type": "boolean" },
         "language": { "type": "string", "enum": ["en", "ar"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["username", "balance", "language"]
+      "required": ["username", "email", "customId", "balance", "role", "verified", "language"]
     },
     "Transaction": {
       "title": "Transaction",

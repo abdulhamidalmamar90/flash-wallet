@@ -9,9 +9,10 @@ import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { useAuth, useFirestore, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,13 +45,24 @@ export default function LoginPage() {
     create: language === 'ar' ? 'إنشاء محفظة جديدة' : 'Create New Wallet'
   };
 
+  const generateCustomId = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const firstLetter = letters.charAt(Math.floor(Math.random() * letters.length));
+    const numbers = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
+    return `${firstLetter}${numbers}`;
+  };
+
   const initUser = async (uid: string, email: string) => {
     const userDoc = doc(db, 'users', uid);
     const snap = await getDoc(userDoc);
     if (!snap.exists()) {
       await setDoc(userDoc, {
         username: email.split('@')[0],
+        email: email,
+        customId: generateCustomId(),
         balance: 1000,
+        role: 'user',
+        verified: false,
         language: language,
         createdAt: new Date().toISOString()
       });
@@ -62,21 +74,14 @@ export default function LoginPage() {
     if (!auth || !db) return;
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await initUser(userCredential.user.uid, email);
+      await signInWithEmailAndPassword(auth, email, password);
       router.push('/dashboard');
     } catch (error: any) {
-      try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await initUser(userCredential.user.uid, email);
-        router.push('/dashboard');
-      } catch (signupError: any) {
-        toast({
-          variant: "destructive",
-          title: "Authentication Error",
-          description: error.message
-        });
-      }
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -159,7 +164,7 @@ export default function LoginPage() {
         </button>
 
         <p className="text-center mt-8 text-white/40 text-[10px] font-bold uppercase tracking-widest">
-          {t.noAccount} <span className="text-primary cursor-pointer hover:underline">{t.create}</span>
+          {t.noAccount} <Link href="/register" className="text-primary cursor-pointer hover:underline">{t.create}</Link>
         </p>
       </div>
     </div>

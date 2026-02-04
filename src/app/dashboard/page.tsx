@@ -20,7 +20,8 @@ import {
   ChevronDown,
   X,
   QrCode,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -30,12 +31,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useAuth } from '@/firebase';
 import { doc, collection, query, orderBy, limit, runTransaction, increment } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-
-const COUNTRIES = [
-  { code: 'SA', nameAr: 'المملكة العربية السعودية', nameEn: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966' },
-  { code: 'EG', nameAr: 'جمهورية مصر العربية', nameEn: 'Egypt', flag: '🇪🇬', prefix: '+20' },
-  { code: 'AE', nameAr: 'الإمارات العربية المتحدة', flag: '🇦🇪', prefix: '+971' },
-];
 
 export default function Dashboard() {
   const router = useRouter();
@@ -88,7 +83,7 @@ export default function Dashboard() {
     wallet: language === 'ar' ? 'المحفظة' : 'Wallet',
     profile: language === 'ar' ? 'حسابي' : 'Profile',
     noActivity: language === 'ar' ? 'لا توجد عمليات' : 'No activity found',
-    idCopied: language === 'ar' ? 'تم نسخ معرف الحساب!' : 'Account ID copied!',
+    idCopied: language === 'ar' ? 'تم نسخ المعرف!' : 'ID copied!',
     editAccount: language === 'ar' ? 'تعديل الحساب' : 'Edit Account',
     logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
     sendHeader: language === 'ar' ? 'تحويل سريع' : 'Quick Transfer',
@@ -106,13 +101,14 @@ export default function Dashboard() {
     errorSendTitle: language === 'ar' ? 'فشلت العملية' : 'Transaction Failed',
     insufficientFunds: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
     sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...',
+    verified: language === 'ar' ? 'موثق' : 'Verified'
   };
 
   const handleCopyId = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (user) {
-      navigator.clipboard.writeText(user.uid);
-      toast({ title: t.idCopied, description: user.uid });
+    if (profile?.customId) {
+      navigator.clipboard.writeText(profile.customId);
+      toast({ title: t.idCopied, description: profile.customId });
     }
   };
 
@@ -188,10 +184,10 @@ export default function Dashboard() {
                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">{t.scanToPay}</p>
             </div>
             <div className="bg-white p-3 rounded-2xl border-2 border-[#D4AF37]/20 mx-auto w-fit shadow-inner">
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${user.uid}&color=000000&bgcolor=ffffff`} alt="QR" className="w-48 h-48 rounded-lg" />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId || user.uid}&color=000000&bgcolor=ffffff`} alt="QR" className="w-48 h-48 rounded-lg" />
             </div>
             <div className="mt-6 bg-gray-100 py-3 px-6 rounded-2xl inline-flex items-center gap-3 cursor-pointer" onClick={() => handleCopyId()}>
-              <span className="text-black font-headline font-black tracking-widest text-lg">{user.uid.slice(0, 10)}...</span>
+              <span className="text-black font-headline font-black tracking-widest text-lg">{profile?.customId}</span>
               <Copy size={16} className="text-gray-400" />
             </div>
             <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
@@ -266,9 +262,12 @@ export default function Dashboard() {
           {isProfileOpen && (
             <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
               <div className="p-4 border-b border-white/5 bg-white/5">
-                <p className="text-sm font-headline font-bold text-white mb-1 uppercase">{profile?.username}</p>
+                <div className="flex items-center justify-between mb-1">
+                   <p className="text-sm font-headline font-bold text-white uppercase">{profile?.username}</p>
+                   {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
+                </div>
                 <div className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-white/5 group cursor-pointer" onClick={(e) => handleCopyId(e)}>
-                  <span className="text-[10px] text-[#D4AF37] font-headline tracking-wider">ID: {user.uid.slice(0, 8)}...</span>
+                  <span className="text-[10px] text-[#D4AF37] font-headline tracking-wider">ID: {profile?.customId || '...'}</span>
                   <Copy size={12} className="text-white/40" />
                 </div>
                 <button onClick={() => { setIsQrModalOpen(true); setIsProfileOpen(false); }} className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all group">
