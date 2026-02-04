@@ -59,10 +59,10 @@ export default function Dashboard() {
     }
   }, [user, authLoading, router, mounted]);
 
-  const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
+  const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
   
-  const transactionsQuery = useMemo(() => user ? query(
+  const transactionsQuery = useMemo(() => (user && db) ? query(
     collection(db, 'users', user.uid, 'transactions'),
     orderBy('date', 'desc'),
     limit(10)
@@ -118,9 +118,9 @@ export default function Dashboard() {
   };
 
   const handleSendMoney = async () => {
-    if (!user || !recipient || !sendAmount || !profile) return;
+    if (!user || !recipient || !sendAmount || !profile || !db) return;
     const amountNum = parseFloat(sendAmount);
-    if (profile.balance < amountNum) {
+    if ((profile.balance || 0) < amountNum) {
       toast({ variant: "destructive", title: t.errorSendTitle, description: t.insufficientFunds });
       return;
     }
@@ -170,7 +170,7 @@ export default function Dashboard() {
 
   if (!user) return null;
 
-  const qrCodeUrl = profile?.customId || user?.uid 
+  const qrCodeUrl = (profile?.customId || user?.uid)
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId || user.uid}&color=000000&bgcolor=ffffff`
     : null;
 
@@ -181,7 +181,6 @@ export default function Dashboard() {
     >
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
       
-      {/* QR Modal */}
       {isQrModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setIsQrModalOpen(false)}>
           <div className="bg-card p-8 rounded-[2.5rem] shadow-2xl border border-border transform scale-100 animate-in zoom-in-95 duration-300 relative text-center max-w-[90%] w-[340px]" onClick={(e) => e.stopPropagation()}>
@@ -190,8 +189,12 @@ export default function Dashboard() {
                <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1">{t.scanToPay}</p>
             </div>
             <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 mx-auto w-fit shadow-inner">
-              {qrCodeUrl && (
+              {qrCodeUrl ? (
                 <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" />
+              ) : (
+                <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg">
+                  <QrCode className="h-12 w-12 text-muted-foreground opacity-20" />
+                </div>
               )}
             </div>
             <div className="mt-6 bg-muted py-3 px-6 rounded-2xl inline-flex items-center gap-3 cursor-pointer" onClick={() => handleCopyId()}>
@@ -205,7 +208,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Send Modal */}
       {isSendModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSendModalOpen(false)}></div>
@@ -252,7 +254,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Header */}
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
         <div className="relative">
           <button onClick={(e) => { e.stopPropagation(); setIsProfileOpen(!isProfileOpen); }} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors group">
@@ -308,7 +309,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Balance Card */}
       <section className="px-6 mb-8 relative z-10 text-center">
         <div className="relative w-full p-8 rounded-[2rem] border border-border bg-card/40 backdrop-blur-2xl shadow-xl overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
@@ -324,7 +324,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Actions */}
       <section className="px-6 grid grid-cols-3 gap-6 mb-10 relative z-10">
         <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-3 group">
           <div className="w-16 h-16 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300">
@@ -346,7 +345,6 @@ export default function Dashboard() {
         </Link>
       </section>
 
-      {/* Recent Activity */}
       <section className="px-6 rounded-t-[3rem] bg-muted/30 border-t border-border min-h-[400px] backdrop-blur-md pt-10 relative z-10">
         <div className="flex justify-between items-center mb-8 px-2">
           <h3 className="text-sm font-headline font-black uppercase tracking-widest text-foreground">{t.recent}</h3>
