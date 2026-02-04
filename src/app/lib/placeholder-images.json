@@ -4,13 +4,13 @@
     {
       "id": "brand-logo",
       "description": "Futuristic 3D metallic logo with blue and orange digital circuitry highlights",
-      "imageUrl": "https://picsum.photos/seed/flash-brand-77/800/600",
+      "imageUrl": "https://images.unsplash.com/photo-1732111816779-aeec50f788ba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxmdXR1cmlzdGljJTIwbG9nb3xlbnwwfHx8fDE3NzAyMTY5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "futuristic logo"
     },
     {
       "id": "login-bg",
       "description": "Deep space futuristic digital background with subtle grid lines and nebula glows",
-      "imageUrl": "https://picsum.photos/seed/flash-bg-99/1920/1080",
+      "imageUrl": "https://images.unsplash.com/photo-1603347729548-6844517490c7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxmdXR1cmlzdGljJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NzAyMTY5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "futuristic background"
     }
   ]
