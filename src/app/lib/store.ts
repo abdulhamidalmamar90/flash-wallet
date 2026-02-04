@@ -1,4 +1,3 @@
-
 "use client"
 
 import { create } from 'zustand';
@@ -38,13 +37,3 @@ export const useStore = () => {
   const { language, theme, toggleLanguage, toggleTheme, setTheme } = useUIStore();
   return { language, theme, toggleLanguage, toggleTheme, setTheme };
 };
-
-export interface Transaction {
-  id: string;
-  type: 'send' | 'receive' | 'withdraw' | 'purchase';
-  amount: number;
-  recipient?: string;
-  service?: string;
-  status: 'completed' | 'pending' | 'rejected';
-  date: string;
-}
