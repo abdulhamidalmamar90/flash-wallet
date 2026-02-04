@@ -52,11 +52,8 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { language } = useStore();
   
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-  const [isQrOpen, setIsQrOpen] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
@@ -65,11 +62,7 @@ export default function Dashboard() {
   const [sendAmount, setSendAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isDepositing, setIsDepositing] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [mounted, setMounted] = useState(false);
-
-  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted && !authLoading && !user) router.push('/'); }, [user, authLoading, router, mounted]);
@@ -140,16 +133,14 @@ export default function Dashboard() {
     }
   };
 
-  const qrCodeUrl = useMemo(() => profile?.customId ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${profile.customId}&color=d4af37&bgcolor=ffffff&margin=1` : null, [profile?.customId]);
-
   if (!mounted) return <div className="min-h-screen bg-background" />;
   if (authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-12 w-12 text-primary animate-spin" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden" onClick={() => setIsProfileOpen(false)}>
+    <div className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden">
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
         <div className="relative">
-          <button onClick={(e) => { e.stopPropagation(); setIsProfileOpen(!isProfileOpen); }} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors">
+          <Link href="/profile/edit" className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors">
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border relative">
               {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={20} className="text-primary" />}
               {profile?.verified && <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-primary/20 shadow-lg"><Star size={10} className="text-primary fill-primary" /></div>}
@@ -158,7 +149,7 @@ export default function Dashboard() {
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
               <div className="flex items-center gap-1"><p className="font-headline font-bold text-sm">{profile?.username}</p><ChevronDown size={12} /></div>
             </div>
-          </button>
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setIsNotifOpen(true)} className="relative p-2 rounded-full hover:bg-muted transition-all">
@@ -197,7 +188,7 @@ export default function Dashboard() {
       <section className="px-6 mb-8 text-center">
         <div className="relative w-full p-8 rounded-[2rem] border border-border bg-card/40 backdrop-blur-2xl shadow-xl overflow-hidden group">
           <p className="text-muted-foreground text-[10px] uppercase tracking-[0.3em] mb-4 font-bold">{t.totalBalance}</p>
-          <h1 className="text-5xl font-headline font-black text-foreground mb-4 tracking-tighter">$${profile?.balance?.toLocaleString() || '0'}<span className="text-2xl text-muted-foreground/20">.00</span></h1>
+          <h1 className="text-5xl font-headline font-black text-foreground mb-4 tracking-tighter">${profile?.balance?.toLocaleString() || '0'}<span className="text-2xl text-muted-foreground/20">.00</span></h1>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/10 border border-secondary/20"><span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span className="text-[9px] text-secondary tracking-[0.2em] font-black uppercase">{t.secured}</span></div>
         </div>
       </section>
@@ -263,7 +254,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <BottomNav onScanClick={() => setIsScannerOpen(true)} />
+      <BottomNav onScanClick={() => {}} />
     </div>
   );
 }
