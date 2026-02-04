@@ -126,15 +126,31 @@ export default function AdminPage() {
     }
   };
 
-  const handleUpdateBalance = async (targetUserId: string) => {
-    if (!newBalance || isNaN(parseFloat(newBalance))) {
+  const handleUpdateBalance = async (targetUserId: string, currentBalance: number) => {
+    const amountNum = parseFloat(newBalance);
+    if (!newBalance || isNaN(amountNum)) {
       toast({ variant: "destructive", title: "INVALID AMOUNT", description: "Please enter a valid numeric value." });
       return;
     }
 
     try {
-      const userRef = doc(db, 'users', targetUserId);
-      await updateDoc(userRef, { balance: parseFloat(newBalance) });
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', targetUserId);
+        const txRef = doc(collection(db, 'users', targetUserId, 'transactions'));
+        
+        const diff = amountNum - currentBalance;
+        if (diff === 0) return;
+
+        transaction.update(userRef, { balance: amountNum });
+        transaction.set(txRef, {
+          type: diff > 0 ? 'deposit' : 'withdraw',
+          amount: Math.abs(diff),
+          service: diff > 0 ? 'Admin Deposit' : 'Admin Debit',
+          status: 'completed',
+          date: new Date().toISOString()
+        });
+      });
+
       toast({ title: "BALANCE UPDATED", description: "User vault has been synchronized." });
       setEditingUserId(null);
       setNewBalance('');
@@ -284,7 +300,7 @@ export default function AdminPage() {
                   {editingUserId === u.id ? (
                     <div className="flex gap-2 animate-in slide-in-from-right-2">
                       <div className="relative flex-1"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-headline">$</span><Input type="number" placeholder="NEW BALANCE" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="pl-8 h-12 bg-background border-primary/20 rounded-xl font-headline text-xs" /></div>
-                      <button onClick={() => handleUpdateBalance(u.id)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all"><Save size={20} /></button>
+                      <button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all"><Save size={20} /></button>
                       <button onClick={() => setEditingUserId(null)} className="w-12 h-12 bg-muted/20 text-foreground/40 rounded-xl flex items-center justify-center transition-all"><X size={20} /></button>
                     </div>
                   ) : (

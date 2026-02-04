@@ -126,7 +126,9 @@ export default function Dashboard() {
     switchLanguage: language === 'ar' ? 'تغيير اللغة' : 'SWITCH LANGUAGE',
     depositHeader: language === 'ar' ? 'طلب إيداع' : 'Deposit Request',
     requestDeposit: language === 'ar' ? 'تقديم طلب الإيداع' : 'Request Deposit',
-    depositSuccess: language === 'ar' ? 'تم إرسال طلب الإيداع للمراجعة' : 'Deposit request sent for review'
+    depositSuccess: language === 'ar' ? 'تم إرسال طلب الإيداع للمراجعة' : 'Deposit request sent for review',
+    adminDeposit: language === 'ar' ? 'إيداع من قبل المسؤول' : 'Admin Deposit',
+    adminDebit: language === 'ar' ? 'خصم من قبل المسؤول' : 'Admin Debit'
   };
 
   useEffect(() => {
@@ -454,7 +456,13 @@ export default function Dashboard() {
             <div key={tx.id} className="flex justify-between items-center p-5 rounded-[1.5rem] bg-card border border-border hover:border-primary/20 transition-all">
               <div className="flex items-center gap-4">
                 <div className={cn("w-11 h-11 rounded-full flex items-center justify-center", (tx.type === 'receive' || tx.type === 'deposit') ? "bg-secondary/10 text-secondary" : "bg-red-500/10 text-red-500")}>{(tx.type === 'receive' || tx.type === 'deposit') ? <Download size={20} /> : <Send size={20} />}</div>
-                <div><p className="font-headline font-black text-[11px] uppercase tracking-wide text-foreground">{tx.type === 'send' && `${t.sentTo} @${tx.recipient}`}{tx.type === 'receive' && `${t.deposit} ${tx.sender ? `(From @${tx.sender})` : ''}`}{tx.type === 'deposit' && t.deposit}{tx.type === 'withdraw' && t.withdrawal}{tx.type === 'purchase' && tx.service}</p><p className="text-[9px] text-muted-foreground/30 uppercase tracking-[0.2em] mt-1 font-bold">{tx.date ? new Date(tx.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US') : ''}</p></div>
+                <div><p className="font-headline font-black text-[11px] uppercase tracking-wide text-foreground">
+                  {tx.type === 'send' && `${t.sentTo} @${tx.recipient}`}
+                  {tx.type === 'receive' && `${t.deposit} ${tx.sender ? `(From @${tx.sender})` : ''}`}
+                  {tx.type === 'deposit' && (tx.service === 'Admin Deposit' ? t.adminDeposit : t.deposit)}
+                  {tx.type === 'withdraw' && (tx.service === 'Admin Debit' ? t.adminDebit : t.withdrawal)}
+                  {tx.type === 'purchase' && tx.service}
+                </p><p className="text-[9px] text-muted-foreground/30 uppercase tracking-[0.2em] mt-1 font-bold">{tx.date ? new Date(tx.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US') : ''}</p></div>
               </div>
               <div className="text-right"><p className={cn("font-headline font-black text-sm", (tx.type === 'receive' || tx.type === 'deposit') ? "text-secondary" : "text-foreground")}>{(tx.type === 'receive' || tx.type === 'deposit') ? '+' : '-'}${tx.amount}</p></div>
             </div>
