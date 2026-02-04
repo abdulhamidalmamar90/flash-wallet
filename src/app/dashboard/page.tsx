@@ -21,7 +21,8 @@ import {
   X,
   Building2,
   Smartphone,
-  CreditCard
+  CreditCard,
+  QrCode
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,10 @@ export default function Dashboard() {
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+
+  // QR Modal State
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const userId = "883-292-10";
 
   useEffect(() => {
     setMounted(true);
@@ -81,20 +86,22 @@ export default function Dashboard() {
     beneficiaryName: language === 'ar' ? 'اسم المستفيد (كما في البنك)' : 'Beneficiary Name',
     ibanLabel: language === 'ar' ? 'رقم الآيبان (IBAN)' : 'IBAN Number',
     phoneLabel: language === 'ar' ? 'رقم الهاتف المرتبط' : 'Associated Phone',
-    countryLabel: language === 'ar' ? 'الدولة' : 'Country'
+    countryLabel: language === 'ar' ? 'الدولة' : 'Country',
+    showQr: language === 'ar' ? 'إظهار QR Code' : 'Show QR Code',
+    myFlashId: language === 'ar' ? 'My Flash ID' : 'My Flash ID',
+    scanToPay: language === 'ar' ? 'امسح الكود لإرسال الأموال فوراً' : 'Scan to send money instantly'
   };
 
-  const handleCopyId = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText("883-292-10");
+  const handleCopyId = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    navigator.clipboard.writeText(userId);
     toast({
       title: t.idCopied,
-      description: "883-292-10"
+      description: userId
     });
   };
 
   const handleConfirmWithdrawal = () => {
-    // Basic logic for demonstration - in real app would validate inputs
     toast({
       title: language === 'ar' ? 'تم استلام طلبك' : 'Request Received',
       description: language === 'ar' ? 'سيتم مراجعة طلب السحب فوراً' : 'Withdrawal request is being reviewed.',
@@ -114,6 +121,49 @@ export default function Dashboard() {
       {/* Aesthetic Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#00f3ff]/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-[#D4AF37]/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+      {/* ================= QR Code Modal ================= */}
+      {isQrModalOpen && (
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-300"
+          onClick={() => setIsQrModalOpen(false)}
+        >
+          <div 
+            className="bg-white p-8 rounded-[2.5rem] shadow-[0_0_60px_rgba(212,175,55,0.4)] transform scale-100 animate-in zoom-in-95 duration-300 relative text-center max-w-[90%] w-[340px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6">
+               <h3 className="text-black font-headline font-black text-xl uppercase tracking-tighter">{t.myFlashId}</h3>
+               <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">{t.scanToPay}</p>
+            </div>
+
+            <div className="bg-white p-3 rounded-2xl border-2 border-[#D4AF37]/20 mx-auto w-fit shadow-inner">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${userId}&color=000000&bgcolor=ffffff`} 
+                alt="User QR Code" 
+                className="w-48 h-48 rounded-lg"
+              />
+            </div>
+
+            <div 
+              className="mt-6 bg-gray-100 py-3 px-6 rounded-2xl inline-flex items-center gap-3 cursor-pointer group hover:bg-gray-200 transition-colors"
+              onClick={() => handleCopyId()}
+            >
+              <span className="text-black font-headline font-black tracking-widest text-lg">{userId}</span>
+              <Copy size={16} className="text-gray-400 group-hover:text-[#D4AF37] transition-colors" />
+            </div>
+            
+            <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
+               <button 
+                 onClick={() => setIsQrModalOpen(false)}
+                 className="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all border border-white/10 active:scale-90"
+               >
+                 <X size={24} />
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= Bank Withdrawal Modal ================= */}
       {isWithdrawModalOpen && (
@@ -135,7 +185,6 @@ export default function Dashboard() {
             </div>
 
             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-              {/* 1. Country Selection */}
               <div className="relative z-50">
                 <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.countryLabel}</label>
                 <button 
@@ -171,7 +220,6 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* 2. Beneficiary Name */}
               <div>
                 <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.beneficiaryName}</label>
                 <div className="relative group">
@@ -186,7 +234,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* 3. IBAN */}
               <div>
                 <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.ibanLabel}</label>
                 <div className="relative group">
@@ -202,7 +249,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* 4. Phone */}
               <div>
                 <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.phoneLabel}</label>
                 <div className="flex gap-3">
@@ -274,11 +320,22 @@ export default function Dashboard() {
                 
                 <div 
                   className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-white/5 group cursor-pointer hover:bg-black/60 transition-colors"
-                  onClick={handleCopyId}
+                  onClick={(e) => handleCopyId(e)}
                 >
-                  <span className="text-[10px] text-[#D4AF37] font-headline tracking-wider">ID: 883-292-10</span>
+                  <span className="text-[10px] text-[#D4AF37] font-headline tracking-wider">ID: {userId}</span>
                   <Copy size={12} className="text-white/40 group-hover:text-white transition-colors" />
                 </div>
+
+                <button 
+                  onClick={() => {
+                    setIsQrModalOpen(true);
+                    setIsProfileOpen(false);
+                  }}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-white/5 hover:bg-primary/10 border border-white/5 hover:border-primary/30 transition-all group"
+                >
+                  <QrCode size={14} className="text-white/40 group-hover:text-primary transition-colors" />
+                  <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-white/40 group-hover:text-white">{t.showQr}</span>
+                </button>
               </div>
 
               <div className="p-2">
@@ -409,7 +466,10 @@ export default function Dashboard() {
         </button>
         
         <div className="relative -top-10">
-          <div className="w-16 h-16 rounded-full bg-[#D4AF37] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.5)] border-4 border-[#0a0a0a] active:scale-95 transition-transform">
+          <div 
+            className="w-16 h-16 rounded-full bg-[#D4AF37] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.5)] border-4 border-[#0a0a0a] active:scale-95 transition-transform cursor-pointer"
+            onClick={() => setIsQrModalOpen(true)}
+          >
             <ScanLine size={28} className="text-black" />
           </div>
         </div>
