@@ -21,6 +21,7 @@ export default function LoginPage() {
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { language } = useStore();
@@ -28,10 +29,14 @@ export default function LoginPage() {
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
 
   useEffect(() => {
-    if (user && !authLoading) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && user && !authLoading) {
       router.push('/dashboard');
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, mounted]);
 
   const t = {
     title: 'FLASH',
@@ -60,7 +65,7 @@ export default function LoginPage() {
         username: email.split('@')[0],
         email: email,
         customId: generateCustomId(),
-        balance: 0, // الرصيد الابتدائي للمستخدمين الجدد
+        balance: 0,
         role: 'user',
         verified: false,
         language: language,
@@ -79,7 +84,7 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Authentication Error",
+        title: language === 'ar' ? "خطأ في التحقق" : "Auth Error",
         description: error.message
       });
     } finally {
@@ -103,10 +108,13 @@ export default function LoginPage() {
     }
   };
 
-  if (authLoading) {
+  if (!mounted || (authLoading && !user)) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto" />
+          <p className="text-primary font-headline text-[10px] tracking-widest uppercase animate-pulse">Initializing Flash System...</p>
+        </div>
       </div>
     );
   }

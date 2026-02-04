@@ -54,12 +54,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (mounted && !authLoading && !user) {
       router.push('/');
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, mounted]);
 
-  // Firestore Data
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
   
@@ -158,10 +157,13 @@ export default function Dashboard() {
     }
   };
 
-  if (authLoading || !mounted) {
+  if (!mounted || (authLoading && !user)) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto" />
+          <p className="text-primary font-headline text-[10px] tracking-widest uppercase animate-pulse">Synchronizing Wallet...</p>
+        </div>
       </div>
     );
   }

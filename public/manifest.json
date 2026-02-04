@@ -1,20 +1,20 @@
 
 {
-  "name": "FLASH Futuristic Wallet",
+  "name": "FLASH Wallet",
   "short_name": "FLASH",
-  "description": "High-end fintech wallet for the digital age.",
+  "description": "Futuristic Digital Wallet",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
-  "theme_color": "#D4AF37",
+  "theme_color": "#0a0a0a",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/flash-icon-192/192/192",
+      "src": "https://picsum.photos/seed/flash-192/192/192",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://picsum.photos/seed/flash-icon-512/512/512",
+      "src": "https://picsum.photos/seed/flash-512/512/512",
       "sizes": "512x512",
       "type": "image/png"
     }
