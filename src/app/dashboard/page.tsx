@@ -19,9 +19,8 @@ import {
   Copy,
   ChevronDown,
   X,
-  Building2,
-  CreditCard,
-  QrCode
+  QrCode,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -29,38 +28,45 @@ import { cn } from '@/lib/utils';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useCollection, useAuth } from '@/firebase';
-import { doc, collection, addDoc, updateDoc, increment, query, orderBy, limit, runTransaction } from 'firebase/firestore';
+import { doc, collection, query, orderBy, limit, runTransaction, increment } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 
 const COUNTRIES = [
   { code: 'SA', nameAr: 'المملكة العربية السعودية', nameEn: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameAr: 'جمهورية مصر العربية', nameEn: 'Egypt', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameAr: 'الإمارات العربية المتحدة', flag: '🇦🇪', prefix: '+971' },
-  { code: 'US', nameAr: 'الولايات المتحدة', flag: '🇺🇸', prefix: '+1' },
 ];
 
 export default function Dashboard() {
   const router = useRouter();
   const auth = useAuth();
-  const { user } = useUser();
+  const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   const { language } = useStore();
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   
   const [recipient, setRecipient] = useState('');
   const [sendAmount, setSendAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/');
+    }
+  }, [user, authLoading, router]);
 
   // Firestore Data
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
-  const { data: profile } = useDoc(userDocRef);
+  const { data: profile, loading: profileLoading } = useDoc(userDocRef);
   
   const transactionsQuery = useMemo(() => user ? query(
     collection(db, 'users', user.uid, 'transactions'),
@@ -85,20 +91,14 @@ export default function Dashboard() {
     idCopied: language === 'ar' ? 'تم نسخ معرف الحساب!' : 'Account ID copied!',
     editAccount: language === 'ar' ? 'تعديل الحساب' : 'Edit Account',
     logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
-    withdrawHeader: language === 'ar' ? 'سحب بنكي' : 'Bank Withdrawal',
     sendHeader: language === 'ar' ? 'تحويل سريع' : 'Quick Transfer',
-    confirmWithdraw: language === 'ar' ? 'تأكيد الطلب' : 'Confirm Request',
     confirmSend: language === 'ar' ? 'تأكيد التحويل' : 'Authorize Transfer',
-    beneficiaryName: language === 'ar' ? 'اسم المستفيد' : 'Beneficiary Name',
-    ibanLabel: language === 'ar' ? 'رقم الآيبان' : 'IBAN Number',
     recipientLabel: language === 'ar' ? 'اسم مستخدم المستلم' : 'Recipient Username',
     recipientPlaceholder: language === 'ar' ? 'مثال: Mostafa88' : 'Ex: CryptoWhale',
     amountLabel: language === 'ar' ? 'المبلغ (دولار)' : 'Amount (USD)',
-    countryLabel: language === 'ar' ? 'الدولة' : 'Country',
     showQr: language === 'ar' ? 'إظهار QR Code' : 'Show QR Code',
     scanToPay: language === 'ar' ? 'امسح الكود للإرسال فوراً' : 'Scan to send money instantly',
     myFlashId: 'My Flash ID',
-    justNow: language === 'ar' ? 'الآن' : 'Just now',
     deposit: language === 'ar' ? 'شحن رصيد' : 'Deposit',
     withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal',
     sentTo: language === 'ar' ? 'تحويل إلى' : 'Sent to',
@@ -133,7 +133,6 @@ export default function Dashboard() {
     setIsSending(true);
     try {
       await runTransaction(db, async (transaction) => {
-        // Simple send: Deduction from current user + Log
         const userRef = doc(db, 'users', user.uid);
         transaction.update(userRef, { balance: increment(-amountNum) });
         
@@ -163,15 +162,20 @@ export default function Dashboard() {
     }
   };
 
+  if (authLoading || !mounted) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
   if (!user) return null;
 
   return (
     <div 
       className="min-h-screen bg-[#0a0a0a] text-white font-body pb-32 relative overflow-hidden"
-      onClick={() => { 
-        setIsProfileOpen(false); 
-        setIsCountryDropdownOpen(false); 
-      }}
+      onClick={() => { setIsProfileOpen(false); }}
     >
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#00f3ff]/5 rounded-full blur-[120px] pointer-events-none"></div>
       
@@ -290,11 +294,12 @@ export default function Dashboard() {
       </header>
 
       {/* Balance Card */}
-      <section className="px-6 mb-8 relative z-10">
-        <div className="relative w-full p-8 rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-2xl shadow-2xl overflow-hidden text-center group">
+      <section className="px-6 mb-8 relative z-10 text-center">
+        <div className="relative w-full p-8 rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-2xl shadow-2xl overflow-hidden group">
           <p className="text-white/50 text-[10px] uppercase tracking-[0.3em] mb-4 font-bold">{t.totalBalance}</p>
           <h1 className="text-5xl font-headline font-black text-white mb-4 tracking-tighter drop-shadow-2xl">
-            ${profile?.balance?.toLocaleString() || '0'}<span className="text-2xl text-white/20">.00</span>
+            {profileLoading ? '...' : `$${profile?.balance?.toLocaleString() || '0'}`}
+            <span className="text-2xl text-white/20">.00</span>
           </h1>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#00f3ff]/10 border border-[#00f3ff]/20">
             <span className="w-2 h-2 rounded-full bg-[#00f3ff] animate-pulse"></span>
@@ -350,7 +355,9 @@ export default function Dashboard() {
                        {tx.type === 'withdraw' && t.withdrawal}
                        {tx.type === 'purchase' && tx.service}
                     </p>
-                    <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] mt-1 font-bold">{new Date(tx.date).toLocaleDateString()}</p>
+                    <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] mt-1 font-bold">
+                       {tx.date ? new Date(tx.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US') : ''}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">

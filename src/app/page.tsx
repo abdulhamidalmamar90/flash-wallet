@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const db = useFirestore();
+  const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -24,6 +25,12 @@ export default function LoginPage() {
   const { language } = useStore();
   
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
+
+  useEffect(() => {
+    if (user && !authLoading) {
+      router.push('/dashboard');
+    }
+  }, [user, authLoading, router]);
 
   const t = {
     title: 'FLASH',
@@ -59,7 +66,6 @@ export default function LoginPage() {
       await initUser(userCredential.user.uid, email);
       router.push('/dashboard');
     } catch (error: any) {
-      // If user doesn't exist, try to create account (Auto-signup for MVP flow)
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await initUser(userCredential.user.uid, email);
@@ -91,6 +97,14 @@ export default function LoginPage() {
       });
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0a]">
