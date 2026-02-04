@@ -197,7 +197,7 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all mx-auto w-fit text-center" onClick={() => handleCopyId()}>
+            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all mx-auto w-full text-center" onClick={() => handleCopyId()}>
               <span className="font-headline font-black tracking-widest text-lg leading-none">{profile?.customId || '---'}</span>
               <Copy size={16} className="text-muted-foreground shrink-0" />
             </div>
@@ -276,7 +276,7 @@ export default function Dashboard() {
           {isProfileOpen && (
             <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
               <div className="p-4 border-b border-border bg-muted/30">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                    <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
                 </div>
@@ -288,7 +288,7 @@ export default function Dashboard() {
                 {/* QR Code Button */}
                 <button 
                   onClick={() => { setIsQrOpen(true); setIsProfileOpen(false); }}
-                  className="w-full flex items-center justify-between bg-primary/10 hover:bg-primary/20 p-2 rounded-lg border border-primary/20 transition-all group"
+                  className="w-full flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 p-2 rounded-lg border border-primary/20 transition-all group"
                 >
                   <span className="text-[9px] text-primary font-headline font-bold uppercase tracking-widest">{t.showQr}</span>
                   <QrCode size={14} className="text-primary" />

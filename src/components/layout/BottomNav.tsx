@@ -37,7 +37,7 @@ export function BottomNav({ onQrClick }: BottomNavProps) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[100] px-6 pb-8 pt-2 pointer-events-none">
-      <div className="mx-auto max-w-lg rounded-[2.2rem] flex items-center justify-between py-2 px-2 border bg-card/80 backdrop-blur-2xl shadow-2xl border-white/5 pointer-events-auto">
+      <div className="mx-auto max-w-lg rounded-[2.2rem] flex items-center justify-around py-2 px-2 border bg-card/80 backdrop-blur-2xl shadow-2xl border-white/5 pointer-events-auto">
         {navItems.map((item, idx) => {
           if (item.label === 'center') {
             return (
@@ -60,14 +60,14 @@ export function BottomNav({ onQrClick }: BottomNavProps) {
               key={item.href + idx}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 px-4 py-2 transition-all duration-300 rounded-2xl min-w-[64px]",
+                "flex flex-col items-center justify-center gap-1 transition-all duration-300 rounded-2xl min-w-[64px] h-14",
                 isActive 
                   ? "text-primary bg-primary/10" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <item.icon size={20} className={cn(isActive && "gold-glow")} />
-              <span className="text-[7px] font-headline font-black tracking-widest uppercase">{item.label}</span>
+              <span className="text-[7px] font-headline font-black tracking-widest uppercase text-center">{item.label}</span>
             </Link>
           );
         })}
