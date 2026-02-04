@@ -425,16 +425,16 @@ export default function Dashboard() {
                   {t.editAccount}
                 </Link>
 
-                {/* Language Toggle in Profile Menu */}
                 <div className="w-full flex flex-col gap-2 p-3 rounded-xl hover:bg-muted transition-all">
                   <div className="flex items-center gap-3 mb-2">
                     <Languages size={16} className="text-primary" />
                     <span className="text-[11px] font-bold uppercase tracking-widest text-foreground/80">{t.switchLanguage}</span>
                   </div>
-                  <LanguageToggle />
+                  <div className="flex justify-center">
+                    <LanguageToggle />
+                  </div>
                 </div>
 
-                {/* Theme Toggle in Profile Menu */}
                 <div className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted transition-all">
                   <div className="flex items-center gap-3">
                     <Moon size={16} className="text-primary" />
