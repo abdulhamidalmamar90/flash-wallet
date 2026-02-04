@@ -165,9 +165,6 @@ export default function Dashboard() {
           </button>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsQrOpen(true)} className="p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all border border-primary/20">
-            <QrCode size={20} />
-          </button>
           <button onClick={() => setIsNotifOpen(true)} className="relative p-2 rounded-full hover:bg-muted transition-all">
             <Bell size={24} className="text-foreground/80" />
             {unreadCount > 0 && <span className="absolute top-1 right-1 w-5 h-5 bg-primary text-background rounded-full border-2 border-background flex items-center justify-center text-[8px] font-black">{unreadCount}</span>}
@@ -177,7 +174,7 @@ export default function Dashboard() {
 
       {/* Profile & Settings Dialog */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden">
+        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden z-[200]">
           <DialogHeader className="p-6 pb-0 sr-only">
             <DialogTitle>{t.profileSettings}</DialogTitle>
           </DialogHeader>
@@ -248,7 +245,7 @@ export default function Dashboard() {
 
       {/* QR Code Dialog */}
       <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-8 text-center space-y-6">
+        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-8 text-center space-y-6 z-[250]">
           <DialogHeader className="sr-only">
             <DialogTitle>{t.qrTitle}</DialogTitle>
           </DialogHeader>
@@ -269,7 +266,7 @@ export default function Dashboard() {
               <Copy size={14} />
             </button>
           </div>
-          <button onClick={copyId} className="w-full py-4 bg-primary text-background font-headline font-black rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+          <button onClick={copyId} className="w-full py-4 bg-primary text-background font-headline font-black rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
             <Copy size={14} /> {t.copyId}
           </button>
         </DialogContent>
@@ -277,7 +274,7 @@ export default function Dashboard() {
 
       {/* Notification Dialog */}
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
-        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden">
+        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden z-[200]">
           <DialogHeader className="p-6 border-b border-white/5 bg-muted/30 flex justify-between items-center space-y-0">
             <DialogTitle className="font-headline font-black text-xs uppercase tracking-widest text-primary">{t.notifHeader}</DialogTitle>
             {unreadCount > 0 && <button onClick={markAllAsRead} className="text-[8px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest">{t.markAllRead}</button>}
