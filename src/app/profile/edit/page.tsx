@@ -43,7 +43,7 @@ export default function EditProfilePage() {
 
   const [phone, setPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
@@ -106,8 +106,12 @@ export default function EditProfilePage() {
 
       <div className="flex flex-col items-center gap-4 py-6">
         <div className="relative group">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 gold-glow">
-            <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" />
+          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/20 gold-glow bg-white/5 flex items-center justify-center">
+            {selectedAvatar ? (
+              <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <User size={48} className="text-white/20" />
+            )}
           </div>
           <button 
             onClick={() => setIsAvatarOpen(!isAvatarOpen)}

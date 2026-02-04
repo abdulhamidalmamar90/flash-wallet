@@ -171,6 +171,10 @@ export default function Dashboard() {
 
   if (!user) return null;
 
+  const qrCodeUrl = profile?.customId || user?.uid 
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId || user.uid}&color=000000&bgcolor=ffffff`
+    : null;
+
   return (
     <div 
       className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden"
@@ -187,10 +191,12 @@ export default function Dashboard() {
                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">{t.scanToPay}</p>
             </div>
             <div className="bg-white p-3 rounded-2xl border-2 border-[#D4AF37]/20 mx-auto w-fit shadow-inner">
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId || user.uid}&color=000000&bgcolor=ffffff`} alt="QR" className="w-48 h-48 rounded-lg" />
+              {qrCodeUrl && (
+                <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" />
+              )}
             </div>
             <div className="mt-6 bg-gray-100 py-3 px-6 rounded-2xl inline-flex items-center gap-3 cursor-pointer" onClick={() => handleCopyId()}>
-              <span className="text-black font-headline font-black tracking-widest text-lg">{profile?.customId}</span>
+              <span className="text-black font-headline font-black tracking-widest text-lg">{profile?.customId || '---'}</span>
               <Copy size={16} className="text-gray-400" />
             </div>
             <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
