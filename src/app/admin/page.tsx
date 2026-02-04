@@ -24,7 +24,9 @@ import {
   ArrowUpCircle,
   LayoutDashboard,
   ShieldCheck,
-  FileCheck
+  FileCheck,
+  CheckCircle2,
+  Star
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -360,8 +362,13 @@ export default function AdminPage() {
               <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5 group hover:border-primary/20 transition-all duration-500">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border border-white/5">
+                    <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border border-white/5 relative">
                       {u.avatarUrl ? <img src={u.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" /> : <UserIcon className="h-6 w-6 text-primary/40" />}
+                      {u.verified && (
+                        <div className="absolute -top-1 -right-1 bg-background rounded-full p-1 border border-primary/20 shadow-lg z-10">
+                          <Star size={10} className="text-primary fill-primary" />
+                        </div>
+                      )}
                     </div>
                     <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground flex items-center gap-2">@{u.username}{u.role === 'admin' && <ShieldAlert size={12} className="text-primary" />}{u.verified && <CheckCircle2 size={12} className="text-secondary" />}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1 truncate max-w-[150px]">{u.email}</p></div>
                   </div>
@@ -386,5 +393,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-import { CheckCircle2 } from 'lucide-react';

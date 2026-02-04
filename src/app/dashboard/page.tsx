@@ -26,7 +26,8 @@ import {
   PlusCircle,
   Building2,
   Bitcoin,
-  ArrowDownCircle
+  ArrowDownCircle,
+  Star
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -394,6 +395,11 @@ export default function Dashboard() {
           <button onClick={(e) => { e.stopPropagation(); setIsProfileOpen(!isProfileOpen); }} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors group">
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border relative">
               {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={20} className="text-primary" />}
+              {profile?.verified && (
+                <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-primary/20 shadow-lg z-10">
+                  <Star size={10} className="text-primary fill-primary" />
+                </div>
+              )}
             </div>
             <div className={cn("text-start hidden sm:block", language === 'ar' ? 'text-right' : 'text-left')}>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
@@ -406,7 +412,13 @@ export default function Dashboard() {
           {isProfileOpen && (
             <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
               <div className="p-4 border-b border-border bg-muted/30">
-                <div className="flex items-center justify-between mb-3 px-1"><p className="text-sm font-headline font-bold text-foreground uppercase truncate flex-1">{profile?.username}</p>{profile?.verified && <CheckCircle2 size={14} className="text-secondary shrink-0 ml-2" />}</div>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <p className="text-sm font-headline font-bold text-foreground uppercase truncate flex-1">{profile?.username}</p>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {profile?.verified && <Star size={14} className="text-primary fill-primary" />}
+                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
+                  </div>
+                </div>
                 <div className="flex items-center justify-center bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2 w-full text-center" onClick={() => { if(profile?.customId) { navigator.clipboard.writeText(profile.customId); toast({ title: t.idCopied }); }}}>
                   <div className="flex items-center gap-2 overflow-hidden"><span className="text-[9px] text-primary font-headline tracking-tight font-bold truncate">ID: {profile?.customId || '...'}</span><Copy size={11} className="text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0" /></div>
                 </div>
