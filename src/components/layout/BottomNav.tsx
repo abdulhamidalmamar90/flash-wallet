@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowDownToLine, User, ScanLine, ArrowDown } from 'lucide-react';
+import { Home, ArrowDownToLine, User, ScanLine, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/app/lib/store';
 import { useMemo } from 'react';
@@ -20,6 +20,7 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
   const { user } = useUser();
   const db = useFirestore();
 
+  // Fix: Stabilize docRef with useMemo to prevent infinite render loop
   const userDocRef = useMemo(() => 
     (user && db) ? doc(db, 'users', user.uid) : null, 
     [db, user?.uid]
@@ -27,9 +28,13 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
   
   const { data: profile } = useDoc(userDocRef);
 
+  // Filter to show only on Dashboard/Home as per user request
+  const isDashboard = pathname === '/dashboard' || pathname === '/dashboard/';
+  if (!isDashboard) return null;
+
   const navItems = [
     { label: language === 'ar' ? 'الرئيسية' : 'HOME', icon: Home, href: '/dashboard' },
-    { label: language === 'ar' ? 'إيداع' : 'DEPOSIT', icon: ArrowDown, href: '#' },
+    { label: language === 'ar' ? 'الخدمات' : 'SERVICES', icon: LayoutGrid, href: '/marketplace' },
     { label: 'center', icon: ScanLine, href: '#' },
     { label: language === 'ar' ? 'سحب' : 'WITHDRAW', icon: ArrowDownToLine, href: '/withdraw' },
     { label: language === 'ar' ? 'حسابي' : 'PROFILE', icon: User, href: (profile?.role === 'admin' ? '/admin' : '/dashboard') },
