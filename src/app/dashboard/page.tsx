@@ -105,14 +105,15 @@ export default function Dashboard() {
     insufficientFunds: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
     sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...',
     showQr: language === 'ar' ? 'عرض رمز QR' : 'Show My QR',
-    qrTitle: language === 'ar' ? 'معرف الفلاش الخاص بي' : 'My Flash ID',
+    qrTitle: language === 'ar' ? 'هوية الفلاش الرقمية' : 'Digital Flash ID',
     qrSub: language === 'ar' ? 'امسح الكود للإرسال فوراً' : 'Scan to send money instantly',
     scanTitle: language === 'ar' ? 'ماسح الفلاش الضوئي' : 'Flash Scanner',
     scanSub: language === 'ar' ? 'وجه الكاميرا نحو الكود' : 'Point camera at the QR code',
     verifying: language === 'ar' ? 'جاري التحقق من الهوية...' : 'Verifying Identity...',
     userFound: language === 'ar' ? 'مستلم مؤكد' : 'Confirmed Recipient',
     userNotFound: language === 'ar' ? 'المستلم غير موجود' : 'Recipient not found',
-    selfTransfer: language === 'ar' ? 'لا يمكنك التحويل لنفسك' : 'Cannot transfer to self'
+    selfTransfer: language === 'ar' ? 'لا يمكنك التحويل لنفسك' : 'Cannot transfer to self',
+    yourIdLabel: language === 'ar' ? 'معرف الفلاش الخاص بك' : 'YOUR FLASH ID'
   };
 
   // Logic to verify ID owner name
@@ -241,7 +242,7 @@ export default function Dashboard() {
   };
 
   const qrCodeUrl = useMemo(() => profile?.customId 
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile.customId}&color=000000&bgcolor=ffffff`
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${profile.customId}&color=d4af37&bgcolor=ffffff&margin=1`
     : null, [profile?.customId]);
 
   if (!mounted || (authLoading && !user)) {
@@ -277,20 +278,45 @@ export default function Dashboard() {
 
       {/* My QR Modal */}
       {isQrOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-300" onClick={() => setIsQrOpen(false)}>
-          <div className="bg-card p-8 rounded-[2.5rem] shadow-2xl border border-border relative text-center max-w-[90%] w-[340px] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6 w-full text-center">
-               <h3 className="font-headline font-black text-xl uppercase tracking-tighter text-center">{t.qrTitle}</h3>
-               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1 text-center">{t.qrSub}</p>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-2xl p-4 animate-in fade-in duration-300" onClick={() => setIsQrOpen(false)}>
+          <div className="bg-black/40 p-8 rounded-[3rem] shadow-[0_0_50px_rgba(212,175,55,0.1)] border border-primary/20 relative text-center max-w-[90%] w-[360px] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-8 w-full text-center">
+               <h3 className="font-headline font-black text-2xl uppercase tracking-tighter text-white drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">{t.qrTitle}</h3>
+               <p className="text-primary/60 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">{t.qrSub}</p>
             </div>
-            <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 mx-auto w-fit shadow-inner mb-6">
-              {qrCodeUrl ? <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" /> : <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg"><QrCode className="h-12 w-12 text-muted-foreground opacity-20" /></div>}
+            
+            <div className="relative group mb-8">
+              <div className="absolute -inset-4 bg-primary/20 rounded-[2.5rem] blur-2xl group-hover:bg-primary/30 transition-all duration-500"></div>
+              <div className="relative bg-white p-4 rounded-[2rem] border-4 border-primary/30 shadow-[0_0_30px_rgba(212,175,55,0.2)]">
+                {qrCodeUrl ? (
+                  <img src={qrCodeUrl} alt="QR" className="w-52 h-52" />
+                ) : (
+                  <div className="w-52 h-52 bg-muted flex items-center justify-center rounded-lg">
+                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all w-full text-center" onClick={() => { if(profile?.customId) { navigator.clipboard.writeText(profile.customId); toast({ title: t.idCopied }); }}}>
-              <span className="font-headline font-black tracking-widest text-lg leading-none text-center flex-1">{profile?.customId || '---'}</span>
-              <Copy size={16} className="text-muted-foreground shrink-0" />
+
+            <div 
+              className="bg-primary/5 py-4 px-8 rounded-2xl border border-primary/20 flex flex-col items-center gap-2 cursor-pointer hover:bg-primary/10 transition-all w-full group" 
+              onClick={() => { 
+                if(profile?.customId) { 
+                  navigator.clipboard.writeText(profile.customId); 
+                  toast({ title: t.idCopied }); 
+                }
+              }}
+            >
+              <span className="text-[10px] text-primary/40 font-bold uppercase tracking-[0.2em]">{t.yourIdLabel}</span>
+              <div className="flex items-center gap-3">
+                <span className="font-headline font-black tracking-[0.2em] text-2xl text-primary">{profile?.customId || '---'}</span>
+                <Copy size={18} className="text-primary/40 group-hover:text-primary transition-colors" />
+              </div>
             </div>
-            <button onClick={() => setIsQrOpen(false)} className="absolute -bottom-20 left-1/2 -translate-x-1/2 bg-card/20 text-white p-3 rounded-full border border-white/10 backdrop-blur-md"><X size={24} /></button>
+
+            <button onClick={() => setIsQrOpen(false)} className="mt-12 bg-white/5 text-white/40 hover:text-white p-4 rounded-full border border-white/10 hover:border-primary/50 transition-all">
+              <X size={24} />
+            </button>
           </div>
         </div>
       )}
