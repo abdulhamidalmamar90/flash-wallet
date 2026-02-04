@@ -18,7 +18,8 @@ import {
   Loader2,
   CheckCircle2,
   ShieldCheck,
-  Send
+  Send,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -41,6 +42,7 @@ export default function Dashboard() {
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   
   const [recipient, setRecipient] = useState('');
   const [sendAmount, setSendAmount] = useState('');
@@ -92,7 +94,10 @@ export default function Dashboard() {
     successSendTitle: language === 'ar' ? 'تم التحويل بنجاح' : 'Transfer Successful',
     errorSendTitle: language === 'ar' ? 'فشلت العملية' : 'Transaction Failed',
     insufficientFunds: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
-    sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...'
+    sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...',
+    showQr: language === 'ar' ? 'عرض رمز QR' : 'Show My QR',
+    qrTitle: language === 'ar' ? 'معرف الفلاش الخاص بي' : 'My Flash ID',
+    qrSub: language === 'ar' ? 'امسح الكود للإرسال فوراً' : 'Scan to send money instantly'
   };
 
   const handleCopyId = (e?: React.MouseEvent) => {
@@ -149,6 +154,10 @@ export default function Dashboard() {
     }
   };
 
+  const qrCodeUrl = useMemo(() => profile?.customId 
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile.customId}&color=000000&bgcolor=ffffff`
+    : null, [profile?.customId]);
+
   if (!mounted || (authLoading && !user)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -169,6 +178,37 @@ export default function Dashboard() {
     >
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
 
+      {/* QR Modal */}
+      {isQrOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-300" onClick={() => setIsQrOpen(false)}>
+          <div className="bg-card p-8 rounded-[2.5rem] shadow-2xl border border-border relative text-center max-w-[90%] w-[340px]" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-6">
+               <h3 className="font-headline font-black text-xl uppercase tracking-tighter">{t.qrTitle}</h3>
+               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1">
+                 {t.qrSub}
+               </p>
+            </div>
+            <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 mx-auto w-fit shadow-inner">
+              {qrCodeUrl ? (
+                <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" />
+              ) : (
+                <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg">
+                  <QrCode className="h-12 w-12 text-muted-foreground opacity-20" />
+                </div>
+              )}
+            </div>
+            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl inline-flex items-center gap-3 cursor-pointer hover:bg-muted/80 transition-all" onClick={() => handleCopyId()}>
+              <span className="font-headline font-black tracking-widest text-lg">{profile?.customId || '---'}</span>
+              <Copy size={16} className="text-muted-foreground" />
+            </div>
+            <button onClick={() => setIsQrOpen(false)} className="absolute -bottom-20 left-1/2 -translate-x-1/2 bg-card/20 text-white p-3 rounded-full border border-white/10 backdrop-blur-md">
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Send Modal */}
       {isSendModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSendModalOpen(false)}></div>
@@ -240,10 +280,18 @@ export default function Dashboard() {
                    <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
                 </div>
-                <div className="flex items-center justify-between bg-muted p-2 rounded-lg border border-border group cursor-pointer" onClick={(e) => handleCopyId(e)}>
+                <div className="flex items-center justify-between bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2" onClick={(e) => handleCopyId(e)}>
                   <span className="text-[10px] text-primary font-headline tracking-wider">ID: {profile?.customId || '...'}</span>
                   <Copy size={12} className="text-muted-foreground/40" />
                 </div>
+                {/* QR Code Button under the ID */}
+                <button 
+                  onClick={() => { setIsQrOpen(true); setIsProfileOpen(false); }}
+                  className="w-full flex items-center justify-between bg-primary/10 hover:bg-primary/20 p-2 rounded-lg border border-primary/20 transition-all group"
+                >
+                  <span className="text-[9px] text-primary font-headline font-bold uppercase tracking-widest">{t.showQr}</span>
+                  <QrCode size={14} className="text-primary" />
+                </button>
               </div>
               <div className="p-2">
                 <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all">
@@ -349,7 +397,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <BottomNav />
+      <BottomNav onQrClick={() => setIsQrOpen(true)} />
     </div>
   );
 }
