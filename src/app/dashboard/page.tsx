@@ -181,14 +181,14 @@ export default function Dashboard() {
       {/* QR Modal */}
       {isQrOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4 animate-in fade-in duration-300" onClick={() => setIsQrOpen(false)}>
-          <div className="bg-card p-8 rounded-[2.5rem] shadow-2xl border border-border relative text-center max-w-[90%] w-[340px]" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6">
-               <h3 className="font-headline font-black text-xl uppercase tracking-tighter">{t.qrTitle}</h3>
-               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1">
+          <div className="bg-card p-8 rounded-[2.5rem] shadow-2xl border border-border relative text-center max-w-[90%] w-[340px] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-6 w-full">
+               <h3 className="font-headline font-black text-xl uppercase tracking-tighter text-center">{t.qrTitle}</h3>
+               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1 text-center">
                  {t.qrSub}
                </p>
             </div>
-            <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 mx-auto w-fit shadow-inner">
+            <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 mx-auto w-fit shadow-inner mb-6">
               {qrCodeUrl ? (
                 <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" />
               ) : (
@@ -197,10 +197,12 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all mx-auto w-full text-center" onClick={() => handleCopyId()}>
-              <span className="font-headline font-black tracking-widest text-lg leading-none">{profile?.customId || '---'}</span>
+            
+            <div className="bg-muted py-3 px-6 rounded-2xl flex items-center justify-center gap-3 cursor-pointer hover:bg-muted/80 transition-all w-full text-center" onClick={() => handleCopyId()}>
+              <span className="font-headline font-black tracking-widest text-lg leading-none text-center flex-1">{profile?.customId || '---'}</span>
               <Copy size={16} className="text-muted-foreground shrink-0" />
             </div>
+
             <button onClick={() => setIsQrOpen(false)} className="absolute -bottom-20 left-1/2 -translate-x-1/2 bg-card/20 text-white p-3 rounded-full border border-white/10 backdrop-blur-md">
               <X size={24} />
             </button>
@@ -276,14 +278,16 @@ export default function Dashboard() {
           {isProfileOpen && (
             <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
               <div className="p-4 border-b border-border bg-muted/30">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 px-1">
                    <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
                 </div>
                 {/* Centered ID Button */}
-                <div className="flex items-center justify-center gap-2 bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2 w-full text-center" onClick={(e) => handleCopyId(e)}>
-                  <span className="text-[10px] text-primary font-headline tracking-wider font-bold">ID: {profile?.customId || '...'}</span>
-                  <Copy size={11} className="text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0" />
+                <div className="flex items-center justify-center bg-muted p-2 rounded-lg border border-border group cursor-pointer mb-2 w-full text-center" onClick={(e) => handleCopyId(e)}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-primary font-headline tracking-wider font-bold">ID: {profile?.customId || '...'}</span>
+                    <Copy size={11} className="text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0" />
+                  </div>
                 </div>
                 {/* QR Code Button */}
                 <button 

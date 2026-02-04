@@ -36,12 +36,12 @@ export function BottomNav({ onQrClick }: BottomNavProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[100] px-4 pb-8 pt-2 pointer-events-none">
+    <nav className="fixed bottom-0 left-0 right-0 z-[100] px-4 pb-8 pt-2 pointer-events-none w-full">
       <div className="mx-auto max-w-lg rounded-[2.5rem] flex items-center justify-between py-2 px-1 border bg-card/80 backdrop-blur-2xl shadow-2xl border-white/5 pointer-events-auto">
         {navItems.map((item, idx) => {
           if (item.label === 'center') {
             return (
-              <div key="center-container" className="flex-1 flex justify-center">
+              <div key="center-container" className="flex-1 flex justify-center items-center">
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -57,7 +57,7 @@ export function BottomNav({ onQrClick }: BottomNavProps) {
 
           const isActive = pathname === item.href;
           return (
-            <div key={item.label + idx} className="flex-1 flex justify-center">
+            <div key={item.label + idx} className="flex-1 flex justify-center items-center">
               <Link
                 href={item.href}
                 className={cn(
