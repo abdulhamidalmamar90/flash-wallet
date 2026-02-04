@@ -26,7 +26,10 @@ import {
   ShieldCheck,
   FileCheck,
   CheckCircle2,
-  Star
+  Star,
+  Eye,
+  Globe,
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -34,6 +37,7 @@ import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
 import { collection, doc, updateDoc, increment, query, orderBy, runTransaction, DocumentData } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -336,6 +340,42 @@ export default function AdminPage() {
                     <p className="text-[7px] text-muted-foreground mt-2 font-headline uppercase">{req.date ? new Date(req.date).toLocaleDateString() : ''}</p>
                   </div>
                 </div>
+
+                <div className="p-4 bg-muted/20 rounded-2xl border border-white/5 space-y-3">
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-3 w-3 text-primary/60" />
+                      <span className="text-[9px] font-headline font-bold uppercase text-foreground">{req.details?.country || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3 w-3 text-secondary/60" />
+                      <span className="text-[9px] font-headline font-bold uppercase text-foreground">{req.details?.docType || 'ID'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase">Number:</span>
+                      <span className="text-[9px] font-headline font-bold text-foreground">{req.details?.docNumber || '---'}</span>
+                    </div>
+                  </div>
+
+                  {req.documentUrl && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <button className="flex items-center gap-2 text-[9px] font-headline font-bold text-primary uppercase hover:underline transition-all">
+                          <Eye size={12} /> View Document Image
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-xl bg-card border-primary/20 p-2">
+                        <DialogHeader>
+                          <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase p-4">Identity Verification Document</DialogTitle>
+                        </DialogHeader>
+                        <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black/50">
+                          <img src={req.documentUrl} alt="Document" className="object-contain w-full h-full" />
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
+
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
                     <button onClick={() => handleApproveVerification(req.id, req.userId)} className="flex-1 h-12 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Verify User</span></button>
