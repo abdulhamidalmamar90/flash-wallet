@@ -33,7 +33,7 @@ import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebas
 import { doc, collection, query, orderBy, limit, runTransaction, increment, where, getDocs } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -292,7 +292,7 @@ export default function Dashboard() {
             </div>
 
             <div 
-              className="bg-primary/5 py-4 px-8 rounded-2xl border border-primary/20 flex flex-col items-center gap-2 cursor-pointer hover:bg-primary/10 transition-all w-full group" 
+              className="bg-primary/5 py-4 px-6 rounded-2xl border border-primary/20 flex flex-col items-center gap-1 cursor-pointer hover:bg-primary/10 transition-all w-full group overflow-hidden" 
               onClick={() => { 
                 if(profile?.customId) { 
                   navigator.clipboard.writeText(profile.customId); 
@@ -300,10 +300,10 @@ export default function Dashboard() {
                 }
               }}
             >
-              <span className="text-[10px] text-primary/40 font-bold uppercase tracking-[0.2em]">{t.yourIdLabel}</span>
-              <div className="flex items-center justify-center gap-3 w-full">
-                <span className="font-headline font-black tracking-[0.1em] text-2xl text-primary break-all">{profile?.customId || '---'}</span>
-                <Copy size={18} className="text-primary/40 group-hover:text-primary transition-colors shrink-0" />
+              <span className="text-[9px] text-primary/40 font-bold uppercase tracking-[0.2em]">{t.yourIdLabel}</span>
+              <div className="flex items-center justify-center gap-2 w-full">
+                <span className="font-headline font-black tracking-[0.05em] text-xl text-primary whitespace-nowrap overflow-hidden">{profile?.customId || '---'}</span>
+                <Copy size={16} className="text-primary/40 group-hover:text-primary transition-colors shrink-0" />
               </div>
             </div>
 
