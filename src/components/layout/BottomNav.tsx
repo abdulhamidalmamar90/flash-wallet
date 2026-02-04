@@ -19,9 +19,10 @@ export function BottomNav() {
   const { toast } = useToast();
   const [isQrOpen, setIsQrOpen] = useState(false);
 
+  // Use useMemo to stabilize the doc reference and prevent infinite loops
   const userDocRef = useMemo(() => 
     (user && db) ? doc(db, 'users', user.uid) : null, 
-    [db, user]
+    [db, user?.uid]
   );
   
   const { data: profile } = useDoc(userDocRef);
@@ -86,7 +87,7 @@ export function BottomNav() {
                 <button
                   key="center-btn"
                   onClick={() => setIsQrOpen(true)}
-                  className="relative -top-10 w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary),0.3)] border-4 border-background hover:scale-110 transition-all duration-300 gold-glow"
+                  className="relative -top-10 w-16 h-16 shrink-0 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary),0.3)] border-4 border-background hover:scale-105 transition-all duration-300 gold-glow"
                 >
                   <ScanLine size={28} className="text-primary-foreground" />
                 </button>
