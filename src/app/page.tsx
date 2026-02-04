@@ -3,13 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, X } from 'lucide-react';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { useAuth, useFirestore, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -21,9 +21,12 @@ export default function LoginPage() {
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   const { language } = useStore();
   
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
@@ -47,7 +50,13 @@ export default function LoginPage() {
     loading: language === 'ar' ? 'جاري التحقق...' : 'Verifying...',
     social: language === 'ar' ? 'أو الاستمرار بواسطة' : 'Or Continue With',
     noAccount: language === 'ar' ? 'ليس لديك حساب؟' : "Don't have an account?",
-    create: language === 'ar' ? 'إنشاء محفظة جديدة' : 'Create New Wallet'
+    create: language === 'ar' ? 'إنشاء محفظة جديدة' : 'Create New Wallet',
+    forgot: language === 'ar' ? 'نسيت مفتاح الوصول؟' : 'Forgot Access Key?',
+    resetTitle: language === 'ar' ? 'استعادة الوصول' : 'Recover Access',
+    resetDesc: language === 'ar' ? 'أدخل بريدك لإرسال رابط إعادة التعيين' : 'Enter email to receive reset link',
+    sendReset: language === 'ar' ? 'إرسال الرابط' : 'Send Reset Link',
+    resetSent: language === 'ar' ? 'تم إرسال الرابط لبريدك' : 'Reset link sent to your email',
+    errorReset: language === 'ar' ? 'فشل إرسال الرابط' : 'Failed to send reset link'
   };
 
   const generateCustomId = () => {
@@ -108,6 +117,22 @@ export default function LoginPage() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth || !resetEmail) return;
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast({ title: t.resetSent });
+      setIsResetOpen(false);
+      setResetEmail('');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: t.errorReset, description: error.message });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   if (!mounted || (authLoading && !user)) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -155,6 +180,13 @@ export default function LoginPage() {
               required 
             />
           </div>
+
+          <div className="flex justify-end">
+             <button type="button" onClick={() => setIsResetOpen(true)} className="text-[10px] text-primary/70 hover:text-primary font-bold uppercase tracking-widest transition-colors">
+               {t.forgot}
+             </button>
+          </div>
+
           <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-headline font-black py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 mt-4 active:scale-95 disabled:opacity-50">
             <span>{loading ? t.loading : t.login}</span>
             <ArrowRight size={18} className={cn(language === 'ar' && 'rotate-180')} />
@@ -175,6 +207,35 @@ export default function LoginPage() {
           {t.noAccount} <Link href="/register" className="text-primary cursor-pointer hover:underline">{t.create}</Link>
         </p>
       </div>
+
+      {/* Forgot Password Modal */}
+      {isResetOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setIsResetOpen(false)}>
+          <div className="bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] shadow-2xl relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setIsResetOpen(false)} className="absolute top-4 right-4 text-white/40 hover:text-white"><X size={20} /></button>
+            <div className="text-center mb-6">
+               <h3 className="font-headline font-black text-xl text-white uppercase tracking-tight">{t.resetTitle}</h3>
+               <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">{t.resetDesc}</p>
+            </div>
+            <form onSubmit={handleResetPassword} className="space-y-4">
+               <div className="group relative">
+                <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Mail size={18} /></div>
+                <input 
+                  type="email" 
+                  placeholder={t.email} 
+                  className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-10 pl-4 text-right' : 'pl-10 pr-4 text-left')} 
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required 
+                />
+              </div>
+              <button type="submit" disabled={resetLoading} className="w-full bg-primary text-background font-headline font-black py-3.5 rounded-2xl transition-all active:scale-95 disabled:opacity-50">
+                {resetLoading ? t.loading : t.sendReset}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
