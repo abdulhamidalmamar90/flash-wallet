@@ -34,7 +34,20 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
-import { doc, collection, query, orderBy, limit, runTransaction, increment, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy, 
+  limit, 
+  runTransaction, 
+  increment, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc 
+} from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { BottomNav } from '@/components/layout/BottomNav';
 import Image from 'next/image';
@@ -56,7 +69,6 @@ export default function Dashboard() {
   
   const [recipient, setRecipient] = useState(''); 
   const [sendAmount, setSendAmount] = useState('');
-  const [depositAmount, setDepositAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -114,27 +126,82 @@ export default function Dashboard() {
   const handleSendMoney = async () => {
     if (!user || !recipient || !sendAmount || !profile || !db) return;
     const amountNum = parseFloat(sendAmount);
+    
+    if (amountNum <= 0) {
+      toast({ variant: "destructive", title: "Invalid Amount" });
+      return;
+    }
+
     if ((profile.balance || 0) < amountNum) {
       toast({ variant: "destructive", title: "Insufficient Funds" });
       return;
     }
+
+    if (recipient.trim() === profile.customId) {
+      toast({ variant: "destructive", title: "Transaction Error", description: "You cannot send money to yourself." });
+      return;
+    }
+
     setIsSending(true);
     try {
+      // 1. Find the recipient by Flash ID (customId)
+      const q = query(collection(db, 'users'), where('customId', '==', recipient.trim()));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        toast({ variant: "destructive", title: "Recipient Not Found", description: "The Flash ID entered does not exist." });
+        setIsSending(false);
+        return;
+      }
+
+      const recipientDoc = querySnapshot.docs[0];
+      const recipientId = recipientDoc.id;
+      const recipientData = recipientDoc.data();
+
+      // 2. Perform Atomic Transaction
       await runTransaction(db, async (transaction) => {
         const senderRef = doc(db, 'users', user.uid);
+        const receiverRef = doc(db, 'users', recipientId);
+        
+        // Update Balances
         transaction.update(senderRef, { balance: increment(-amountNum) });
+        transaction.update(receiverRef, { balance: increment(amountNum) });
+
+        // Record Sender Transaction
         const senderTxRef = doc(collection(db, 'users', user.uid, 'transactions'));
         transaction.set(senderTxRef, { 
           type: 'send', 
           amount: amountNum, 
-          recipient: recipient, 
+          recipient: recipientData.username || recipient, 
           status: 'completed', 
           date: new Date().toISOString() 
         });
+
+        // Record Recipient Transaction
+        const recipientTxRef = doc(collection(db, 'users', recipientId, 'transactions'));
+        transaction.set(recipientTxRef, { 
+          type: 'receive', 
+          amount: amountNum, 
+          sender: profile.username, 
+          status: 'completed', 
+          date: new Date().toISOString() 
+        });
+
+        // Send Notification to Recipient
+        const notifRef = doc(collection(db, 'users', recipientId, 'notifications'));
+        transaction.set(notifRef, {
+          title: "Funds Received",
+          message: `Success! You received $${amountNum} from @${profile.username}`,
+          type: 'transaction',
+          read: false,
+          date: new Date().toISOString()
+        });
       });
-      toast({ title: "Transfer Authorized" });
+
+      toast({ title: "Transfer Authorized", description: `Successfully sent $${amountNum} to ${recipientData.username}` });
       setIsSendModalOpen(false);
       setSendAmount('');
+      setRecipient('');
     } catch (e: any) {
       toast({ variant: "destructive", title: "Failed", description: e.message });
     } finally {
@@ -346,7 +413,9 @@ export default function Dashboard() {
               <input type="text" placeholder="Recipient Flash ID" value={recipient} onChange={(e) => setRecipient(e.target.value.toUpperCase())} className="w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-center font-headline tracking-widest uppercase" />
               <input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-5 text-center text-4xl font-headline font-black text-primary" />
             </div>
-            <button onClick={handleSendMoney} disabled={isSending} className="w-full bg-primary text-primary-foreground font-headline font-black py-4 rounded-xl">Authorize Transfer</button>
+            <button onClick={handleSendMoney} disabled={isSending} className="w-full bg-primary text-primary-foreground font-headline font-black py-4 rounded-xl">
+              {isSending ? <Loader2 className="animate-spin mx-auto" /> : "Authorize Transfer"}
+            </button>
           </div>
         </div>
       )}
@@ -356,10 +425,10 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsDepositModalOpen(false)}></div>
           <div className="relative w-full max-w-lg bg-card border-t sm:border border-border sm:rounded-3xl rounded-t-3xl shadow-2xl p-6 space-y-6 animate-in slide-in-from-bottom-10">
             <h2 className="text-xl font-headline font-bold text-foreground flex items-center gap-2"><PlusCircle className="text-secondary" /> Deposit Request</h2>
-            <input type="number" placeholder="0.00" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-5 text-center text-4xl font-headline font-black text-secondary" />
+            <input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-5 text-center text-4xl font-headline font-black text-secondary" />
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => addDoc(collection(db, 'deposits'), { userId: user!.uid, username: profile!.username, amount: parseFloat(depositAmount), type: 'bank', status: 'pending', date: new Date().toISOString() }).then(() => { toast({ title: "Request Sent" }); setIsDepositModalOpen(false); })} className="p-4 bg-muted/30 border border-border rounded-2xl flex flex-col items-center gap-2"><Building2 className="text-primary" /><span>Bank</span></button>
-              <button onClick={() => addDoc(collection(db, 'deposits'), { userId: user!.uid, username: profile!.username, amount: parseFloat(depositAmount), type: 'crypto', status: 'pending', date: new Date().toISOString() }).then(() => { toast({ title: "Request Sent" }); setIsDepositModalOpen(false); })} className="p-4 bg-muted/30 border border-border rounded-2xl flex flex-col items-center gap-2"><Bitcoin className="text-secondary" /><span>Crypto</span></button>
+              <button onClick={() => addDoc(collection(db, 'deposits'), { userId: user!.uid, username: profile!.username, amount: parseFloat(sendAmount), type: 'bank', status: 'pending', date: new Date().toISOString() }).then(() => { toast({ title: "Request Sent" }); setIsDepositModalOpen(false); })} className="p-4 bg-muted/30 border border-border rounded-2xl flex flex-col items-center gap-2"><Building2 className="text-primary" /><span>Bank</span></button>
+              <button onClick={() => addDoc(collection(db, 'deposits'), { userId: user!.uid, username: profile!.username, amount: parseFloat(sendAmount), type: 'crypto', status: 'pending', date: new Date().toISOString() }).then(() => { toast({ title: "Request Sent" }); setIsDepositModalOpen(false); })} className="p-4 bg-muted/30 border border-border rounded-2xl flex flex-col items-center gap-2"><Bitcoin className="text-secondary" /><span>Crypto</span></button>
             </div>
           </div>
         </div>

@@ -11,7 +11,15 @@ import { Send, User, ChevronLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, collection, runTransaction, increment } from 'firebase/firestore';
+import { 
+  doc, 
+  collection, 
+  runTransaction, 
+  increment, 
+  query, 
+  where, 
+  getDocs 
+} from 'firebase/firestore';
 
 export default function TransferPage() {
   const router = useRouter();
@@ -34,8 +42,8 @@ export default function TransferPage() {
 
   const t = {
     header: language === 'ar' ? 'تحويل داخلي' : 'Internal Transfer',
-    recipientLabel: language === 'ar' ? 'اسم مستخدم المستلم' : 'Recipient Username',
-    recipientPlaceholder: language === 'ar' ? 'مثال: Mostafa88' : 'Ex: CryptoWhale',
+    recipientLabel: language === 'ar' ? 'معرف فلاش (Flash ID)' : 'Recipient Flash ID',
+    recipientPlaceholder: language === 'ar' ? 'مثال: F1234567890' : 'Ex: F1234567890',
     amountLabel: language === 'ar' ? 'المبلغ (دولار)' : 'Amount (USD)',
     availableBalance: language === 'ar' ? 'الرصيد المتاح' : 'Available balance',
     loadingBtn: language === 'ar' ? 'جاري التحقق...' : 'INITIALIZING P2P...',
@@ -43,30 +51,79 @@ export default function TransferPage() {
     successTitle: language === 'ar' ? 'تم التحويل بنجاح' : 'TRANSFER SUCCESSFUL',
     errorTitle: language === 'ar' ? 'فشلت العملية' : 'TRANSACTION FAILED',
     insufficientFunds: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
+    notFound: language === 'ar' ? 'لم يتم العثور على الحساب' : 'Recipient Flash ID not found',
+    selfTransfer: language === 'ar' ? 'لا يمكنك التحويل لنفسك' : 'Cannot transfer to yourself',
   };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !recipient || !amount || !profile) return;
+    if (!user || !recipient || !amount || !profile || !db) return;
     
     const amountNum = parseFloat(amount);
+    if (amountNum <= 0) return;
+
     if (profile.balance < amountNum) {
       toast({ variant: "destructive", title: t.errorTitle, description: t.insufficientFunds });
       return;
     }
 
+    if (recipient.trim() === profile.customId) {
+      toast({ variant: "destructive", title: t.errorTitle, description: t.selfTransfer });
+      return;
+    }
+
     setLoading(true);
     try {
+      // 1. Find recipient by Flash ID
+      const q = query(collection(db, 'users'), where('customId', '==', recipient.trim()));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        toast({ variant: "destructive", title: t.errorTitle, description: t.notFound });
+        setLoading(false);
+        return;
+      }
+
+      const recipientDoc = querySnapshot.docs[0];
+      const recipientId = recipientDoc.id;
+      const recipientData = recipientDoc.data();
+
+      // 2. Perform Atomic Transaction
       await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', user.uid);
-        transaction.update(userRef, { balance: increment(-amountNum) });
+        const senderRef = doc(db, 'users', user.uid);
+        const receiverRef = doc(db, 'users', recipientId);
         
-        const txRef = doc(collection(db, 'users', user.uid, 'transactions'));
-        transaction.set(txRef, {
+        // Update Balances
+        transaction.update(senderRef, { balance: increment(-amountNum) });
+        transaction.update(receiverRef, { balance: increment(amountNum) });
+
+        // Record Sender Transaction
+        const senderTxRef = doc(collection(db, 'users', user.uid, 'transactions'));
+        transaction.set(senderTxRef, {
           type: 'send',
           amount: amountNum,
-          recipient: recipient,
+          recipient: recipientData.username || recipient,
           status: 'completed',
+          date: new Date().toISOString()
+        });
+
+        // Record Recipient Transaction
+        const recipientTxRef = doc(collection(db, 'users', recipientId, 'transactions'));
+        transaction.set(recipientTxRef, {
+          type: 'receive',
+          amount: amountNum,
+          sender: profile.username,
+          status: 'completed',
+          date: new Date().toISOString()
+        });
+
+        // Send Notification to Recipient
+        const notifRef = doc(collection(db, 'users', recipientId, 'notifications'));
+        transaction.set(notifRef, {
+          title: "Funds Received",
+          message: `Success! You received $${amountNum} from @${profile.username}`,
+          type: 'transaction',
+          read: false,
           date: new Date().toISOString()
         });
       });
@@ -74,8 +131,8 @@ export default function TransferPage() {
       toast({
         title: t.successTitle,
         description: language === 'ar' 
-          ? `لقد أرسلت $${amount} إلى @${recipient}` 
-          : `You sent $${amount} to @${recipient}`,
+          ? `لقد أرسلت $${amount} إلى ${recipientData.username}` 
+          : `You sent $${amount} to ${recipientData.username}`,
       });
       router.push('/dashboard');
     } catch (e: any) {
@@ -122,11 +179,11 @@ export default function TransferPage() {
                 id="recipient" 
                 placeholder={t.recipientPlaceholder} 
                 className={cn(
-                  "h-12 bg-background/50 border-white/10 rounded-xl focus:border-secondary/50",
+                  "h-12 bg-background/50 border-white/10 rounded-xl focus:border-secondary/50 uppercase",
                   language === 'ar' ? "pr-10 pl-4 text-right" : "pl-10 pr-4 text-left"
                 )}
                 value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
+                onChange={(e) => setRecipient(e.target.value.toUpperCase())}
                 required
               />
             </div>
