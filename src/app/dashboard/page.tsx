@@ -33,11 +33,11 @@ const COUNTRIES = [
   { code: 'SA', nameAr: 'المملكة العربية السعودية', nameEn: 'Saudi Arabia', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameAr: 'جمهورية مصر العربية', nameEn: 'Egypt', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameAr: 'الإمارات العربية المتحدة', nameEn: 'United Arab Emirates', flag: '🇦🇪', prefix: '+971' },
-  { code: 'KW', nameAr: 'الكويت', nameEn: 'Kuwait', flag: '🇰🇼', prefix: '+965' },
-  { code: 'QA', nameAr: 'قطر', nameEn: 'Qatar', flag: '🇶🇦', prefix: '+974' },
-  { code: 'TR', nameAr: 'تركيا', nameEn: 'Turkey', flag: '🇹🇷', prefix: '+90' },
-  { code: 'US', nameAr: 'الولايات المتحدة', nameEn: 'USA', flag: '🇺🇸', prefix: '+1' },
-  { code: 'UK', nameAr: 'المملكة المتحدة', nameEn: 'UK', flag: '🇬🇧', prefix: '+44' },
+  { code: 'KW', nameAr: 'الكويت', flag: '🇰🇼', prefix: '+965' },
+  { code: 'QA', nameAr: 'قطر', flag: '🇶🇦', prefix: '+974' },
+  { code: 'TR', nameAr: 'تركيا', flag: '🇹🇷', prefix: '+90' },
+  { code: 'US', nameAr: 'الولايات المتحدة', flag: '🇺🇸', prefix: '+1' },
+  { code: 'UK', nameAr: 'المملكة المتحدة', flag: '🇬🇧', prefix: '+44' },
 ];
 
 export default function Dashboard() {
@@ -47,10 +47,16 @@ export default function Dashboard() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
-  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   
+  // Send form states
+  const [recipient, setRecipient] = useState('');
+  const [sendAmount, setSendAmount] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
   const userId = "883-292-10";
 
   useEffect(() => {
@@ -59,7 +65,7 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
-  const { balance, transactions, language, username } = store;
+  const { balance, transactions, language, username, sendMoney } = store;
 
   const t = {
     welcome: language === 'ar' ? 'مرحباً بك،' : 'Welcome back,',
@@ -78,9 +84,14 @@ export default function Dashboard() {
     editAccount: language === 'ar' ? 'تعديل الحساب' : 'Edit Account',
     logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
     withdrawHeader: language === 'ar' ? 'سحب بنكي' : 'Bank Withdrawal',
+    sendHeader: language === 'ar' ? 'تحويل سريع' : 'Quick Transfer',
     confirmWithdraw: language === 'ar' ? 'تأكيد الطلب' : 'Confirm Request',
+    confirmSend: language === 'ar' ? 'تأكيد التحويل' : 'Authorize Transfer',
     beneficiaryName: language === 'ar' ? 'اسم المستفيد' : 'Beneficiary Name',
     ibanLabel: language === 'ar' ? 'رقم الآيبان' : 'IBAN Number',
+    recipientLabel: language === 'ar' ? 'اسم مستخدم المستلم' : 'Recipient Username',
+    recipientPlaceholder: language === 'ar' ? 'مثال: Mostafa88' : 'Ex: CryptoWhale',
+    amountLabel: language === 'ar' ? 'المبلغ (دولار)' : 'Amount (USD)',
     phoneLabel: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
     countryLabel: language === 'ar' ? 'الدولة' : 'Country',
     showQr: language === 'ar' ? 'إظهار QR Code' : 'Show QR Code',
@@ -89,7 +100,11 @@ export default function Dashboard() {
     justNow: language === 'ar' ? 'الآن' : 'Just now',
     deposit: language === 'ar' ? 'شحن رصيد' : 'Deposit',
     withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal',
-    sentTo: language === 'ar' ? 'تحويل إلى' : 'Sent to'
+    sentTo: language === 'ar' ? 'تحويل إلى' : 'Sent to',
+    successSendTitle: language === 'ar' ? 'تم التحويل بنجاح' : 'Transfer Successful',
+    errorSendTitle: language === 'ar' ? 'فشلت العملية' : 'Transaction Failed',
+    insufficientFunds: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
+    sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...',
   };
 
   const handleCopyId = (e?: React.MouseEvent) => {
@@ -98,10 +113,41 @@ export default function Dashboard() {
     toast({ title: t.idCopied, description: userId });
   };
 
+  const handleSendMoney = () => {
+    if (!recipient || !sendAmount) return;
+    setIsSending(true);
+    
+    setTimeout(() => {
+      const success = sendMoney(recipient, parseFloat(sendAmount));
+      setIsSending(false);
+      
+      if (success) {
+        toast({
+          title: t.successSendTitle,
+          description: language === 'ar' 
+            ? `لقد أرسلت $${sendAmount} إلى @${recipient}` 
+            : `You sent $${sendAmount} to @${recipient}`,
+        });
+        setIsSendModalOpen(false);
+        setRecipient('');
+        setSendAmount('');
+      } else {
+        toast({
+          variant: "destructive",
+          title: t.errorSendTitle,
+          description: t.insufficientFunds,
+        });
+      }
+    }, 1200);
+  };
+
   return (
     <div 
       className="min-h-screen bg-[#0a0a0a] text-white font-body pb-32 relative overflow-hidden"
-      onClick={() => { setIsProfileOpen(false); setIsCountryDropdownOpen(false); }}
+      onClick={() => { 
+        setIsProfileOpen(false); 
+        setIsCountryDropdownOpen(false); 
+      }}
     >
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#00f3ff]/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-[#D4AF37]/5 rounded-full blur-[100px] pointer-events-none"></div>
@@ -123,6 +169,56 @@ export default function Dashboard() {
             </div>
             <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
                <button onClick={() => setIsQrModalOpen(false)} className="bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all border border-white/10"><X size={24} /></button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Modal */}
+      {isSendModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setIsSendModalOpen(false)}></div>
+          <div className="relative w-full max-w-lg bg-[#0f0f0f] border-t sm:border border-white/10 sm:rounded-3xl rounded-t-3xl shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
+            <div className="flex justify-between items-center p-6 border-b border-white/5 bg-white/5">
+              <h2 className="text-xl font-headline font-bold text-white flex items-center gap-2"><Send className="text-primary" />{t.sendHeader}</h2>
+              <button onClick={() => setIsSendModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} className="text-white/60" /></button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.recipientLabel}</label>
+                <div className="relative group">
+                   <div className={cn("absolute top-3.5 text-white/30 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><User size={18} /></div>
+                   <input 
+                    type="text" 
+                    placeholder={t.recipientPlaceholder}
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                    className={cn("w-full bg-white/5 border border-white/10 rounded-xl py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-11 pl-4 text-right' : 'pl-11 pr-4 text-left')} 
+                   />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.amountLabel}</label>
+                <div className="relative group">
+                   <input 
+                    type="number" 
+                    placeholder="0.00"
+                    value={sendAmount}
+                    onChange={(e) => setSendAmount(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-5 text-center text-4xl font-headline font-black text-primary placeholder:text-primary/10 focus:outline-none focus:border-primary/50" 
+                   />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 pt-0">
+              <button 
+                onClick={handleSendMoney}
+                disabled={isSending || !recipient || !sendAmount}
+                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground font-headline font-black py-4 rounded-xl shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2"
+              >
+                <span>{isSending ? t.sending : t.confirmSend}</span>
+                <ArrowUpRight size={20} />
+              </button>
             </div>
           </div>
         </div>
@@ -244,12 +340,12 @@ export default function Dashboard() {
 
       {/* Actions */}
       <section className="px-6 grid grid-cols-3 gap-6 mb-10 relative z-10">
-        <Link href="/transfer" className="flex flex-col items-center gap-3 group">
+        <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-3 group">
           <div className="w-16 h-16 rounded-[1.5rem] bg-[#D4AF37] flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300">
             <ArrowUpRight size={28} className="text-black" />
           </div>
           <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-white/80">{t.send}</span>
-        </Link>
+        </button>
         <button onClick={() => setIsWithdrawModalOpen(true)} className="flex flex-col items-center gap-3 group">
           <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center hover:border-[#00f3ff]/30 group-hover:bg-white/10 transition-all duration-300">
             <ArrowDownLeft size={28} className="text-[#00f3ff]" />
