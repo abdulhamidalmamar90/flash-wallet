@@ -64,6 +64,19 @@
         "date": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "username", "type", "amount", "status", "date"]
+    },
+    "VerificationRequest": {
+      "title": "Verification Request",
+      "description": "Stored in /verifications/{requestId}. Global queue for account verification.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "date": { "type": "string", "format": "date-time" },
+        "documentUrl": { "type": "string" }
+      },
+      "required": ["userId", "username", "status", "date"]
     }
   },
   "auth": {
@@ -85,6 +98,10 @@
     "/deposits/{depositId}": {
       "schema": "DepositRequest",
       "description": "Global queue for deposits pending admin verification"
+    },
+    "/verifications/{verificationId}": {
+      "schema": "VerificationRequest",
+      "description": "Global queue for user identity verification"
     }
   }
 }

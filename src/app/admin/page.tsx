@@ -22,7 +22,9 @@ import {
   User as UserIcon,
   ArrowDownCircle,
   ArrowUpCircle,
-  LayoutDashboard
+  LayoutDashboard,
+  ShieldCheck,
+  FileCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -57,6 +59,13 @@ export default function AdminPage() {
     orderBy('date', 'desc')
   ), [db]);
   const { data: deposits = [], loading: depositLoading } = useCollection(depositsQuery);
+
+  // Fetch Verifications
+  const verificationsQuery = useMemo(() => query(
+    collection(db, 'verifications'),
+    orderBy('date', 'desc')
+  ), [db]);
+  const { data: verifications = [], loading: verificationLoading } = useCollection(verificationsQuery);
 
   // Fetch Users for Management
   const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
@@ -121,6 +130,31 @@ export default function AdminPage() {
       const ref = doc(db, 'deposits', id);
       await updateDoc(ref, { status: 'rejected' });
       toast({ variant: "destructive", title: "DEPOSIT REJECTED", description: "The request has been dismissed." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "ERROR", description: e.message });
+    }
+  };
+
+  const handleApproveVerification = async (id: string, userId: string) => {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const verRef = doc(db, 'verifications', id);
+        const userRef = doc(db, 'users', userId);
+        
+        transaction.update(verRef, { status: 'approved' });
+        transaction.update(userRef, { verified: true });
+      });
+      toast({ title: "USER VERIFIED", description: "Verification badge has been issued." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "ERROR", description: e.message });
+    }
+  };
+
+  const handleRejectVerification = async (id: string) => {
+    try {
+      const ref = doc(db, 'verifications', id);
+      await updateDoc(ref, { status: 'rejected' });
+      toast({ variant: "destructive", title: "VERIFICATION REJECTED", description: "The request has been dismissed." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "ERROR", description: e.message });
     }
@@ -200,14 +234,17 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[8px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
+        <TabsList className="grid w-full grid-cols-4 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1">
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
             <ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraw
           </TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[8px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
             <ArrowDownCircle className="h-3 w-3 mr-1" /> Deposit
           </TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[8px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
+            <ShieldCheck className="h-3 w-3 mr-1" /> Verif
+          </TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all">
             <Users className="h-3 w-3 mr-1" /> Users
           </TabsTrigger>
         </TabsList>
@@ -274,6 +311,40 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="verifications" className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-[10px] font-headline font-bold text-muted-foreground tracking-widest uppercase">ID Verification Queue</h3>
+            <span className="text-[10px] font-headline text-secondary">
+              {verifications.filter(v => v.status === 'pending').length} KYC Action(s)
+            </span>
+          </div>
+          <div className="space-y-4">
+            {verificationLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : verifications.length === 0 ? <p className="text-center text-[10px] opacity-30 py-10 uppercase font-headline">No verification requests</p> : verifications.map((req: any) => (
+              <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-secondary/20 transition-all duration-500">
+                <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-cyan-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5">
+                      <FileCheck className="h-6 w-6 text-secondary" />
+                    </div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1">ID: {req.id?.slice(0, 8)}...</p></div>
+                  </div>
+                  <div className="text-right">
+                    <Badge className={cn("text-[8px] px-2 py-0.5 h-5 border-none uppercase tracking-widest font-black mt-1", req.status === 'pending' ? "bg-cyan-500/20 text-cyan-400" : req.status === 'approved' ? "bg-secondary/20 text-secondary" : "bg-red-500/20 text-red-400")}>{req.status}</Badge>
+                    <p className="text-[7px] text-muted-foreground mt-2 font-headline uppercase">{req.date ? new Date(req.date).toLocaleDateString() : ''}</p>
+                  </div>
+                </div>
+                {req.status === 'pending' && (
+                  <div className="flex gap-4 pt-2">
+                    <button onClick={() => handleApproveVerification(req.id, req.userId)} className="flex-1 h-12 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Verify User</span></button>
+                    <button onClick={() => handleRejectVerification(req.id)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
         <TabsContent value="users" className="space-y-6">
           <div className="relative group px-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -292,7 +363,7 @@ export default function AdminPage() {
                     <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border border-white/5">
                       {u.avatarUrl ? <img src={u.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-2xl" /> : <UserIcon className="h-6 w-6 text-primary/40" />}
                     </div>
-                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground flex items-center gap-2">@{u.username}{u.role === 'admin' && <ShieldAlert size={12} className="text-primary" />}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1 truncate max-w-[150px]">{u.email}</p></div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground flex items-center gap-2">@{u.username}{u.role === 'admin' && <ShieldAlert size={12} className="text-primary" />}{u.verified && <CheckCircle2 size={12} className="text-secondary" />}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest font-black mt-1 truncate max-w-[150px]">{u.email}</p></div>
                   </div>
                   <div className="text-right"><p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest mb-1">ID: {u.customId}</p><div className="flex items-center justify-end gap-2"><Wallet size={14} className="text-primary/60" /><p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString() || '0'}</p></div></div>
                 </div>
@@ -315,3 +386,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+import { CheckCircle2 } from 'lucide-react';
