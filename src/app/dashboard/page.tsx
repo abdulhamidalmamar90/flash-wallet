@@ -22,7 +22,8 @@ import {
   X,
   Camera,
   UserCheck,
-  ArrowDown
+  ArrowDown,
+  Moon
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -113,7 +114,8 @@ export default function Dashboard() {
     userNotFound: language === 'ar' ? 'المستلم غير موجود' : 'Recipient not found',
     selfTransfer: language === 'ar' ? 'لا يمكنك التحويل لنفسك' : 'Cannot transfer to self',
     yourIdLabel: language === 'ar' ? 'معرف الفلاش الخاص بك' : 'YOUR FLASH ID',
-    withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal'
+    withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal',
+    switchTheme: language === 'ar' ? 'تبديل الوضع' : 'SWITCH THEME'
   };
 
   useEffect(() => {
@@ -416,8 +418,21 @@ export default function Dashboard() {
                   <QrCode size={14} className="text-primary" />
                 </button>
               </div>
-              <div className="p-2">
-                <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all"><Settings size={16} className="text-secondary" />{t.editAccount}</Link>
+              <div className="p-2 space-y-1">
+                <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all">
+                  <Settings size={16} className="text-secondary" />
+                  {t.editAccount}
+                </Link>
+
+                {/* Theme Toggle in Profile Menu */}
+                <div className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted transition-all">
+                  <div className="flex items-center gap-3">
+                    <Moon size={16} className="text-primary" />
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-foreground/80">{t.switchTheme}</span>
+                  </div>
+                  <ThemeToggle />
+                </div>
+
                 {profile?.role === 'admin' && <Link href="/admin" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-primary/10 text-[11px] font-bold uppercase tracking-widest text-primary transition-all mt-1"><ShieldCheck size={16} />{t.adminPanel}</Link>}
                 <button onClick={() => { if(auth) signOut(auth).then(() => router.push('/')); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-foreground/80 hover:text-red-400 transition-all mt-1"><LogOut size={16} />{t.logout}</button>
               </div>
@@ -425,7 +440,6 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <ThemeToggle />
           <LanguageToggle />
           <div className="relative">
             <Bell size={24} className="text-foreground/80" />
