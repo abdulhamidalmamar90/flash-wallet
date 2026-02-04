@@ -9,8 +9,8 @@ import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { useAuth, useFirestore, useUser } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -56,6 +56,7 @@ export default function RegisterPage() {
     password: language === 'ar' ? 'كلمة المرور' : 'Password',
     register: language === 'ar' ? 'تفعيل المحفظة' : 'Activate Wallet',
     loading: language === 'ar' ? 'جاري التجهيز...' : 'Initializing...',
+    social: language === 'ar' ? 'أو الاستمرار بواسطة' : 'Or Continue With',
     hasAccount: language === 'ar' ? 'لديك حساب بالفعل؟' : 'Already have an account?',
     login: language === 'ar' ? 'تسجيل الدخول' : 'Authorize Access'
   };
@@ -67,6 +68,24 @@ export default function RegisterPage() {
     return `${firstLetter}${numbers}`;
   };
 
+  const initUser = async (uid: string, userEmail: string, customUsername?: string, customPhone?: string) => {
+    const userDoc = doc(db, 'users', uid);
+    const snap = await getDoc(userDoc);
+    if (!snap.exists()) {
+      await setDoc(userDoc, {
+        username: customUsername || userEmail.split('@')[0],
+        email: userEmail,
+        phone: customPhone || '',
+        customId: generateCustomId(),
+        balance: 0,
+        role: 'user',
+        verified: false,
+        language: language,
+        createdAt: new Date().toISOString()
+      });
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth || !db) return;
@@ -74,20 +93,12 @@ export default function RegisterPage() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
-      const customId = generateCustomId();
-
-      await setDoc(doc(db, 'users', uid), {
-        username: username,
-        email: email,
-        phone: `${selectedCountry.prefix}${phone}`,
-        customId: customId,
-        balance: 0, // الرصيد الابتدائي
-        role: 'user',
-        verified: false,
-        language: language,
-        createdAt: new Date().toISOString()
-      });
+      await initUser(
+        userCredential.user.uid, 
+        email, 
+        username, 
+        `${selectedCountry.prefix}${phone}`
+      );
 
       toast({
         title: language === 'ar' ? "تم إنشاء الحساب!" : "Wallet Created!",
@@ -99,6 +110,25 @@ export default function RegisterPage() {
       toast({
         variant: "destructive",
         title: language === 'ar' ? "خطأ في التسجيل" : "Registration Failed",
+        description: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!auth || !db) return;
+    setLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      await initUser(result.user.uid, result.user.email || 'user');
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Google Auth Failed",
         description: error.message
       });
     } finally {
@@ -121,7 +151,7 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700">
+      <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700 overflow-y-auto max-h-[90vh]">
         <div className="text-center mb-10">
           <h1 className="font-headline text-5xl font-black text-white mb-2 tracking-tighter">{t.title}</h1>
           <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.3em]">{t.subtitle}</p>
@@ -208,6 +238,16 @@ export default function RegisterPage() {
             <ArrowRight size={18} className={cn(language === 'ar' && 'rotate-180')} />
           </button>
         </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10"></span></div>
+          <div className="relative flex justify-center"><span className="bg-transparent px-3 text-[9px] text-white/40 uppercase tracking-widest font-bold">{t.social}</span></div>
+        </div>
+
+        <button onClick={handleGoogleLogin} disabled={loading} className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all group disabled:opacity-50">
+          <svg className="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
+          <span className="font-headline font-bold text-[10px] tracking-widest uppercase">Google Sign-up</span>
+        </button>
 
         <p className="text-center mt-8 text-white/40 text-[10px] font-bold uppercase tracking-widest">
           {t.hasAccount} <Link href="/" className="text-primary cursor-pointer hover:underline">{t.login}</Link>
