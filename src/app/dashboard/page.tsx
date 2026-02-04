@@ -27,7 +27,9 @@ import {
   Sun,
   ChevronRight,
   QrCode,
-  ShieldAlert
+  ShieldAlert,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -68,12 +70,40 @@ export default function Dashboard() {
   const [isQrOpen, setIsQrOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
+  const [recipientName, setRecipientName] = useState<string | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const [sendAmount, setSendAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted && !authLoading && !user) router.push('/'); }, [user, authLoading, router, mounted]);
+
+  // Recipient Lookup Logic
+  useEffect(() => {
+    const lookupRecipient = async () => {
+      if (recipient.length >= 5 && db) {
+        setIsLookingUp(true);
+        try {
+          const q = query(collection(db, 'users'), where('customId', '==', recipient.trim()));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            setRecipientName(snap.docs[0].data().username);
+          } else {
+            setRecipientName(null);
+          }
+        } catch (e) {
+          setRecipientName(null);
+        } finally {
+          setIsLookingUp(false);
+        }
+      } else {
+        setRecipientName(null);
+      }
+    };
+    const timer = setTimeout(lookupRecipient, 500);
+    return () => clearTimeout(timer);
+  }, [recipient, db]);
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user?.uid]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -108,6 +138,8 @@ export default function Dashboard() {
     qrTitle: language === 'ar' ? 'رمز الاستجابة السريعة' : 'Flash QR Code',
     qrDesc: language === 'ar' ? 'استخدم هذا الرمز لاستقبال الأموال بسرعة' : 'Use this code to receive funds quickly',
     copyId: language === 'ar' ? 'نسخ المعرف' : 'Copy ID',
+    recipientFound: language === 'ar' ? 'سيتم الإرسال إلى:' : 'Sending to:',
+    invalidRecipient: language === 'ar' ? 'المعرف غير موجود' : 'Invalid Flash ID',
   };
 
   const copyId = () => {
@@ -144,7 +176,6 @@ export default function Dashboard() {
 
     setIsSending(true);
     try {
-      // 1. Find the recipient by Flash ID (customId)
       const q = query(collection(db, 'users'), where('customId', '==', recipient.trim()));
       const querySnapshot = await getDocs(q);
       
@@ -158,16 +189,13 @@ export default function Dashboard() {
       const recipientId = recipientDoc.id;
       const recipientData = recipientDoc.data();
 
-      // 2. Perform Atomic Transaction
       await runTransaction(db, async (transaction) => {
         const senderRef = doc(db, 'users', user.uid);
         const receiverRef = doc(db, 'users', recipientId);
         
-        // Update Balances
         transaction.update(senderRef, { balance: increment(-amountNum) });
         transaction.update(receiverRef, { balance: increment(amountNum) });
 
-        // Record Sender Transaction
         const senderTxRef = doc(collection(db, 'users', user.uid, 'transactions'));
         transaction.set(senderTxRef, { 
           type: 'send', 
@@ -177,7 +205,6 @@ export default function Dashboard() {
           date: new Date().toISOString() 
         });
 
-        // Record Recipient Transaction
         const recipientTxRef = doc(collection(db, 'users', recipientId, 'transactions'));
         transaction.set(recipientTxRef, { 
           type: 'receive', 
@@ -187,7 +214,6 @@ export default function Dashboard() {
           date: new Date().toISOString() 
         });
 
-        // Send Notification to Recipient
         const notifRef = doc(collection(db, 'users', recipientId, 'notifications'));
         transaction.set(notifRef, {
           title: "Funds Received",
@@ -202,6 +228,7 @@ export default function Dashboard() {
       setIsSendModalOpen(false);
       setSendAmount('');
       setRecipient('');
+      setRecipientName(null);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Failed", description: e.message });
     } finally {
@@ -406,14 +433,40 @@ export default function Dashboard() {
       {/* Modals for Send and Deposit */}
       {isSendModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSendModalOpen(false)}></div>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setIsSendModalOpen(false); setRecipient(''); setRecipientName(null); }}></div>
           <div className="relative w-full max-w-lg bg-card border-t sm:border border-border sm:rounded-3xl rounded-t-3xl shadow-2xl p-6 space-y-6 animate-in slide-in-from-bottom-10">
             <h2 className="text-xl font-headline font-bold text-foreground flex items-center gap-2"><Send className="text-primary" /> Quick Transfer</h2>
             <div className="space-y-4">
-              <input type="text" placeholder="Recipient Flash ID" value={recipient} onChange={(e) => setRecipient(e.target.value.toUpperCase())} className="w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-center font-headline tracking-widest uppercase" />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Recipient Flash ID" 
+                  value={recipient} 
+                  onChange={(e) => setRecipient(e.target.value.toUpperCase())} 
+                  className="w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-center font-headline tracking-widest uppercase" 
+                />
+                {isLookingUp && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>}
+              </div>
+              
+              {recipientName ? (
+                <div className="flex items-center justify-center gap-2 p-3 bg-secondary/10 border border-secondary/20 rounded-xl animate-in zoom-in-95">
+                  <CheckCircle2 className="h-4 w-4 text-secondary" />
+                  <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary">{t.recipientFound} @{recipientName}</p>
+                </div>
+              ) : recipient.length >= 5 && !isLookingUp && (
+                <div className="flex items-center justify-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-red-500">{t.invalidRecipient}</p>
+                </div>
+              )}
+
               <input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-5 text-center text-4xl font-headline font-black text-primary" />
             </div>
-            <button onClick={handleSendMoney} disabled={isSending} className="w-full bg-primary text-primary-foreground font-headline font-black py-4 rounded-xl">
+            <button 
+              onClick={handleSendMoney} 
+              disabled={isSending || !recipientName} 
+              className="w-full bg-primary text-primary-foreground font-headline font-black py-4 rounded-xl disabled:opacity-50 disabled:grayscale transition-all"
+            >
               {isSending ? <Loader2 className="animate-spin mx-auto" /> : "Authorize Transfer"}
             </button>
           </div>
