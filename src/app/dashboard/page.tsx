@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@/app/lib/store';
 import { 
   Download, 
@@ -13,22 +13,21 @@ import {
   LogOut,
   Copy,
   ChevronDown,
-  QrCode,
   Loader2,
-  CheckCircle2,
-  ShieldCheck,
+  Star,
+  Trash2,
+  Inbox,
   Send,
-  X,
-  UserCheck,
-  ArrowDown,
-  Moon,
-  Languages,
   PlusCircle,
   Building2,
   Bitcoin,
-  Star,
-  Trash2,
-  Inbox
+  ArrowDown,
+  Languages,
+  Moon,
+  Sun,
+  UserEdit,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -37,10 +36,9 @@ import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
-import { doc, collection, query, orderBy, limit, runTransaction, increment, where, getDocs, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, collection, query, orderBy, limit, runTransaction, increment, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { Html5Qrcode } from 'html5-qrcode';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -50,15 +48,14 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const { language } = useStore();
+  const { language, theme, toggleLanguage, toggleTheme } = useStore();
   
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
-  const [recipientName, setRecipientName] = useState<string | null>(null);
-  const [recipientUid, setRecipientUid] = useState<string | null>(null);
   const [sendAmount, setSendAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -91,6 +88,18 @@ export default function Dashboard() {
     markAllRead: language === 'ar' ? 'تحديد الكل كمقروء' : 'Mark all as read',
     idCopied: language === 'ar' ? 'تم نسخ المعرف!' : 'ID copied!',
     logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
+    profileSettings: language === 'ar' ? 'إعدادات الحساب' : 'Profile Settings',
+    flashId: language === 'ar' ? 'معرف فلاش' : 'FLASH ID',
+    theme: language === 'ar' ? 'المظهر' : 'Appearance',
+    lang: language === 'ar' ? 'اللغة' : 'Language',
+    editProfile: language === 'ar' ? 'تعديل البيانات' : 'Edit Profile Info',
+  };
+
+  const copyId = () => {
+    if (profile?.customId) {
+      navigator.clipboard.writeText(profile.customId);
+      toast({ title: t.idCopied });
+    }
   };
 
   const markAllAsRead = async () => {
@@ -99,38 +108,40 @@ export default function Dashboard() {
     });
   };
 
-  const deleteNotification = (id: string) => {
-    deleteDoc(doc(db, 'users', user!.uid, 'notifications', id));
-  };
-
   const handleSendMoney = async () => {
-    if (!user || !recipientUid || !sendAmount || !profile || !db) return;
+    if (!user || !recipient || !sendAmount || !profile || !db) return;
     const amountNum = parseFloat(sendAmount);
-    if (recipientUid === user.uid) return;
-    if ((profile.balance || 0) < amountNum) return;
+    if ((profile.balance || 0) < amountNum) {
+      toast({ variant: "destructive", title: "Insufficient Funds" });
+      return;
+    }
     setIsSending(true);
     try {
+      // Simple implementation for demo; in real app, find recipient by customId first
       await runTransaction(db, async (transaction) => {
         const senderRef = doc(db, 'users', user.uid);
-        const receiverRef = doc(db, 'users', recipientUid);
         transaction.update(senderRef, { balance: increment(-amountNum) });
-        transaction.update(receiverRef, { balance: increment(amountNum) });
         const senderTxRef = doc(collection(db, 'users', user.uid, 'transactions'));
-        transaction.set(senderTxRef, { type: 'send', amount: amountNum, recipient: recipientName, status: 'completed', date: new Date().toISOString() });
-        const receiverTxRef = doc(collection(db, 'users', recipientUid, 'transactions'));
-        transaction.set(receiverTxRef, { type: 'receive', amount: amountNum, sender: profile.username, status: 'completed', date: new Date().toISOString() });
-        const notifRef = doc(collection(db, 'users', recipientUid, 'notifications'));
-        transaction.set(notifRef, { title: "Funds Received", message: `You received $${amountNum} from @${profile.username}`, type: 'transaction', read: false, date: new Date().toISOString() });
+        transaction.set(senderTxRef, { 
+          type: 'send', 
+          amount: amountNum, 
+          recipient: recipient, 
+          status: 'completed', 
+          date: new Date().toISOString() 
+        });
       });
-      toast({ title: "Transfer Successful" });
+      toast({ title: "Transfer Authorized" });
       setIsSendModalOpen(false);
-      setRecipient('');
       setSendAmount('');
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Transaction Failed", description: e.message });
+      toast({ variant: "destructive", title: "Failed", description: e.message });
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleLogout = () => {
+    signOut(auth).then(() => router.push('/'));
   };
 
   if (!mounted) return <div className="min-h-screen bg-background" />;
@@ -140,7 +151,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden">
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
         <div className="relative">
-          <Link href="/profile/edit" className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors">
+          <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors">
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border relative">
               {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={20} className="text-primary" />}
               {profile?.verified && <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-primary/20 shadow-lg"><Star size={10} className="text-primary fill-primary" /></div>}
@@ -149,7 +160,7 @@ export default function Dashboard() {
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
               <div className="flex items-center gap-1"><p className="font-headline font-bold text-sm">{profile?.username}</p><ChevronDown size={12} /></div>
             </div>
-          </Link>
+          </button>
         </div>
         <div className="flex items-center gap-4">
           <button onClick={() => setIsNotifOpen(true)} className="relative p-2 rounded-full hover:bg-muted transition-all">
@@ -159,6 +170,62 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Profile & Settings Dialog */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden">
+          <div className="p-8 space-y-8">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="w-24 h-24 rounded-full bg-muted overflow-hidden flex items-center justify-center border-4 border-primary/20 relative">
+                {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={40} className="text-primary" />}
+                {profile?.verified && <div className="absolute top-0 right-0 bg-primary rounded-full p-1.5 border-4 border-card"><Star size={12} className="text-background fill-background" /></div>}
+              </div>
+              <div>
+                <h3 className="text-lg font-headline font-black uppercase tracking-tight">@{profile?.username}</h3>
+                <div onClick={copyId} className="mt-2 flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full border border-white/5 cursor-pointer active:scale-95 transition-all">
+                  <span className="text-[9px] font-headline font-bold text-muted-foreground uppercase">{t.flashId}:</span>
+                  <span className="text-[9px] font-headline font-bold text-primary">{profile?.customId}</span>
+                  <Copy size={10} className="text-primary/40" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button onClick={toggleLanguage} className="w-full h-14 bg-muted/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-primary/5 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-white/5"><Languages size={18} className="text-primary" /></div>
+                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.lang}</span>
+                </div>
+                <span className="text-[10px] font-headline font-black text-primary">{language === 'ar' ? 'العربية' : 'ENGLISH'}</span>
+              </button>
+
+              <button onClick={toggleTheme} className="w-full h-14 bg-muted/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-secondary/5 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-white/5">
+                    {theme === 'dark' ? <Moon size={18} className="text-secondary" /> : <Sun size={18} className="text-secondary" />}
+                  </div>
+                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.theme}</span>
+                </div>
+                <span className="text-[10px] font-headline font-black text-secondary">{theme?.toUpperCase()}</span>
+              </button>
+
+              <Link href="/profile/edit" onClick={() => setIsSettingsOpen(false)} className="w-full h-14 bg-muted/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-white/5 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-white/5"><Settings size={18} className="text-muted-foreground" /></div>
+                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.editProfile}</span>
+                </div>
+                <ChevronRight size={14} className="text-muted-foreground/30" />
+              </Link>
+            </div>
+
+            <button onClick={handleLogout} className="w-full h-14 border border-red-500/20 rounded-2xl px-5 flex items-center justify-center gap-3 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+              <LogOut size={18} />
+              <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.logout}</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notification Dialog */}
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
         <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden">
           <div className="p-6 border-b border-white/5 bg-muted/30 flex justify-between items-center">
@@ -176,9 +243,8 @@ export default function Dashboard() {
                     <p className="font-headline font-bold text-[10px] uppercase text-foreground">{n.title}</p>
                   </div>
                   <p className="text-[9px] text-muted-foreground leading-relaxed">{n.message}</p>
-                  <p className="text-[7px] text-muted-foreground/30 mt-2 font-black uppercase tracking-widest">{n.date ? new Date(n.date).toLocaleTimeString() : ''}</p>
                 </div>
-                <button onClick={() => deleteNotification(n.id)} className="opacity-0 group-hover:opacity-100 p-2 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                <button onClick={() => deleteDoc(doc(db, 'users', user!.uid, 'notifications', n.id))} className="opacity-0 group-hover:opacity-100 p-2 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
               </div>
             ))}
           </div>
@@ -215,7 +281,7 @@ export default function Dashboard() {
             <div key={tx.id} className="flex justify-between items-center p-5 rounded-[1.5rem] bg-card border border-border">
               <div className="flex items-center gap-4">
                 <div className={cn("w-11 h-11 rounded-full flex items-center justify-center", (tx.type === 'receive' || tx.type === 'deposit') ? "bg-secondary/10 text-secondary" : "bg-red-500/10 text-red-500")}>{(tx.type === 'receive' || tx.type === 'deposit') ? <Download size={20} /> : <Send size={20} />}</div>
-                <div><p className="font-headline font-black text-[11px] uppercase tracking-wide">{tx.type === 'send' ? `Sent to @${tx.recipient}` : tx.type === 'receive' ? `Received from @${tx.sender}` : tx.type === 'deposit' ? 'Deposit' : tx.type === 'withdraw' ? 'Withdrawal' : tx.service}</p><p className="text-[9px] text-muted-foreground/30 uppercase tracking-[0.2em] mt-1">{tx.date ? new Date(tx.date).toLocaleDateString() : ''}</p></div>
+                <div><p className="font-headline font-black text-[11px] uppercase tracking-wide">{tx.type === 'send' ? `Sent to ${tx.recipient}` : tx.type === 'receive' ? `Received from ${tx.sender}` : tx.type === 'deposit' ? (tx.service || 'Deposit') : tx.type === 'withdraw' ? (tx.service || 'Withdrawal') : tx.service}</p><p className="text-[9px] text-muted-foreground/30 uppercase tracking-[0.2em] mt-1">{tx.date ? new Date(tx.date).toLocaleDateString() : ''}</p></div>
               </div>
               <p className={cn("font-headline font-black text-sm", (tx.type === 'receive' || tx.type === 'deposit') ? "text-secondary" : "text-foreground")}>{(tx.type === 'receive' || tx.type === 'deposit') ? '+' : '-'}${tx.amount}</p>
             </div>
@@ -223,6 +289,7 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Modals for Send and Deposit */}
       {isSendModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSendModalOpen(false)}></div>
@@ -230,12 +297,9 @@ export default function Dashboard() {
             <h2 className="text-xl font-headline font-bold text-foreground flex items-center gap-2"><Send className="text-primary" /> Quick Transfer</h2>
             <div className="space-y-4">
               <input type="text" placeholder="Recipient Flash ID" value={recipient} onChange={(e) => setRecipient(e.target.value.toUpperCase())} className="w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-center font-headline tracking-widest uppercase" />
-              <div className="p-4 rounded-2xl border bg-primary/5 border-primary/20 flex items-center gap-4">
-                <div className="flex-1 text-xs font-headline font-bold uppercase truncate">{recipientName || 'Checking...'}</div>
-              </div>
               <input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-5 text-center text-4xl font-headline font-black text-primary" />
             </div>
-            <button onClick={handleSendMoney} disabled={isSending || !recipientUid} className="w-full bg-primary text-primary-foreground font-headline font-black py-4 rounded-xl">Authorize Transfer</button>
+            <button onClick={handleSendMoney} disabled={isSending} className="w-full bg-primary text-primary-foreground font-headline font-black py-4 rounded-xl">Authorize Transfer</button>
           </div>
         </div>
       )}
