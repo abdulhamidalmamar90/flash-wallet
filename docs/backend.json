@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserProfile": {
@@ -9,6 +8,7 @@
         "username": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
+        "avatarUrl": { "type": "string", "description": "URL or Data URI of the user avatar" },
         "customId": { "type": "string", "description": "Format: [A-Z][0-9]{12}" },
         "balance": { "type": "number" },
         "role": { "type": "string", "enum": ["user", "admin"] },

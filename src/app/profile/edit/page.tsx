@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   User, 
@@ -11,7 +10,7 @@ import {
   Camera, 
   Check, 
   Loader2,
-  Image as ImageIcon
+  Upload
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc } from '@/firebase';
@@ -37,6 +36,7 @@ export default function EditProfilePage() {
   const db = useFirestore();
   const { toast } = useToast();
   const { language } = useStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
@@ -63,21 +63,36 @@ export default function EditProfilePage() {
     saving: language === 'ar' ? 'جاري الحفظ...' : 'Saving...',
     success: language === 'ar' ? 'تم تحديث البيانات بنجاح' : 'Profile updated successfully',
     avatarHeader: language === 'ar' ? 'اختر صورتك الرمزية' : 'Choose Your Avatar',
+    uploadLabel: language === 'ar' ? 'رفع صورة' : 'Upload Image',
+    imageTooLarge: language === 'ar' ? 'حجم الصورة كبير جداً (الأقصى 1 ميجا)' : 'Image size too large (Max 1MB)',
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        toast({ variant: "destructive", title: "Error", description: t.imageTooLarge });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !db) return;
     setLoading(true);
 
     try {
-      // Update Firestore
       await updateDoc(doc(db, 'users', user.uid), {
         phone,
         avatarUrl: selectedAvatar,
       });
 
-      // Update Auth Password if provided
       if (newPassword) {
         await updatePassword(user, newPassword);
       }
@@ -114,29 +129,55 @@ export default function EditProfilePage() {
             )}
           </div>
           <button 
-            onClick={() => setIsAvatarOpen(!isAvatarOpen)}
-            className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform z-10"
           >
             <Camera size={18} />
           </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept="image/*" 
+            onChange={handleFileChange}
+          />
         </div>
         
-        {isAvatarOpen && (
-          <div className="flex gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
-            {AVATARS.map((url, i) => (
+        <div className="flex flex-col items-center gap-4 w-full">
+           <button 
+            type="button"
+            onClick={() => setIsAvatarOpen(!isAvatarOpen)}
+            className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors"
+          >
+            {t.avatarHeader}
+          </button>
+
+          {isAvatarOpen && (
+            <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
+              {AVATARS.map((url, i) => (
+                <button 
+                  key={i} 
+                  type="button"
+                  onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }}
+                  className={cn(
+                    "w-12 h-12 rounded-full overflow-hidden border-2 transition-all",
+                    selectedAvatar === url ? "border-primary scale-110" : "border-transparent opacity-50 hover:opacity-100"
+                  )}
+                >
+                  <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
               <button 
-                key={i} 
-                onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }}
-                className={cn(
-                  "w-12 h-12 rounded-full overflow-hidden border-2 transition-all",
-                  selectedAvatar === url ? "border-primary scale-110" : "border-transparent opacity-50 hover:opacity-100"
-                )}
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center hover:border-primary/50 transition-all text-white/30 hover:text-primary"
               >
-                <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
+                <Upload size={16} />
               </button>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl">
@@ -144,11 +185,11 @@ export default function EditProfilePage() {
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
             <div className="relative group">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors" />
+              <Phone className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
               <Input 
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="pl-10 h-12 bg-white/5 border-white/10 rounded-xl"
+                className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")}
                 placeholder="+201234567890"
               />
             </div>
@@ -157,12 +198,12 @@ export default function EditProfilePage() {
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.passLabel}</Label>
             <div className="relative group">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors" />
+              <Lock className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
               <Input 
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="pl-10 h-12 bg-white/5 border-white/10 rounded-xl"
+                className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")}
                 placeholder={t.passPlaceholder}
               />
             </div>
