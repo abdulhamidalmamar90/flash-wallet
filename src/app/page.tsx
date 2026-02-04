@@ -60,7 +60,7 @@ export default function LoginPage() {
         username: email.split('@')[0],
         email: email,
         customId: generateCustomId(),
-        balance: 1000,
+        balance: 0, // الرصيد الابتدائي للمستخدمين الجدد
         role: 'user',
         verified: false,
         language: language,

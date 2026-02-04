@@ -82,7 +82,7 @@ export default function RegisterPage() {
         email: email,
         phone: `${selectedCountry.prefix}${phone}`,
         customId: customId,
-        balance: 1000, // الهدية الترحيبية
+        balance: 0, // الرصيد الابتدائي
         role: 'user',
         verified: false,
         language: language,
@@ -152,7 +152,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* حقل الهاتف مع قائمة الدول */}
           <div className="flex gap-2 relative z-50">
             <div className="relative">
               <button 
