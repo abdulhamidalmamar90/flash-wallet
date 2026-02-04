@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LayoutGrid, ArrowDownToLine, User, ScanLine } from 'lucide-react';
+import { Home, ArrowDownToLine, User, ScanLine, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/app/lib/store';
 import { useMemo } from 'react';
@@ -29,7 +29,7 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
 
   const navItems = [
     { label: language === 'ar' ? 'الرئيسية' : 'HOME', icon: Home, href: '/dashboard' },
-    { label: language === 'ar' ? 'الخدمات' : 'SERVICES', icon: LayoutGrid, href: '/marketplace' },
+    { label: language === 'ar' ? 'إيداع' : 'DEPOSIT', icon: ArrowDown, href: '#' },
     { label: 'center', icon: ScanLine, href: '#' },
     { label: language === 'ar' ? 'سحب' : 'WITHDRAW', icon: ArrowDownToLine, href: '/withdraw' },
     { label: language === 'ar' ? 'حسابي' : 'PROFILE', icon: User, href: (profile?.role === 'admin' ? '/admin' : '/dashboard') },

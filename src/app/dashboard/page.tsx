@@ -21,7 +21,8 @@ import {
   Send,
   X,
   Camera,
-  UserCheck
+  UserCheck,
+  ArrowDown
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -84,7 +85,7 @@ export default function Dashboard() {
     secured: language === 'ar' ? 'مؤمن ومحمي' : 'Secured & Protected',
     send: language === 'ar' ? 'إرسال' : 'Send',
     withdraw: language === 'ar' ? 'سحب' : 'Withdraw',
-    services: language === 'ar' ? 'خدمات' : 'Services',
+    deposit: language === 'ar' ? 'إيداع' : 'Deposit',
     recent: language === 'ar' ? 'آخر العمليات' : 'Recent Activity',
     seeAll: language === 'ar' ? 'عرض الكل' : 'See All',
     noActivity: language === 'ar' ? 'لا توجد عمليات' : 'No activity found',
@@ -97,8 +98,6 @@ export default function Dashboard() {
     recipientLabel: language === 'ar' ? 'معرف المستلم (Flash ID)' : 'Recipient Flash ID',
     recipientPlaceholder: language === 'ar' ? 'مثال: F123456789012' : 'Ex: F123456789012',
     amountLabel: language === 'ar' ? 'المبلغ (دولار)' : 'Amount (USD)',
-    deposit: language === 'ar' ? 'شحن رصيد' : 'Deposit',
-    withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal',
     sentTo: language === 'ar' ? 'تحويل إلى' : 'Sent to',
     successSendTitle: language === 'ar' ? 'تم التحويل بنجاح' : 'Transfer Successful',
     errorSendTitle: language === 'ar' ? 'فشلت العملية' : 'Transaction Failed',
@@ -113,7 +112,8 @@ export default function Dashboard() {
     userFound: language === 'ar' ? 'مستلم مؤكد' : 'Confirmed Recipient',
     userNotFound: language === 'ar' ? 'المستلم غير موجود' : 'Recipient not found',
     selfTransfer: language === 'ar' ? 'لا يمكنك التحويل لنفسك' : 'Cannot transfer to self',
-    yourIdLabel: language === 'ar' ? 'معرف الفلاش الخاص بك' : 'YOUR FLASH ID'
+    yourIdLabel: language === 'ar' ? 'معرف الفلاش الخاص بك' : 'YOUR FLASH ID',
+    withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal'
   };
 
   useEffect(() => {
@@ -458,10 +458,10 @@ export default function Dashboard() {
           <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center hover:border-secondary/30 group-hover:bg-muted transition-all duration-300"><ArrowDownLeft size={28} className="text-secondary" /></div>
           <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.withdraw}</span>
         </Link>
-        <Link href="/marketplace" className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center group-hover:bg-muted transition-all duration-300"><LayoutGrid size={28} className="text-foreground" /></div>
-          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.services}</span>
-        </Link>
+        <button onClick={() => toast({ title: "Coming Soon", description: "Deposit feature will be activated shortly." })} className="flex flex-col items-center gap-3 group">
+          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center group-hover:bg-muted transition-all duration-300"><ArrowDown size={28} className="text-foreground" /></div>
+          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.deposit}</span>
+        </button>
       </section>
 
       <section className="px-6 rounded-t-[3rem] bg-muted/30 border-t border-border min-h-[400px] backdrop-blur-md pt-10 relative z-10">
