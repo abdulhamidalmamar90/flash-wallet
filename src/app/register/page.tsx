@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -153,8 +154,8 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0a]" onClick={() => setIsCountryOpen(false)}>
       <div className="absolute top-6 right-6 z-[100]"><LanguageToggle /></div>
-      <div className="absolute inset-0 z-0" style={{ backgroundImage: `url('${backgroundImage?.imageUrl || "https://picsum.photos/seed/flash-bg/1920/1080"}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 z-0 opacity-40" style={{ backgroundImage: `url('${backgroundImage?.imageUrl || "https://images.unsplash.com/photo-1550751827-4bd374c3f58b"}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div className="absolute inset-0 bg-black/85 backdrop-blur-sm"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700 overflow-y-auto max-h-[90vh]">
