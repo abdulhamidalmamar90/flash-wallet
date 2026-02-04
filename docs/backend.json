@@ -35,6 +35,19 @@
       },
       "required": ["type", "amount", "status", "date"]
     },
+    "Notification": {
+      "title": "Notification",
+      "description": "Stored in /users/{userId}/notifications/{notifId}. System alerts.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["system", "transaction", "verification"] },
+        "read": { "type": "boolean" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "type", "read", "date"]
+    },
     "WithdrawalRequest": {
       "title": "Withdrawal Request",
       "description": "Stored in /withdrawals/{requestId}. Global queue for admin approval.",
@@ -49,34 +62,6 @@
         "date": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "username", "type", "amount", "status", "date"]
-    },
-    "DepositRequest": {
-      "title": "Deposit Request",
-      "description": "Stored in /deposits/{requestId}. Global queue for admin verification and balance top-up.",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "username": { "type": "string" },
-        "type": { "type": "string", "enum": ["bank", "crypto"] },
-        "amount": { "type": "number" },
-        "details": { "type": "object" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "date": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userId", "username", "type", "amount", "status", "date"]
-    },
-    "VerificationRequest": {
-      "title": "Verification Request",
-      "description": "Stored in /verifications/{requestId}. Global queue for account verification.",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "username": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "date": { "type": "string", "format": "date-time" },
-        "documentUrl": { "type": "string" }
-      },
-      "required": ["userId", "username", "status", "date"]
     }
   },
   "auth": {
@@ -91,17 +76,13 @@
       "schema": "Transaction",
       "description": "User specific transaction history"
     },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User specific system alerts"
+    },
     "/withdrawals/{withdrawalId}": {
       "schema": "WithdrawalRequest",
       "description": "Global queue for withdrawals pending admin action"
-    },
-    "/deposits/{depositId}": {
-      "schema": "DepositRequest",
-      "description": "Global queue for deposits pending admin verification"
-    },
-    "/verifications/{verificationId}": {
-      "schema": "VerificationRequest",
-      "description": "Global queue for user identity verification"
     }
   }
 }
