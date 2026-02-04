@@ -1,20 +1,26 @@
+
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { useStore } from '@/app/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Send, User, ChevronLeft } from 'lucide-react';
+import { Send, User, ChevronLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useDoc } from '@/firebase';
+import { doc, collection, runTransaction, increment } from 'firebase/firestore';
 
 export default function TransferPage() {
   const router = useRouter();
-  const store = useStore();
+  const { user } = useUser();
+  const db = useFirestore();
   const { toast } = useToast();
+  const { language } = useStore();
+  
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,9 +30,8 @@ export default function TransferPage() {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
-
-  const language = store.language;
+  const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
+  const { data: profile } = useDoc(userDocRef);
 
   const t = {
     header: language === 'ar' ? 'تحويل داخلي' : 'Internal Transfer',
@@ -37,35 +42,51 @@ export default function TransferPage() {
     loadingBtn: language === 'ar' ? 'جاري التحقق...' : 'INITIALIZING P2P...',
     submitBtn: language === 'ar' ? 'تأكيد التحويل' : 'AUTHORIZE TRANSFER',
     successTitle: language === 'ar' ? 'تم التحويل بنجاح' : 'TRANSFER SUCCESSFUL',
-    successDesc: language === 'ar' ? `لقد أرسلت $${amount} إلى @${recipient}` : `You sent $${amount} to @${recipient}`,
     errorTitle: language === 'ar' ? 'فشلت العملية' : 'TRANSACTION FAILED',
-    errorDesc: language === 'ar' ? 'الرصيد غير كافٍ في محفظة فلاش الخاصة بك.' : 'Insufficient balance in your Flash vault.',
+    insufficientFunds: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
   };
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recipient || !amount) return;
+    if (!user || !recipient || !amount || !profile) return;
     
+    const amountNum = parseFloat(amount);
+    if (profile.balance < amountNum) {
+      toast({ variant: "destructive", title: t.errorTitle, description: t.insufficientFunds });
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      const success = store.sendMoney(recipient, parseFloat(amount));
+    try {
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', user.uid);
+        transaction.update(userRef, { balance: increment(-amountNum) });
+        
+        const txRef = doc(collection(db, 'users', user.uid, 'transactions'));
+        transaction.set(txRef, {
+          type: 'send',
+          amount: amountNum,
+          recipient: recipient,
+          status: 'completed',
+          date: new Date().toISOString()
+        });
+      });
+
+      toast({
+        title: t.successTitle,
+        description: language === 'ar' 
+          ? `لقد أرسلت $${amount} إلى @${recipient}` 
+          : `You sent $${amount} to @${recipient}`,
+      });
+      router.push('/dashboard');
+    } catch (e: any) {
+      toast({ variant: "destructive", title: t.errorTitle, description: e.message });
+    } finally {
       setLoading(false);
-      
-      if (success) {
-        toast({
-          title: t.successTitle,
-          description: t.successDesc,
-        });
-        router.push('/dashboard');
-      } else {
-        toast({
-          variant: "destructive",
-          title: t.errorTitle,
-          description: t.errorDesc,
-        });
-      }
-    }, 1500);
+    }
   };
+
+  if (!mounted) return null;
 
   return (
     <div className={cn(
@@ -133,14 +154,14 @@ export default function TransferPage() {
               className="w-full h-14 text-md font-headline rounded-xl cyan-glow bg-secondary hover:bg-secondary/90 text-background font-black tracking-widest"
               disabled={loading}
             >
-              {loading ? t.loadingBtn : t.submitBtn}
+              {loading ? <><Loader2 className="mr-2 animate-spin" /> {t.loadingBtn}</> : t.submitBtn}
             </Button>
           </div>
         </form>
 
         <div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-2">
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{t.availableBalance}</p>
-          <p className="text-xl font-headline font-black text-primary">${store.balance?.toLocaleString()}</p>
+          <p className="text-xl font-headline font-black text-primary">${profile?.balance?.toLocaleString() || '0'}</p>
         </div>
       </div>
 

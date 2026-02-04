@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
+import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
 import { doc, collection, query, orderBy, limit, runTransaction, increment } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 
