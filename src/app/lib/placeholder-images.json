@@ -1,0 +1,11 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "brand-logo",
+      "description": "Futuristic 3D metallic logo with blue and orange digital circuitry highlights",
+      "imageUrl": "https://picsum.photos/seed/flash-brand-77/800/600",
+      "imageHint": "futuristic logo"
+    }
+  ]
+}
