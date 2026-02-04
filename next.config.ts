@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -28,6 +29,8 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  // Ensure the app can handle the environment correctly
+  trailingSlash: true,
 };
 
 export default nextConfig;
