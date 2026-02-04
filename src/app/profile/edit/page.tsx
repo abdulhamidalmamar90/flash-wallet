@@ -12,11 +12,16 @@ import {
   Check, 
   Loader2,
   Upload,
-  Fingerprint
+  Fingerprint,
+  ShieldCheck,
+  FileText,
+  Globe,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
-import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
+import { doc, updateDoc, collection, addDoc, query, where, limit } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -24,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -33,6 +39,15 @@ const AVATARS = [
   "https://picsum.photos/seed/avatar5/200",
 ];
 
+const COUNTRIES = [
+  { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
+  { code: 'EG', name: 'Egypt', ar: 'مصر' },
+  { code: 'AE', name: 'UAE', ar: 'الإمارات' },
+  { code: 'KW', name: 'Kuwait', ar: 'الكويت' },
+  { code: 'QA', name: 'Qatar', ar: 'قطر' },
+  { code: 'US', name: 'USA', ar: 'أمريكا' },
+];
+
 export default function EditProfilePage() {
   const router = useRouter();
   const { user } = useUser();
@@ -40,9 +55,19 @@ export default function EditProfilePage() {
   const { toast } = useToast();
   const { language } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
   
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
+
+  // Check for pending verification requests
+  const verifQuery = useMemo(() => user ? query(
+    collection(db, 'verifications'),
+    where('userId', '==', user.uid),
+    limit(1)
+  ) : null, [db, user]);
+  const { data: verifRequests } = useCollection(verifQuery);
+  const pendingRequest = verifRequests?.find(r => r.status === 'pending');
 
   const [phone, setPhone] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -50,6 +75,13 @@ export default function EditProfilePage() {
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+
+  // Verification Form State
+  const [verifCountry, setVerifCountry] = useState('');
+  const [verifDocType, setVerifDocType] = useState('id_card');
+  const [verifDocNumber, setVerifDocNumber] = useState('');
+  const [verifDocImage, setVerifDocImage] = useState<string | null>(null);
+  const [verifLoading, setVerifLoading] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -72,9 +104,23 @@ export default function EditProfilePage() {
     avatarHeader: language === 'ar' ? 'اختر صورتك الرمزية' : 'Choose Your Avatar',
     uploadLabel: language === 'ar' ? 'رفع صورة' : 'Upload Image',
     imageTooLarge: language === 'ar' ? 'حجم الصورة كبير جداً (الأقصى 1 ميجا)' : 'Image size too large (Max 1MB)',
+    
+    // Verification translations
+    verifHeader: language === 'ar' ? 'توثيق الهوية (KYC)' : 'Identity Verification (KYC)',
+    countryLabel: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
+    docTypeLabel: language === 'ar' ? 'نوع الوثيقة' : 'Document Type',
+    docNumberLabel: language === 'ar' ? 'رقم الوثيقة' : 'Document Number',
+    docImageLabel: language === 'ar' ? 'صورة الوثيقة' : 'Document Photo',
+    submitVerif: language === 'ar' ? 'إرسال طلب التوثيق' : 'Submit Verification',
+    idCard: language === 'ar' ? 'بطاقة هوية' : 'ID Card',
+    passport: language === 'ar' ? 'جواز سفر' : 'Passport',
+    verifPending: language === 'ar' ? 'طلبك قيد المراجعة' : 'Request Pending Review',
+    verifPendingDesc: language === 'ar' ? 'سيتم مراجعة وثائقك من قبل فريقنا قريباً' : 'Our team will review your docs soon',
+    verifiedStatus: language === 'ar' ? 'حساب موثق' : 'Account Verified',
+    verifiedDesc: language === 'ar' ? 'هويتك مؤكدة وتتمتع بكامل ميزات الفلاش' : 'Identity confirmed. Full access granted.',
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 1024 * 1024) {
@@ -83,7 +129,7 @@ export default function EditProfilePage() {
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSelectedAvatar(reader.result as string);
+        setter(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -114,18 +160,42 @@ export default function EditProfilePage() {
       toast({ title: t.success });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message
-      });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRequestVerification = async () => {
+    if (!user || !db || !profile || !verifDocImage || !verifDocNumber || !verifCountry) {
+      toast({ variant: "destructive", title: "Error", description: "Please fill all fields" });
+      return;
+    }
+
+    setVerifLoading(true);
+    try {
+      await addDoc(collection(db, 'verifications'), {
+        userId: user.uid,
+        username: profile.username,
+        status: 'pending',
+        date: new Date().toISOString(),
+        documentUrl: verifDocImage,
+        details: {
+          country: verifCountry,
+          docType: verifDocType,
+          docNumber: verifDocNumber
+        }
+      });
+      toast({ title: "Request Sent", description: t.verifPendingDesc });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setVerifLoading(false);
+    }
+  };
+
   return (
-    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
       <header className="flex items-center gap-4">
         <button onClick={() => router.back()} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
           <ChevronLeft className={cn("h-5 w-5", language === 'ar' && "rotate-180")} />
@@ -154,44 +224,35 @@ export default function EditProfilePage() {
             ref={fileInputRef} 
             className="hidden" 
             accept="image/*" 
-            onChange={handleFileChange}
+            onChange={(e) => handleFileChange(e, setSelectedAvatar)}
           />
         </div>
         
-        <div className="flex flex-col items-center gap-4 w-full">
-           <button 
-            type="button"
-            onClick={() => setIsAvatarOpen(!isAvatarOpen)}
-            className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors"
-          >
-            {t.avatarHeader}
-          </button>
+        <button 
+          type="button"
+          onClick={() => setIsAvatarOpen(!isAvatarOpen)}
+          className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors"
+        >
+          {t.avatarHeader}
+        </button>
 
-          {isAvatarOpen && (
-            <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
-              {AVATARS.map((url, i) => (
-                <button 
-                  key={i} 
-                  type="button"
-                  onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }}
-                  className={cn(
-                    "w-12 h-12 rounded-full overflow-hidden border-2 transition-all",
-                    selectedAvatar === url ? "border-primary scale-110" : "border-transparent opacity-50 hover:opacity-100"
-                  )}
-                >
-                  <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
+        {isAvatarOpen && (
+          <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
+            {AVATARS.map((url, i) => (
               <button 
+                key={i} 
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center hover:border-primary/50 transition-all text-white/30 hover:text-primary"
+                onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }}
+                className={cn(
+                  "w-12 h-12 rounded-full overflow-hidden border-2 transition-all",
+                  selectedAvatar === url ? "border-primary scale-110" : "border-transparent opacity-50 hover:opacity-100"
+                )}
               >
-                <Upload size={16} />
+                <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
               </button>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl">
@@ -223,7 +284,7 @@ export default function EditProfilePage() {
             </div>
           </div>
 
-          <div className="pt-4 flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10">
+          <div className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <Fingerprint className="text-primary h-6 w-6" />
@@ -233,25 +294,115 @@ export default function EditProfilePage() {
                 <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-0.5">{t.biometricDesc}</p>
               </div>
             </div>
-            <Switch 
-              checked={biometricsEnabled}
-              onCheckedChange={setBiometricsEnabled}
-            />
+            <Switch checked={biometricsEnabled} onCheckedChange={setBiometricsEnabled} />
           </div>
         </div>
 
-        <Button 
-          type="submit" 
-          disabled={loading}
-          className="w-full h-14 font-headline text-md rounded-xl bg-primary hover:bg-primary/90 text-background font-black tracking-widest shadow-lg shadow-primary/20"
-        >
-          {loading ? (
-            <><Loader2 className="h-5 w-5 animate-spin mr-2" /> {t.saving}</>
-          ) : (
-            <><Check className="h-5 w-5 mr-2" /> {t.saveBtn}</>
-          )}
+        <Button type="submit" disabled={loading} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest">
+          {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <><Check className="h-5 w-5 mr-2" /> {t.saveBtn}</>}
         </Button>
       </form>
+
+      <section className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
+        <div className="flex items-center gap-3 mb-2">
+          <ShieldCheck className="text-primary" size={20} />
+          <h2 className="text-[12px] font-headline font-bold tracking-widest uppercase">{t.verifHeader}</h2>
+        </div>
+
+        {profile?.verified ? (
+          <div className="flex items-center gap-4 p-5 bg-green-500/10 border border-green-500/20 rounded-2xl animate-in zoom-in-95">
+            <CheckCircle2 className="text-green-500" size={32} />
+            <div>
+              <p className="text-sm font-headline font-bold text-green-500 uppercase">{t.verifiedStatus}</p>
+              <p className="text-[9px] text-green-500/60 uppercase tracking-widest font-black mt-1">{t.verifiedDesc}</p>
+            </div>
+          </div>
+        ) : pendingRequest ? (
+          <div className="flex items-center gap-4 p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl animate-in fade-in">
+            <Loader2 className="text-orange-500 animate-spin" size={32} />
+            <div>
+              <p className="text-sm font-headline font-bold text-orange-500 uppercase">{t.verifPending}</p>
+              <p className="text-[9px] text-orange-500/60 uppercase tracking-widest font-black mt-1">{t.verifPendingDesc}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6 animate-in slide-in-from-top-2">
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.countryLabel}</Label>
+              <Select onValueChange={setVerifCountry}>
+                <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase">
+                  <SelectValue placeholder="SELECT COUNTRY" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-white/10">
+                  {COUNTRIES.map(c => (
+                    <SelectItem key={c.code} value={c.code} className="font-headline text-[10px] uppercase">
+                      {language === 'ar' ? c.ar : c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docTypeLabel}</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setVerifDocType('id_card')}
+                  className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'id_card' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}
+                >
+                  <FileText size={18} />
+                  <span className="text-[9px] font-headline font-bold uppercase">{t.idCard}</span>
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setVerifDocType('passport')}
+                  className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'passport' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}
+                >
+                  <Globe size={18} />
+                  <span className="text-[9px] font-headline font-bold uppercase">{t.passport}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docNumberLabel}</Label>
+              <Input 
+                value={verifDocNumber}
+                onChange={(e) => setVerifDocNumber(e.target.value)}
+                placeholder="EX: A123456789"
+                className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docImageLabel}</Label>
+              <div 
+                onClick={() => docInputRef.current?.click()}
+                className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group relative overflow-hidden"
+              >
+                {verifDocImage ? (
+                  <img src={verifDocImage} alt="Document" className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <Camera className="text-white/20 group-hover:text-primary transition-colors" size={32} />
+                    <span className="text-[8px] font-headline font-bold uppercase text-white/20">{t.uploadLabel}</span>
+                  </>
+                )}
+                <input type="file" ref={docInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setVerifDocImage)} />
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleRequestVerification} 
+              disabled={verifLoading || !verifDocImage || !verifDocNumber || !verifCountry}
+              className="w-full h-14 font-headline text-md rounded-xl bg-secondary text-background font-black tracking-widest"
+            >
+              {verifLoading ? <Loader2 className="animate-spin" /> : t.submitVerif}
+            </Button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
