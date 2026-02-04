@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -57,7 +58,9 @@ export default function RegisterPage() {
     loading: language === 'ar' ? 'جاري التجهيز...' : 'Initializing...',
     social: language === 'ar' ? 'أو الاستمرار بواسطة' : 'Or Continue With',
     hasAccount: language === 'ar' ? 'لديك حساب بالفعل؟' : 'Already have an account?',
-    login: language === 'ar' ? 'تسجيل الدخول' : 'Authorize Access'
+    login: language === 'ar' ? 'تسجيل الدخول' : 'Authorize Access',
+    emailInUse: language === 'ar' ? 'البريد الإلكتروني مستخدم بالفعل.' : 'Email already in use.',
+    weakPassword: language === 'ar' ? 'كلمة المرور ضعيفة جداً.' : 'Password is too weak.'
   };
 
   const generateCustomId = () => {
@@ -91,7 +94,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await initUser(
         userCredential.user.uid, 
         email, 
@@ -106,10 +109,14 @@ export default function RegisterPage() {
       
       router.push('/dashboard');
     } catch (error: any) {
+      let message = error.message;
+      if (error.code === 'auth/email-already-in-use') message = t.emailInUse;
+      if (error.code === 'auth/weak-password') message = t.weakPassword;
+
       toast({
         variant: "destructive",
         title: language === 'ar' ? "خطأ في التسجيل" : "Registration Failed",
-        description: error.message
+        description: message
       });
     } finally {
       setLoading(false);

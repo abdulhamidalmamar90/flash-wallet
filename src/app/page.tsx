@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -55,7 +56,8 @@ export default function LoginPage() {
     resetDesc: language === 'ar' ? 'أدخل بريدك لإرسال رابط إعادة التعيين' : 'Enter email to receive reset link',
     sendReset: language === 'ar' ? 'إرسال الرابط' : 'Send Reset Link',
     resetSent: language === 'ar' ? 'تم إرسال الرابط لبريدك' : 'Reset link sent to your email',
-    errorReset: language === 'ar' ? 'فشل إرسال الرابط' : 'Failed to send reset link'
+    errorReset: language === 'ar' ? 'فشل إرسال الرابط' : 'Failed to send reset link',
+    authError: language === 'ar' ? 'بيانات الاعتماد غير صالحة. تأكد من البريد وكلمة المرور أو قم بإنشاء حساب جديد.' : 'Invalid credentials. Please check your email and password or create a new account.'
   };
 
   const generateCustomId = () => {
@@ -88,13 +90,17 @@ export default function LoginPage() {
     if (!auth || !db) return;
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
       router.push('/dashboard');
     } catch (error: any) {
+      let message = error.message;
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        message = t.authError;
+      }
       toast({
         variant: "destructive",
         title: language === 'ar' ? "خطأ في التحقق" : "Auth Error",
-        description: error.message
+        description: message
       });
     } finally {
       setLoading(false);
@@ -122,7 +128,7 @@ export default function LoginPage() {
     if (!auth || !resetEmail) return;
     setResetLoading(true);
     try {
-      await sendPasswordResetEmail(auth, resetEmail);
+      await sendPasswordResetEmail(auth, resetEmail.trim());
       toast({ title: t.resetSent });
       setIsResetOpen(false);
       setResetEmail('');
