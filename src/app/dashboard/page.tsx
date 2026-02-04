@@ -27,8 +27,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useDoc, useCollection, useAuth } from '@/firebase';
+import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
 import { doc, collection, query, orderBy, limit, runTransaction, increment } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 
@@ -159,7 +160,7 @@ export default function Dashboard() {
 
   if (!mounted || (authLoading && !user)) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto" />
           <p className="text-primary font-headline text-[10px] tracking-widest uppercase animate-pulse">Synchronizing Wallet...</p>
@@ -172,10 +173,10 @@ export default function Dashboard() {
 
   return (
     <div 
-      className="min-h-screen bg-[#0a0a0a] text-white font-body pb-32 relative overflow-hidden"
+      className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden"
       onClick={() => { setIsProfileOpen(false); }}
     >
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#00f3ff]/5 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px] pointer-events-none"></div>
       
       {/* QR Modal */}
       {isQrModalOpen && (
@@ -203,26 +204,26 @@ export default function Dashboard() {
       {isSendModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsSendModalOpen(false)}></div>
-          <div className="relative w-full max-w-lg bg-[#0f0f0f] border-t sm:border border-white/10 sm:rounded-3xl rounded-t-3xl shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
+          <div className="relative w-full max-w-lg bg-card border-t sm:border border-white/10 sm:rounded-3xl rounded-t-3xl shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
             <div className="flex justify-between items-center p-6 border-b border-white/5 bg-white/5">
-              <h2 className="text-xl font-headline font-bold text-white flex items-center gap-2"><Send className="text-primary" />{t.sendHeader}</h2>
-              <button onClick={() => setIsSendModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} className="text-white/60" /></button>
+              <h2 className="text-xl font-headline font-bold text-foreground flex items-center gap-2"><Send className="text-primary" />{t.sendHeader}</h2>
+              <button onClick={() => setIsSendModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20} className="text-muted-foreground" /></button>
             </div>
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.recipientLabel}</label>
+                <label className="block text-xs text-muted-foreground mb-2 font-bold uppercase tracking-widest">{t.recipientLabel}</label>
                 <div className="relative">
                    <input 
                     type="text" 
                     placeholder={t.recipientPlaceholder}
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
-                    className={cn("w-full bg-white/5 border border-white/10 rounded-xl py-3 text-white placeholder:text-white/20 focus:outline-none focus:border-primary/50", language === 'ar' ? 'text-right' : 'text-left')} 
+                    className={cn("w-full bg-white/5 border border-white/10 rounded-xl py-3 text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'text-right' : 'text-left')} 
                    />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-white/60 mb-2 font-bold uppercase tracking-widest">{t.amountLabel}</label>
+                <label className="block text-xs text-muted-foreground mb-2 font-bold uppercase tracking-widest">{t.amountLabel}</label>
                 <input 
                   type="number" 
                   placeholder="0.00"
@@ -250,22 +251,26 @@ export default function Dashboard() {
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
         <div className="relative">
           <button onClick={(e) => { e.stopPropagation(); setIsProfileOpen(!isProfileOpen); }} className="flex items-center gap-3 p-1 rounded-full hover:bg-white/5 transition-colors group">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
-              <User size={20} className="text-[#D4AF37]" />
+            <div className="w-10 h-10 rounded-full bg-white/10 overflow-hidden flex items-center justify-center border border-white/10">
+              {profile?.avatarUrl ? (
+                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <User size={20} className="text-[#D4AF37]" />
+              )}
             </div>
             <div className={cn("text-start hidden sm:block", language === 'ar' ? 'text-right' : 'text-left')}>
-              <p className="text-[10px] text-white/60 uppercase tracking-widest">{t.welcome}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
               <div className="flex items-center gap-1">
                 <p className="font-headline font-bold text-sm tracking-wide">{profile?.username || 'User'}</p>
-                <ChevronDown size={12} className={cn("text-white/40 transition-transform duration-300", isProfileOpen && "rotate-180")} />
+                <ChevronDown size={12} className={cn("text-muted-foreground transition-transform duration-300", isProfileOpen && "rotate-180")} />
               </div>
             </div>
           </button>
           {isProfileOpen && (
-            <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-[#0f0f0f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
+            <div onClick={(e) => e.stopPropagation()} className={cn("absolute top-14 w-64 bg-card/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-[70]", language === 'ar' ? 'right-0' : 'left-0')}>
               <div className="p-4 border-b border-white/5 bg-white/5">
                 <div className="flex items-center justify-between mb-1">
-                   <p className="text-sm font-headline font-bold text-white uppercase">{profile?.username}</p>
+                   <p className="text-sm font-headline font-bold text-foreground uppercase">{profile?.username}</p>
                    {profile?.verified && <CheckCircle2 size={14} className="text-secondary" />}
                 </div>
                 <div className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-white/5 group cursor-pointer" onClick={(e) => handleCopyId(e)}>
@@ -273,15 +278,15 @@ export default function Dashboard() {
                   <Copy size={12} className="text-white/40" />
                 </div>
                 <button onClick={() => { setIsQrModalOpen(true); setIsProfileOpen(false); }} className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all group">
-                  <QrCode size={14} className="text-white/40 group-hover:text-primary" />
-                  <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-white/40 group-hover:text-white">{t.showQr}</span>
+                  <QrCode size={14} className="text-muted-foreground group-hover:text-primary" />
+                  <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground">{t.showQr}</span>
                 </button>
               </div>
               <div className="p-2">
-                <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-white/80 transition-all">
-                  <Settings size={16} className="text-[#00f3ff]" />{t.editAccount}
-                </button>
-                <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-white/80 hover:text-red-400 transition-all mt-1">
+                <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all">
+                  <Settings size={16} className="text-secondary" />{t.editAccount}
+                </Link>
+                <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-[11px] font-bold uppercase tracking-widest text-foreground/80 hover:text-red-400 transition-all mt-1">
                   <LogOut size={16} />{t.logout}
                 </button>
               </div>
@@ -289,22 +294,23 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <LanguageToggle />
-          <div className="relative"><Bell size={24} className="text-white/80" /><span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#D4AF37] rounded-full border-2 border-[#0a0a0a]"></span></div>
+          <div className="relative"><Bell size={24} className="text-foreground/80" /><span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#D4AF37] rounded-full border-2 border-background"></span></div>
         </div>
       </header>
 
       {/* Balance Card */}
       <section className="px-6 mb-8 relative z-10 text-center">
         <div className="relative w-full p-8 rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-2xl shadow-2xl overflow-hidden group">
-          <p className="text-white/50 text-[10px] uppercase tracking-[0.3em] mb-4 font-bold">{t.totalBalance}</p>
-          <h1 className="text-5xl font-headline font-black text-white mb-4 tracking-tighter drop-shadow-2xl">
+          <p className="text-muted-foreground text-[10px] uppercase tracking-[0.3em] mb-4 font-bold">{t.totalBalance}</p>
+          <h1 className="text-5xl font-headline font-black text-foreground mb-4 tracking-tighter drop-shadow-2xl">
             {profileLoading ? '...' : `$${profile?.balance?.toLocaleString() || '0'}`}
-            <span className="text-2xl text-white/20">.00</span>
+            <span className="text-2xl text-muted-foreground/20">.00</span>
           </h1>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#00f3ff]/10 border border-[#00f3ff]/20">
-            <span className="w-2 h-2 rounded-full bg-[#00f3ff] animate-pulse"></span>
-            <span className="text-[9px] text-[#00f3ff] tracking-[0.2em] font-black uppercase">{t.secured}</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/10 border border-secondary/20">
+            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+            <span className="text-[9px] text-secondary tracking-[0.2em] font-black uppercase">{t.secured}</span>
           </div>
         </div>
       </section>
@@ -312,57 +318,57 @@ export default function Dashboard() {
       {/* Actions */}
       <section className="px-6 grid grid-cols-3 gap-6 mb-10 relative z-10">
         <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-[#D4AF37] flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300">
-            <ArrowUpRight size={28} className="text-black" />
+          <div className="w-16 h-16 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300">
+            <ArrowUpRight size={28} className="text-background" />
           </div>
-          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-white/80">{t.send}</span>
+          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.send}</span>
         </button>
         <Link href="/withdraw" className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center hover:border-[#00f3ff]/30 group-hover:bg-white/10 transition-all duration-300">
-            <ArrowDownLeft size={28} className="text-[#00f3ff]" />
+          <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center hover:border-secondary/30 group-hover:bg-white/10 transition-all duration-300">
+            <ArrowDownLeft size={28} className="text-secondary" />
           </div>
-          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-white/80">{t.withdraw}</span>
+          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.withdraw}</span>
         </Link>
         <Link href="/marketplace" className="flex flex-col items-center gap-3 group">
           <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 transition-all duration-300">
-            <LayoutGrid size={28} className="text-white" />
+            <LayoutGrid size={28} className="text-foreground" />
           </div>
-          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-white/80">{t.services}</span>
+          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.services}</span>
         </Link>
       </section>
 
       {/* Recent Activity */}
       <section className="px-6 rounded-t-[3rem] bg-white/[0.03] border-t border-white/5 min-h-[400px] backdrop-blur-md pt-10 relative z-10">
         <div className="flex justify-between items-center mb-8 px-2">
-          <h3 className="text-sm font-headline font-black uppercase tracking-widest text-white">{t.recent}</h3>
-          <button className="text-[10px] font-headline font-bold text-[#D4AF37] uppercase tracking-widest hover:underline">{t.seeAll}</button>
+          <h3 className="text-sm font-headline font-black uppercase tracking-widest text-foreground">{t.recent}</h3>
+          <button className="text-[10px] font-headline font-bold text-primary uppercase tracking-widest hover:underline">{t.seeAll}</button>
         </div>
         <div className="space-y-4">
           {transactions.length === 0 ? (
             <div className="text-center py-20 bg-black/20 rounded-[2rem] border border-dashed border-white/5">
-              <p className="text-white/30 text-[10px] font-headline font-bold uppercase tracking-widest">{t.noActivity}</p>
+              <p className="text-muted-foreground/30 text-[10px] font-headline font-bold uppercase tracking-widest">{t.noActivity}</p>
             </div>
           ) : (
             transactions.map((tx: any) => (
               <div key={tx.id} className="flex justify-between items-center p-5 rounded-[1.5rem] bg-black/40 border border-white/5 hover:border-white/15 transition-all">
                 <div className="flex items-center gap-4">
-                  <div className={cn("w-11 h-11 rounded-full flex items-center justify-center", tx.type === 'receive' ? "bg-[#00f3ff]/10 text-[#00f3ff]" : "bg-red-500/10 text-red-500")}>
+                  <div className={cn("w-11 h-11 rounded-full flex items-center justify-center", tx.type === 'receive' ? "bg-secondary/10 text-secondary" : "bg-red-500/10 text-red-500")}>
                     {tx.type === 'receive' ? <Download size={20} /> : <Send size={20} />}
                   </div>
                   <div>
-                    <p className="font-headline font-black text-[11px] uppercase tracking-wide text-white">
+                    <p className="font-headline font-black text-[11px] uppercase tracking-wide text-foreground">
                        {tx.type === 'send' && `${t.sentTo} @${tx.recipient}`}
                        {tx.type === 'receive' && t.deposit}
                        {tx.type === 'withdraw' && t.withdrawal}
                        {tx.type === 'purchase' && tx.service}
                     </p>
-                    <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] mt-1 font-bold">
+                    <p className="text-[9px] text-muted-foreground/30 uppercase tracking-[0.2em] mt-1 font-bold">
                        {tx.date ? new Date(tx.date).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US') : ''}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={cn("font-headline font-black text-sm", tx.type === 'receive' ? "text-[#00f3ff]" : "text-white")}>
+                  <p className={cn("font-headline font-black text-sm", tx.type === 'receive' ? "text-secondary" : "text-foreground")}>
                     {tx.type === 'receive' ? '+' : '-'}${tx.amount}
                   </p>
                 </div>
@@ -372,14 +378,14 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a]/90 backdrop-blur-2xl border-t border-white/5 px-8 py-5 flex justify-between items-center z-50">
-        <Link href="/dashboard" className="flex flex-col items-center gap-1.5 text-[#D4AF37]">
+      <nav className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-2xl border-t border-white/5 px-8 py-5 flex justify-between items-center z-50">
+        <Link href="/dashboard" className="flex flex-col items-center gap-1.5 text-primary">
           <Home size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.home}</span>
         </Link>
-        <button className="flex flex-col items-center gap-1.5 text-white/40"><Wallet size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.wallet}</span></button>
-        <div className="relative -top-10"><div className="w-16 h-16 rounded-full bg-[#D4AF37] flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.5)] border-4 border-[#0a0a0a] cursor-pointer" onClick={() => setIsQrModalOpen(true)}><ScanLine size={28} className="text-black" /></div></div>
-        <Link href="/marketplace" className="flex flex-col items-center gap-1.5 text-white/40"><LayoutGrid size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.services}</span></Link>
-        <Link href="/admin" className="flex flex-col items-center gap-1.5 text-white/40"><User size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.profile}</span></Link>
+        <button className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><Wallet size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.wallet}</span></button>
+        <div className="relative -top-10"><div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(212,175,55,0.5)] border-4 border-background cursor-pointer" onClick={() => setIsQrModalOpen(true)}><ScanLine size={28} className="text-background" /></div></div>
+        <Link href="/marketplace" className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><LayoutGrid size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.services}</span></Link>
+        <Link href="/admin" className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><User size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.profile}</span></Link>
       </nav>
     </div>
   );

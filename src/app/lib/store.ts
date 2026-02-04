@@ -5,19 +5,27 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type Language = 'en' | 'ar';
+export type Theme = 'dark' | 'light';
 
 interface UIState {
   language: Language;
+  theme: Theme;
   toggleLanguage: () => void;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
 }
 
-// Store only handles persistent UI state like language
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       language: 'ar',
+      theme: 'dark',
       toggleLanguage: () => set((state) => ({ 
         language: state.language === 'en' ? 'ar' : 'en' 
+      })),
+      setTheme: (theme) => set({ theme }),
+      toggleTheme: () => set((state) => ({ 
+        theme: state.theme === 'dark' ? 'light' : 'dark' 
       })),
     }),
     {
@@ -26,10 +34,9 @@ export const useUIStore = create<UIState>()(
   )
 );
 
-// Compatibility hook for existing components
 export const useStore = () => {
-  const { language, toggleLanguage } = useUIStore();
-  return { language, toggleLanguage };
+  const { language, theme, toggleLanguage, toggleTheme, setTheme } = useUIStore();
+  return { language, theme, toggleLanguage, toggleTheme, setTheme };
 };
 
 export interface Transaction {
@@ -39,16 +46,5 @@ export interface Transaction {
   recipient?: string;
   service?: string;
   status: 'completed' | 'pending' | 'rejected';
-  date: string;
-}
-
-export interface WithdrawalRequest {
-  id: string;
-  userId: string;
-  username: string;
-  type: 'bank' | 'crypto';
-  amount: number;
-  details: any;
-  status: 'pending' | 'approved' | 'rejected';
   date: string;
 }

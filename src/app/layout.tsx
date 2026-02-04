@@ -3,6 +3,7 @@ import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageHandler } from "@/components/layout/LanguageHandler";
+import { ThemeHandler } from "@/components/layout/ThemeHandler";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
@@ -33,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -43,7 +44,8 @@ export default function RootLayout({
       <body className="font-body antialiased selection:bg-primary/30 selection:text-primary">
         <FirebaseClientProvider>
           <LanguageHandler />
-          <main className="min-h-screen pb-20">
+          <ThemeHandler />
+          <main className="min-h-screen">
             {children}
           </main>
           <Toaster />
