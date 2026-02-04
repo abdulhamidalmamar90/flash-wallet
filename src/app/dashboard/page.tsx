@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from 'react';
@@ -15,6 +16,7 @@ import {
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { LanguageToggle } from '@/components/ui/LanguageToggle';
 
 export default function Dashboard() {
   const store = useStore();
@@ -26,7 +28,19 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
-  const { balance, transactions, username } = store;
+  const { balance, transactions, username, language } = store;
+
+  const t = {
+    welcome: language === 'ar' ? 'مرحباً بعودتك،' : 'Welcome back,',
+    balance: language === 'ar' ? 'إجمالي الرصيد' : 'Total Balance',
+    trending: language === 'ar' ? '+2.5% هذا الشهر' : '+2.5% this month',
+    send: language === 'ar' ? 'إرسال' : 'Send',
+    withdraw: language === 'ar' ? 'سحب' : 'Withdraw',
+    services: language === 'ar' ? 'خدمات' : 'Services',
+    activity: language === 'ar' ? 'النشاط الأخير' : 'Recent Activity',
+    seeAll: language === 'ar' ? 'عرض الكل' : 'See All',
+    noActivity: language === 'ar' ? 'لم يتم العثور على نشاط' : 'No activity found',
+  };
 
   return (
     <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -36,13 +50,16 @@ export default function Dashboard() {
             <span className="font-headline text-primary font-bold">{username.charAt(0)}</span>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">Welcome back,</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">{t.welcome}</p>
             <p className="font-headline font-bold text-sm tracking-wide">{username}</p>
           </div>
         </div>
-        <div className="relative">
-          <div className="absolute inset-0 bg-secondary/20 blur-xl rounded-full animate-pulse-slow" />
-          <Zap className="h-6 w-6 text-secondary relative" />
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+          <div className="relative">
+            <div className="absolute inset-0 bg-secondary/20 blur-xl rounded-full animate-pulse-slow" />
+            <Zap className="h-6 w-6 text-secondary relative" />
+          </div>
         </div>
       </header>
 
@@ -51,14 +68,14 @@ export default function Dashboard() {
         <div className="relative glass-card p-8 rounded-3xl space-y-4 overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 circuit-pattern translate-x-12 -translate-y-12" />
           <div className="space-y-1">
-            <p className="text-xs font-headline text-muted-foreground tracking-[0.2em]">Total Balance</p>
+            <p className="text-xs font-headline text-muted-foreground tracking-[0.2em]">{t.balance}</p>
             <h2 className="text-5xl font-headline font-black text-primary tracking-tight">
               ${balance?.toLocaleString()}
             </h2>
           </div>
           <div className="flex items-center gap-2 text-secondary text-xs font-medium">
             <TrendingUp className="h-3 w-3" />
-            <span className="uppercase tracking-widest">+2.5% this month</span>
+            <span className="uppercase tracking-widest">{t.trending}</span>
           </div>
         </div>
       </section>
@@ -68,32 +85,32 @@ export default function Dashboard() {
           <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20 group-hover:bg-secondary/20 transition-all">
             <ArrowUpRight className="h-6 w-6 text-secondary" />
           </div>
-          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">Send</span>
+          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">{t.send}</span>
         </Link>
         <Link href="/withdraw" className="flex flex-col items-center gap-2 p-4 glass-card rounded-2xl group transition-all duration-300 hover:gold-glow">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:bg-primary/20 transition-all">
             <ArrowDownLeft className="h-6 w-6 text-primary" />
           </div>
-          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">Withdraw</span>
+          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">{t.withdraw}</span>
         </Link>
         <Link href="/marketplace" className="flex flex-col items-center gap-2 p-4 glass-card rounded-2xl group transition-all duration-300 hover:cyan-glow">
           <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20 group-hover:bg-secondary/20 transition-all">
             <ShoppingBag className="h-6 w-6 text-secondary" />
           </div>
-          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">Services</span>
+          <span className="text-[10px] font-headline font-bold text-center tracking-tighter">{t.services}</span>
         </Link>
       </section>
 
       <section className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-sm font-headline font-bold text-muted-foreground tracking-widest">Recent Activity</h3>
-          <button className="text-[10px] text-primary hover:underline uppercase font-bold tracking-widest">See All</button>
+          <h3 className="text-sm font-headline font-bold text-muted-foreground tracking-widest">{t.activity}</h3>
+          <button className="text-[10px] text-primary hover:underline uppercase font-bold tracking-widest">{t.seeAll}</button>
         </div>
         
         <div className="space-y-3 pb-24">
           {transactions.length === 0 ? (
             <div className="text-center py-10 glass-card rounded-3xl border-dashed border-white/5">
-              <p className="text-muted-foreground text-xs uppercase tracking-widest">No activity found</p>
+              <p className="text-muted-foreground text-xs uppercase tracking-widest">{t.noActivity}</p>
             </div>
           ) : (
             transactions.map((tx: Transaction) => (
@@ -112,9 +129,9 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide">
-                      {tx.type === 'send' && `Sent to @${tx.recipient}`}
-                      {tx.type === 'withdraw' && 'Withdrawal Request'}
-                      {tx.type === 'purchase' && `Voucher: ${tx.service}`}
+                      {tx.type === 'send' && (language === 'ar' ? `تم الإرسال إلى @${tx.recipient}` : `Sent to @${tx.recipient}`)}
+                      {tx.type === 'withdraw' && (language === 'ar' ? 'طلب سحب' : 'Withdrawal Request')}
+                      {tx.type === 'purchase' && (language === 'ar' ? `قسيمة: ${tx.service}` : `Voucher: ${tx.service}`)}
                     </p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
                       {new Date(tx.date).toLocaleDateString()}

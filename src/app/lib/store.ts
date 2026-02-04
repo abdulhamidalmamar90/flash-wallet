@@ -1,3 +1,4 @@
+
 "use client"
 
 import { create } from 'zustand';
@@ -24,27 +25,7 @@ export interface WithdrawalRequest {
   date: string;
 }
 
-interface UserState {
-  isLoggedIn: boolean;
-  username: string;
-  balance: number;
-  transactions: Transaction[];
-  login: (username: string) => void;
-  logout: () => void;
-  addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status'>) => void;
-  updateBalance: (amount: number) => void;
-}
-
-interface AdminState {
-  pendingWithdrawals: WithdrawalRequest[];
-  approveWithdrawal: (id: string) => void;
-  rejectWithdrawal: (id: string) => void;
-  addWithdrawalRequest: (req: Omit<WithdrawalRequest, 'id' | 'date' | 'status'>) => void;
-}
-
-// Simple simulation of a global store using a pattern similar to Zustand
-// Since we don't have Zustand installed, we'll use a custom observer pattern or React Context.
-// Actually, let's just use local storage for the demo persistence.
+export type Language = 'en' | 'ar';
 
 export const useStore = () => {
   // Mocking the behavior for the prototype
@@ -54,17 +35,28 @@ export const useStore = () => {
   const getTransactions = () => JSON.parse(localStorage.getItem('flash_transactions') || '[]');
   const getWithdrawals = () => JSON.parse(localStorage.getItem('flash_withdrawals') || '[]');
   const getUsername = () => localStorage.getItem('flash_username') || 'AlexFlash';
+  const getLanguage = () => (localStorage.getItem('flash_lang') as Language) || 'en';
 
   const saveBalance = (val: number) => localStorage.setItem('flash_balance', val.toString());
   const saveTransactions = (val: any[]) => localStorage.setItem('flash_transactions', JSON.stringify(val));
   const saveWithdrawals = (val: any[]) => localStorage.setItem('flash_withdrawals', JSON.stringify(val));
+  const saveLanguage = (val: Language) => localStorage.setItem('flash_lang', val);
 
   return {
     balance: getBalance(),
     username: getUsername(),
+    language: getLanguage(),
     transactions: getTransactions() as Transaction[],
     withdrawals: getWithdrawals() as WithdrawalRequest[],
     
+    toggleLanguage: () => {
+      const current = getLanguage();
+      const next = current === 'en' ? 'ar' : 'en';
+      saveLanguage(next);
+      // Trigger a re-render by refreshing or using a more robust state management if this was production
+      window.location.reload();
+    },
+
     sendMoney: (to: string, amount: number) => {
       const current = getBalance();
       if (current < amount) return false;
