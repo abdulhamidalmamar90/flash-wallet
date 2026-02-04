@@ -25,12 +25,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 relative">
-      <div className="absolute top-0 left-0 w-full h-full grid-overlay pointer-events-none opacity-40" />
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 relative bg-[#0a0a0a] text-white overflow-hidden">
+      {/* Background Grid Pattern - isolated within component */}
+      <div className="absolute inset-0 grid-overlay pointer-events-none opacity-40" />
       
       <div className="z-10 w-full max-w-sm space-y-8">
         <div className="text-center space-y-2">
-          {/* Logo Section replaced with high-fidelity brand image */}
+          {/* Logo Section with brand image */}
           <div className="relative w-40 h-32 mx-auto mb-2 group">
             <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
             <Image 
