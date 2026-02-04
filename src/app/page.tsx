@@ -13,6 +13,7 @@ import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPa
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -75,7 +76,6 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      router.push('/dashboard');
     } catch (error: any) {
       let message = error.message;
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
@@ -86,7 +86,6 @@ export default function LoginPage() {
         title: language === 'ar' ? "خطأ في التحقق" : "Auth Error",
         description: message
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -122,7 +121,6 @@ export default function LoginPage() {
           createdAt: new Date().toISOString()
         });
       }
-      router.push('/dashboard');
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -148,7 +146,9 @@ export default function LoginPage() {
     }
   };
 
-  if (!mounted || (authLoading && !user)) {
+  if (!mounted) return <div className="min-h-screen bg-[#0a0a0a]" />;
+
+  if (authLoading && !user) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -162,7 +162,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0a]">
       <div className="absolute top-6 right-6 z-[100]"><LanguageToggle /></div>
-      <div className="absolute inset-0 z-0 opacity-40" style={{ backgroundImage: `url('${backgroundImage?.imageUrl || "https://images.unsplash.com/photo-1603347729548-6844517490c7"}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <div className="absolute inset-0 z-0 opacity-40">
+        <Image 
+          src={backgroundImage?.imageUrl || "https://images.unsplash.com/photo-1603347729548-6844517490c7"} 
+          alt="background"
+          fill
+          priority
+          className="object-cover"
+        />
         <div className="absolute inset-0 bg-black/85 backdrop-blur-sm"></div>
       </div>
 

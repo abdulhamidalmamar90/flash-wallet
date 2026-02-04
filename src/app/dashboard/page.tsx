@@ -35,6 +35,7 @@ import { doc, collection, query, orderBy, limit, runTransaction, increment, wher
 import { signOut } from 'firebase/auth';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Html5Qrcode } from 'html5-qrcode';
+import Image from 'next/image';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -69,14 +70,14 @@ export default function Dashboard() {
     }
   }, [user, authLoading, router, mounted]);
 
-  const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
+  const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user?.uid]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
   
   const transactionsQuery = useMemo(() => (user && db) ? query(
     collection(db, 'users', user.uid, 'transactions'),
     orderBy('date', 'desc'),
     limit(10)
-  ) : null, [db, user]);
+  ) : null, [db, user?.uid]);
   const { data: transactions = [] } = useCollection(transactionsQuery);
 
   const t = {
@@ -242,7 +243,9 @@ export default function Dashboard() {
     ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${profile.customId}&color=d4af37&bgcolor=ffffff&margin=1`
     : null, [profile?.customId]);
 
-  if (!mounted || (authLoading && !user)) {
+  if (!mounted) return <div className="min-h-screen bg-background" />;
+
+  if (authLoading || (profileLoading && !profile)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -284,7 +287,7 @@ export default function Dashboard() {
               <div className="absolute -inset-4 bg-primary/20 rounded-[2.5rem] blur-2xl group-hover:bg-primary/30 transition-all duration-500"></div>
               <div className="relative bg-white p-4 rounded-[2rem] border-4 border-primary/30 shadow-[0_0_30px_rgba(212,175,55,0.2)]">
                 {qrCodeUrl ? (
-                  <img src={qrCodeUrl} alt="QR" className="w-52 h-52" />
+                  <Image src={qrCodeUrl} alt="QR" width={208} height={208} className="w-52 h-52" />
                 ) : (
                   <div className="w-52 h-52 bg-muted flex items-center justify-center rounded-lg">
                     <Loader2 className="h-10 w-10 text-primary animate-spin" />
@@ -389,8 +392,8 @@ export default function Dashboard() {
       <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
         <div className="relative">
           <button onClick={(e) => { e.stopPropagation(); setIsProfileOpen(!isProfileOpen); }} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors group">
-            <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border">
-              {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <User size={20} className="text-primary" />}
+            <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border relative">
+              {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={20} className="text-primary" />}
             </div>
             <div className={cn("text-start hidden sm:block", language === 'ar' ? 'text-right' : 'text-left')}>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
