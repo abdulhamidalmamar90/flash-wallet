@@ -25,8 +25,9 @@ import {
   Languages,
   Moon,
   Sun,
-  ExternalLink,
-  ChevronRight
+  ChevronRight,
+  QrCode,
+  ShieldAlert
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -51,6 +52,7 @@ export default function Dashboard() {
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
   const [sendAmount, setSendAmount] = useState('');
@@ -90,6 +92,9 @@ export default function Dashboard() {
     theme: language === 'ar' ? 'المظهر' : 'Appearance',
     lang: language === 'ar' ? 'اللغة' : 'Language',
     editProfile: language === 'ar' ? 'تعديل البيانات' : 'Edit Profile Info',
+    adminPanel: language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel',
+    qrTitle: language === 'ar' ? 'رمز الاستجابة السريعة' : 'Flash QR Code',
+    qrDesc: language === 'ar' ? 'استخدم هذا الرمز لاستقبال الأموال بسرعة' : 'Use this code to receive funds quickly',
   };
 
   const copyId = () => {
@@ -149,7 +154,7 @@ export default function Dashboard() {
         <div className="relative">
           <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors text-start">
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border border-border relative">
-              {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={20} className="text-primary" />}
+              {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" width={40} height={40} className="object-cover" /> : <User size={20} className="text-primary" />}
               {profile?.verified && <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-primary/20 shadow-lg"><Star size={10} className="text-primary fill-primary" /></div>}
             </div>
             <div className="hidden sm:block">
@@ -159,6 +164,9 @@ export default function Dashboard() {
           </button>
         </div>
         <div className="flex items-center gap-4">
+          <button onClick={() => setIsQrOpen(true)} className="p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all border border-primary/20">
+            <QrCode size={20} />
+          </button>
           <button onClick={() => setIsNotifOpen(true)} className="relative p-2 rounded-full hover:bg-muted transition-all">
             <Bell size={24} className="text-foreground/80" />
             {unreadCount > 0 && <span className="absolute top-1 right-1 w-5 h-5 bg-primary text-background rounded-full border-2 border-background flex items-center justify-center text-[8px] font-black">{unreadCount}</span>}
@@ -169,13 +177,13 @@ export default function Dashboard() {
       {/* Profile & Settings Dialog */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden">
-          <DialogHeader className="sr-only">
+          <DialogHeader className="p-6 pb-0 sr-only">
             <DialogTitle>{t.profileSettings}</DialogTitle>
           </DialogHeader>
           <div className="p-8 space-y-8">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="w-24 h-24 rounded-full bg-muted overflow-hidden flex items-center justify-center border-4 border-primary/20 relative">
-                {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" fill className="object-cover" /> : <User size={40} className="text-primary" />}
+                {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" width={96} height={96} className="object-cover" /> : <User size={40} className="text-primary" />}
                 {profile?.verified && <div className="absolute top-0 right-0 bg-primary rounded-full p-1.5 border-4 border-card"><Star size={12} className="text-background fill-background" /></div>}
               </div>
               <div>
@@ -189,6 +197,16 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-3">
+              {profile?.role === 'admin' && (
+                <Link href="/admin" onClick={() => setIsSettingsOpen(false)} className="w-full h-14 bg-primary/10 border border-primary/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-primary hover:text-background transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-background/50 flex items-center justify-center"><ShieldAlert size={18} /></div>
+                    <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.adminPanel}</span>
+                  </div>
+                  <ChevronRight size={14} />
+                </Link>
+              )}
+
               <button onClick={toggleLanguage} className="w-full h-14 bg-muted/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-primary/5 transition-all">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-white/5"><Languages size={18} className="text-primary" /></div>
@@ -221,6 +239,32 @@ export default function Dashboard() {
               <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.logout}</span>
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Dialog */}
+      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-8 text-center space-y-6">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{t.qrTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <h3 className="font-headline font-black text-sm uppercase tracking-widest text-primary">{t.qrTitle}</h3>
+            <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest">{t.qrDesc}</p>
+          </div>
+          <div className="p-4 bg-white rounded-3xl mx-auto inline-block border-8 border-primary/20">
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} 
+              alt="Flash QR" 
+              className="w-48 h-48"
+            />
+          </div>
+          <div className="p-4 bg-muted/50 rounded-2xl border border-white/5">
+            <p className="text-[11px] font-headline font-black text-foreground tracking-widest">{profile?.customId}</p>
+          </div>
+          <button onClick={copyId} className="w-full py-4 bg-primary text-background font-headline font-black rounded-xl text-[10px] uppercase tracking-widest">
+            {t.idCopied.replace('!', '')}
+          </button>
         </DialogContent>
       </Dialog>
 
@@ -317,7 +361,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <BottomNav onScanClick={() => {}} />
+      <BottomNav onScanClick={() => setIsQrOpen(true)} />
     </div>
   );
 }

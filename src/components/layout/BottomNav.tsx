@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowDownToLine, User, ScanLine, LayoutGrid } from 'lucide-react';
+import { Home, ArrowDownToLine, User, ScanLine, LayoutGrid, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/app/lib/store';
 import { useMemo } from 'react';
@@ -27,15 +27,19 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
   
   const { data: profile } = useDoc(userDocRef);
 
-  const isDashboard = pathname === '/dashboard' || pathname === '/dashboard/';
-  if (!isDashboard) return null;
+  const isDashboard = pathname === '/dashboard' || pathname === '/dashboard/' || pathname === '/admin' || pathname === '/admin/';
+  if (pathname === '/' || pathname === '/register') return null;
 
   const navItems = [
     { label: language === 'ar' ? 'الرئيسية' : 'HOME', icon: Home, href: '/dashboard' },
     { label: language === 'ar' ? 'الخدمات' : 'SERVICES', icon: LayoutGrid, href: '/marketplace' },
     { label: 'center', icon: ScanLine, href: '#' },
     { label: language === 'ar' ? 'سحب' : 'WITHDRAW', icon: ArrowDownToLine, href: '/withdraw' },
-    { label: language === 'ar' ? 'حسابي' : 'PROFILE', icon: User, href: (profile?.role === 'admin' ? '/admin' : '/dashboard') },
+    { 
+      label: profile?.role === 'admin' ? (language === 'ar' ? 'الإدارة' : 'ADMIN') : (language === 'ar' ? 'حسابي' : 'PROFILE'), 
+      icon: profile?.role === 'admin' ? ShieldAlert : User, 
+      href: profile?.role === 'admin' ? '/admin' : '/dashboard' 
+    },
   ];
 
   return (
