@@ -4,25 +4,21 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@/app/lib/store';
 import { 
-  Send, 
   Download, 
   LayoutGrid, 
   Bell, 
   User, 
-  Home, 
-  ScanLine, 
   ArrowUpRight, 
   ArrowDownLeft,
-  Wallet,
   Settings,
   LogOut,
   Copy,
   ChevronDown,
-  X,
   QrCode,
   Loader2,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  Send
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -33,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
 import { doc, collection, query, orderBy, limit, runTransaction, increment } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
+import { BottomNav } from '@/components/layout/BottomNav';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -44,7 +41,6 @@ export default function Dashboard() {
   
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   
   const [recipient, setRecipient] = useState('');
   const [sendAmount, setSendAmount] = useState('');
@@ -80,9 +76,6 @@ export default function Dashboard() {
     services: language === 'ar' ? 'خدمات' : 'Services',
     recent: language === 'ar' ? 'آخر العمليات' : 'Recent Activity',
     seeAll: language === 'ar' ? 'عرض الكل' : 'See All',
-    home: language === 'ar' ? 'الرئيسية' : 'Home',
-    wallet: language === 'ar' ? 'المحفظة' : 'Wallet',
-    profile: language === 'ar' ? 'حسابي' : 'Profile',
     noActivity: language === 'ar' ? 'لا توجد عمليات' : 'No activity found',
     idCopied: language === 'ar' ? 'تم نسخ المعرف!' : 'ID copied!',
     editAccount: language === 'ar' ? 'تعديل الحساب' : 'Edit Account',
@@ -93,17 +86,13 @@ export default function Dashboard() {
     recipientLabel: language === 'ar' ? 'اسم مستخدم المستلم' : 'Recipient Username',
     recipientPlaceholder: language === 'ar' ? 'مثال: Mostafa88' : 'Ex: CryptoWhale',
     amountLabel: language === 'ar' ? 'المبلغ (دولار)' : 'Amount (USD)',
-    showQr: language === 'ar' ? 'إظهار QR Code' : 'Show QR Code',
-    scanToPay: language === 'ar' ? 'امسح الكود للإرسال فوراً' : 'Scan to send money instantly',
-    myFlashId: 'My Flash ID',
     deposit: language === 'ar' ? 'شحن رصيد' : 'Deposit',
     withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal',
     sentTo: language === 'ar' ? 'تحويل إلى' : 'Sent to',
     successSendTitle: language === 'ar' ? 'تم التحويل بنجاح' : 'Transfer Successful',
     errorSendTitle: language === 'ar' ? 'فشلت العملية' : 'Transaction Failed',
     insufficientFunds: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
-    sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...',
-    verified: language === 'ar' ? 'موثق' : 'Verified'
+    sending: language === 'ar' ? 'جاري التحويل...' : 'Sending...'
   };
 
   const handleCopyId = (e?: React.MouseEvent) => {
@@ -173,46 +162,15 @@ export default function Dashboard() {
 
   if (!user) return null;
 
-  const qrCodeUrl = (profile?.customId || user?.uid)
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId || user.uid}&color=000000&bgcolor=ffffff`
-    : null;
-
   return (
     <div 
       className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden"
-      onClick={() => { setIsProfileOpen(false); }}
+      onClick={() => setIsProfileOpen(false)}
     >
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
-      
-      {isQrModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setIsQrModalOpen(false)}>
-          <div className="bg-card p-8 rounded-[2.5rem] shadow-2xl border border-border transform scale-100 animate-in zoom-in-95 duration-300 relative text-center max-w-[90%] w-[340px]" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-6">
-               <h3 className="font-headline font-black text-xl uppercase tracking-tighter">{t.myFlashId}</h3>
-               <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1">{t.scanToPay}</p>
-            </div>
-            <div className="bg-white p-3 rounded-2xl border-2 border-primary/20 mx-auto w-fit shadow-inner">
-              {qrCodeUrl ? (
-                <img src={qrCodeUrl} alt="QR" className="w-48 h-48 rounded-lg" />
-              ) : (
-                <div className="w-48 h-48 bg-muted flex items-center justify-center rounded-lg">
-                  <QrCode className="h-12 w-12 text-muted-foreground opacity-20" />
-                </div>
-              )}
-            </div>
-            <div className="mt-6 bg-muted py-3 px-6 rounded-2xl inline-flex items-center gap-3 cursor-pointer" onClick={() => handleCopyId()}>
-              <span className="font-headline font-black tracking-widest text-lg">{profile?.customId || '---'}</span>
-              <Copy size={16} className="text-muted-foreground" />
-            </div>
-            <div className="absolute -bottom-16 left-0 right-0 flex justify-center">
-               <button onClick={() => setIsQrModalOpen(false)} className="bg-card/20 text-foreground p-3 rounded-full border border-border backdrop-blur-md"><X size={24} /></button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isSendModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSendModalOpen(false)}></div>
           <div className="relative w-full max-w-lg bg-card border-t sm:border border-border sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
             <div className="flex justify-between items-center p-6 border-b border-border bg-muted/30">
@@ -286,10 +244,6 @@ export default function Dashboard() {
                   <span className="text-[10px] text-primary font-headline tracking-wider">ID: {profile?.customId || '...'}</span>
                   <Copy size={12} className="text-muted-foreground/40" />
                 </div>
-                <button onClick={() => { setIsQrModalOpen(true); setIsProfileOpen(false); }} className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-muted border border-border hover:border-primary/30 transition-all group">
-                  <QrCode size={14} className="text-muted-foreground group-hover:text-primary" />
-                  <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground">{t.showQr}</span>
-                </button>
               </div>
               <div className="p-2">
                 <Link href="/profile/edit" className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-[11px] font-bold uppercase tracking-widest text-foreground/80 transition-all">
@@ -395,15 +349,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-2xl border-t border-border px-8 py-5 flex justify-between items-center z-50">
-        <Link href="/dashboard" className="flex flex-col items-center gap-1.5 text-primary">
-          <Home size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.home}</span>
-        </Link>
-        <button className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><Wallet size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.wallet}</span></button>
-        <div className="relative -top-10"><div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-lg border-4 border-background cursor-pointer" onClick={() => setIsQrModalOpen(true)}><ScanLine size={28} className="text-primary-foreground" /></div></div>
-        <Link href="/marketplace" className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><LayoutGrid size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.services}</span></Link>
-        <Link href="/dashboard" className="flex flex-col items-center gap-1.5 text-muted-foreground/40"><User size={22} /><span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.profile}</span></Link>
-      </nav>
+      <BottomNav />
     </div>
   );
 }
