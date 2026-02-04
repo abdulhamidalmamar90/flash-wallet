@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -23,7 +22,8 @@ import {
   Camera,
   UserCheck,
   ArrowDown,
-  Moon
+  Moon,
+  Languages
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -115,7 +115,8 @@ export default function Dashboard() {
     selfTransfer: language === 'ar' ? 'لا يمكنك التحويل لنفسك' : 'Cannot transfer to self',
     yourIdLabel: language === 'ar' ? 'معرف الفلاش الخاص بك' : 'YOUR FLASH ID',
     withdrawal: language === 'ar' ? 'سحب أموال' : 'Withdrawal',
-    switchTheme: language === 'ar' ? 'تبديل الوضع' : 'SWITCH THEME'
+    switchTheme: language === 'ar' ? 'تبديل الوضع' : 'SWITCH THEME',
+    switchLanguage: language === 'ar' ? 'تغيير اللغة' : 'SWITCH LANGUAGE'
   };
 
   useEffect(() => {
@@ -424,6 +425,15 @@ export default function Dashboard() {
                   {t.editAccount}
                 </Link>
 
+                {/* Language Toggle in Profile Menu */}
+                <div className="w-full flex flex-col gap-2 p-3 rounded-xl hover:bg-muted transition-all">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Languages size={16} className="text-primary" />
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-foreground/80">{t.switchLanguage}</span>
+                  </div>
+                  <LanguageToggle />
+                </div>
+
                 {/* Theme Toggle in Profile Menu */}
                 <div className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-muted transition-all">
                   <div className="flex items-center gap-3">
@@ -440,7 +450,6 @@ export default function Dashboard() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <LanguageToggle />
           <div className="relative">
             <Bell size={24} className="text-foreground/80" />
             <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background"></span>

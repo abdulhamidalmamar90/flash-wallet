@@ -96,7 +96,7 @@ h1, h2, h3, h4 {
   @apply tracking-wider;
 }
 
-/* Custom Theme Switch Styling from Uiverse.io */
+/* Custom Theme Switch Styling */
 .theme-switch {
   font-size: 17px;
   position: relative;
@@ -177,4 +177,75 @@ h1, h2, h3, h4 {
 
 .theme-input:checked + .theme-slider:before {
   transform: translateX(30px);
+}
+
+/* Custom Language Toggle Styles */
+.fx-block {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.toggle {
+  position: relative;
+  width: 140px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.toggle > div {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.toggle input[type=checkbox] {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  cursor: pointer;
+  z-index: 5;
+}
+
+/* الجزء المسؤول عن حرف "ع" */
+.toggle > div > input[type=checkbox] ~ div:before {
+  content: attr(data-unchecked);
+  display: block;
+  position: absolute;
+  border-radius: 10px;
+  top: 12px;
+  left: 30px;
+  font-weight: bold;
+  font-family: sans-serif;
+  font-size: 18px;
+  color: #fff;
+  transition: 0.3s;
+}
+
+/* الجزء المسؤول عن حرف "E" */
+.toggle > div > input[type=checkbox] ~ div:after {
+  content: attr(data-checked);
+  color: #555;
+  display: block;
+  position: absolute;
+  border-radius: 10px;
+  top: 12px;
+  left: 100px;
+  font-weight: bold;
+  font-size: 18px;
+  transition: 0.3s;
+}
+
+/* Active State for English */
+.toggle > div > input[type=checkbox]:checked ~ div:after {
+  color: #df0000;
+  text-shadow: 0 1px 0 #fff, 0px 0 7px #df0000;
+}
+
+.toggle > div > input[type=checkbox]:checked ~ div:before {
+  color: #555;
 }
