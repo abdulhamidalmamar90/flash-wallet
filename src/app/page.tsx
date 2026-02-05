@@ -47,18 +47,22 @@ export default function LoginPage() {
     e.preventDefault();
     if (!auth) return;
     
-    // تنظيف البريد الإلكتروني من المسافات وتحويله لأحرف صغيرة لضمان المطابقة
+    // تنظيف البريد الإلكتروني بشكل صارم من المسافات والأحرف الكبيرة التي قد يضيفها الموبايل
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !password) return;
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) return;
 
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, cleanEmail, password);
+      await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = error.message;
-      if (error.code === 'auth/invalid-credential') {
-        errorMessage = language === 'ar' ? "بيانات الدخول غير صحيحة. تأكد من البريد وكلمة المرور." : "Invalid credentials. Please check your email and password.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        errorMessage = language === 'ar' 
+          ? "بيانات الدخول غير صحيحة. تأكد من البريد وكلمة المرور." 
+          : "Invalid credentials. Please check your email and password.";
       }
       toast({ 
         variant: "destructive", 
