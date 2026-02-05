@@ -159,10 +159,19 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (targetUserId: string) => {
     try {
+      // حذف وثيقة المستخدم من قاعدة البيانات
       await deleteDoc(doc(db, 'users', targetUserId));
-      toast({ title: "USER DELETED", description: "The account has been purged from the system." });
+      
+      toast({ 
+        title: "USER PURGED", 
+        description: "The entity record has been permanently removed from the ledger." 
+      });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "PURGE FAILED", description: e.message });
+      toast({ 
+        variant: "destructive", 
+        title: "PURGE FAILED", 
+        description: e.message 
+      });
     }
   };
 
@@ -303,11 +312,13 @@ export default function AdminPage() {
                       <p className="text-[8px] text-muted-foreground uppercase">{u.email}</p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end gap-1">
                     <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p>
+                    
+                    {/* زر حذف المستخدم مع نافذة تأكيد */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <button className="text-red-500/40 hover:text-red-500 transition-colors p-1 mt-2">
+                        <button className="text-red-500/40 hover:text-red-500 transition-colors p-1.5 bg-red-500/5 rounded-lg border border-red-500/10 hover:border-red-500/40">
                           <Trash2 size={16} />
                         </button>
                       </AlertDialogTrigger>
@@ -315,14 +326,14 @@ export default function AdminPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle className="text-xs font-headline font-bold uppercase tracking-widest text-red-500">Confirm Asset Purge</AlertDialogTitle>
                           <AlertDialogDescription className="text-[10px] text-muted-foreground uppercase leading-relaxed">
-                            This action will permanently remove @{u.username} from the FLASH ledger. All associated balances and credentials will be lost.
+                            This action will permanently remove @{u.username} from the FLASH database. This entity will be erased from the ledger, allowing for a fresh initialization if required.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-white/5 border-white/10 text-[9px] font-headline uppercase tracking-widest">Abort</AlertDialogCancel>
+                          <AlertDialogCancel className="bg-white/5 border-white/10 text-[9px] font-headline uppercase tracking-widest rounded-xl">Abort</AlertDialogCancel>
                           <AlertDialogAction 
                             onClick={() => handleDeleteUser(u.id)}
-                            className="bg-red-500 text-white text-[9px] font-headline uppercase tracking-widest"
+                            className="bg-red-500 text-white text-[9px] font-headline uppercase tracking-widest rounded-xl"
                           >
                             Authorize Purge
                           </AlertDialogAction>
