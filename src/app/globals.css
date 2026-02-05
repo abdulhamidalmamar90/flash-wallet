@@ -87,3 +87,9 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Custom QR Scan Animation */
+@keyframes scan-line {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(250px); }
+}

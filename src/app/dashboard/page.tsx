@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useStore } from '@/app/lib/store';
 import { 
   Bell, 
@@ -22,7 +22,9 @@ import {
   CheckCircle2,
   Trash2,
   Wallet,
-  Send
+  Send,
+  X,
+  Camera
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -46,6 +48,7 @@ import {
 import { signOut } from 'firebase/auth';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -59,6 +62,7 @@ export default function Dashboard() {
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
   const [recipientName, setRecipientName] = useState<string | null>(null);
@@ -66,6 +70,8 @@ export default function Dashboard() {
   const [sendAmount, setSendAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted && !authLoading && !user) router.push('/'); }, [user, authLoading, router, mounted]);
@@ -95,6 +101,46 @@ export default function Dashboard() {
     const timer = setTimeout(lookupRecipient, 500);
     return () => clearTimeout(timer);
   }, [recipient, db]);
+
+  // QR Scanner Logic
+  useEffect(() => {
+    if (isScannerOpen) {
+      const startScanner = async () => {
+        try {
+          const html5QrCode = new Html5Qrcode("reader");
+          scannerRef.current = html5QrCode;
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+              setRecipient(decodedText.toUpperCase());
+              setIsScannerOpen(false);
+              setIsSendModalOpen(true);
+              toast({ title: language === 'ar' ? "تم التعرف على الكود" : "ID DETECTED" });
+            },
+            () => {}
+          );
+        } catch (err) {
+          console.error("Scanner error:", err);
+          setIsScannerOpen(false);
+          toast({ variant: "destructive", title: "CAMERA ERROR", description: "Could not access camera for scanning." });
+        }
+      };
+      startScanner();
+    } else {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().then(() => {
+          scannerRef.current = null;
+        }).catch(err => console.error("Stop scanner error:", err));
+      }
+    }
+
+    return () => {
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, [isScannerOpen, language, toast]);
 
   const copyId = () => {
     if (profile?.customId) {
@@ -239,7 +285,36 @@ export default function Dashboard() {
         </section>
       </main>
 
-      <BottomNav onScanClick={() => setIsQrOpen(true)} />
+      <BottomNav onScanClick={() => setIsScannerOpen(true)} />
+
+      {/* QR Scanner Dialog */}
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-4 text-center rounded-[2.5rem] z-[2000]">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">
+              {language === 'ar' ? 'ماسح المعرف الرقمي' : 'FLASH ID SCANNER'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative mt-4 overflow-hidden rounded-2xl border-2 border-primary/20 cyan-glow">
+            <div id="reader" className="w-full aspect-square bg-black"></div>
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div className="w-48 h-48 border-2 border-primary/50 rounded-2xl animate-pulse flex items-center justify-center">
+                <div className="w-full h-0.5 bg-primary/80 absolute top-1/2 -translate-y-1/2 animate-[scan_2s_infinite]"></div>
+              </div>
+            </div>
+          </div>
+          <p className="mt-4 text-[9px] font-headline font-bold text-muted-foreground uppercase tracking-widest">
+            {language === 'ar' ? 'وجه الكاميرا نحو رمز QR للمستلم' : 'POINT CAMERA AT RECIPIENT QR CODE'}
+          </p>
+          <button 
+            onClick={() => setIsScannerOpen(false)} 
+            className="mt-6 w-full h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all"
+          >
+            <X size={16} />
+            <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إلغاء' : 'CANCEL'}</span>
+          </button>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
@@ -363,6 +438,13 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <style jsx global>{`
+        @keyframes scan {
+          0% { top: 0%; }
+          100% { top: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
