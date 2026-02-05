@@ -1,10 +1,8 @@
-
 "use client"
 
 import { useEffect, useState, useMemo } from 'react';
 import { useStore } from '@/app/lib/store';
 import { 
-  Download, 
   Bell, 
   User, 
   ArrowUpRight, 
@@ -12,10 +10,7 @@ import {
   Settings,
   LogOut,
   Copy,
-  ChevronDown,
   Loader2,
-  Trash2,
-  Inbox,
   Send,
   PlusCircle,
   Building2,
@@ -24,11 +19,8 @@ import {
   Languages,
   Moon,
   Sun,
-  ChevronRight,
-  QrCode,
   ShieldAlert,
-  CheckCircle2,
-  AlertCircle
+  QrCode
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -51,7 +43,6 @@ import {
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { BottomNav } from '@/components/layout/BottomNav';
-import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function Dashboard() {
@@ -65,7 +56,6 @@ export default function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
@@ -78,7 +68,6 @@ export default function Dashboard() {
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted && !authLoading && !user) router.push('/'); }, [user, authLoading, router, mounted]);
 
-  // Recipient Lookup Logic
   useEffect(() => {
     const lookupRecipient = async () => {
       if (recipient.length >= 5 && db) {
@@ -86,19 +75,10 @@ export default function Dashboard() {
         try {
           const q = query(collection(db, 'users'), where('customId', '==', recipient.trim()));
           const snap = await getDocs(q);
-          if (!snap.empty) {
-            setRecipientName(snap.docs[0].data().username);
-          } else {
-            setRecipientName(null);
-          }
-        } catch (e) {
-          setRecipientName(null);
-        } finally {
-          setIsLookingUp(false);
-        }
-      } else {
-        setRecipientName(null);
-      }
+          if (!snap.empty) setRecipientName(snap.docs[0].data().username);
+          else setRecipientName(null);
+        } catch (e) { setRecipientName(null); } finally { setIsLookingUp(false); }
+      } else { setRecipientName(null); }
     };
     const timer = setTimeout(lookupRecipient, 500);
     return () => clearTimeout(timer);
@@ -110,391 +90,201 @@ export default function Dashboard() {
   const transactionsQuery = useMemo(() => (user && db) ? query(collection(db, 'users', user.uid, 'transactions'), orderBy('date', 'desc'), limit(10)) : null, [db, user?.uid]);
   const { data: transactions = [] } = useCollection(transactionsQuery);
 
-  const notificationsQuery = useMemo(() => (user && db) ? query(collection(db, 'users', user.uid, 'notifications'), orderBy('date', 'desc')) : null, [db, user?.uid]);
-  const { data: notifications = [] } = useCollection(notificationsQuery);
-
-  const unreadCount = useMemo(() => notifications.filter((n: any) => !n.read).length, [notifications]);
-
-  const t = {
-    welcome: language === 'ar' ? 'مرحباً بك،' : 'Welcome back,',
-    totalBalance: language === 'ar' ? 'الرصيد الكلي' : 'Total Balance',
-    secured: language === 'ar' ? 'مؤمن ومحمي' : 'Secured & Protected',
-    send: language === 'ar' ? 'إرسال' : 'Send',
-    withdraw: language === 'ar' ? 'سحب' : 'Withdraw',
-    deposit: language === 'ar' ? 'إيداع' : 'Deposit',
-    recent: language === 'ar' ? 'آخر العمليات' : 'Recent Activity',
-    notifHeader: language === 'ar' ? 'مركز التنبيهات' : 'Notification Center',
-    noNotif: language === 'ar' ? 'لا توجد تنبيهات جديدة' : 'No new notifications',
-    markAllRead: language === 'ar' ? 'تحديد الكل كمقروء' : 'Mark all as read',
-    idCopied: language === 'ar' ? 'تم نسخ المعرف!' : 'ID copied!',
-    logout: language === 'ar' ? 'تسجيل الخروج' : 'Logout',
-    profileSettings: language === 'ar' ? 'إعدادات الحساب' : 'Profile Settings',
-    flashId: language === 'ar' ? 'معرف فلاش' : 'FLASH ID',
-    theme: language === 'ar' ? 'المظهر' : 'Appearance',
-    lang: language === 'ar' ? 'اللغة' : 'Language',
-    editProfile: language === 'ar' ? 'تعديل البيانات' : 'Edit Profile Info',
-    adminPanel: language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel',
-    qrTitle: language === 'ar' ? 'رمز الاستجابة السريعة' : 'Flash QR Code',
-    qrDesc: language === 'ar' ? 'استخدم هذا الرمز لاستقبال الأموال بسرعة' : 'Use this code to receive funds quickly',
-    copyId: language === 'ar' ? 'نسخ المعرف' : 'Copy ID',
-    recipientFound: language === 'ar' ? 'سيتم الإرسال إلى:' : 'Sending to:',
-    invalidRecipient: language === 'ar' ? 'المعرف غير موجود' : 'Invalid Flash ID',
-  };
-
   const copyId = () => {
     if (profile?.customId) {
       navigator.clipboard.writeText(profile.customId);
-      toast({ title: t.idCopied });
+      toast({ title: "COPIED" });
     }
-  };
-
-  const markAllAsRead = async () => {
-    notifications.forEach((n: any) => {
-      if (!n.read) updateDoc(doc(db, 'users', user!.uid, 'notifications', n.id), { read: true });
-    });
   };
 
   const handleSendMoney = async () => {
     if (!user || !recipient || !sendAmount || !profile || !db) return;
     const amountNum = parseFloat(sendAmount);
-    
-    if (amountNum <= 0) {
-      toast({ variant: "destructive", title: "Invalid Amount" });
-      return;
-    }
-
-    if ((profile.balance || 0) < amountNum) {
-      toast({ variant: "destructive", title: "Insufficient Funds" });
-      return;
-    }
-
-    if (recipient.trim() === profile.customId) {
-      toast({ variant: "destructive", title: "Transaction Error", description: "You cannot send money to yourself." });
-      return;
-    }
+    if (amountNum <= 0 || (profile.balance || 0) < amountNum) return;
 
     setIsSending(true);
     try {
       const q = query(collection(db, 'users'), where('customId', '==', recipient.trim()));
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
-        toast({ variant: "destructive", title: "Recipient Not Found", description: "The Flash ID entered does not exist." });
-        setIsSending(false);
-        return;
-      }
+      const snap = await getDocs(q);
+      if (snap.empty) { setIsSending(false); return; }
 
-      const recipientDoc = querySnapshot.docs[0];
+      const recipientDoc = snap.docs[0];
       const recipientId = recipientDoc.id;
       const recipientData = recipientDoc.data();
 
       await runTransaction(db, async (transaction) => {
         const senderRef = doc(db, 'users', user.uid);
         const receiverRef = doc(db, 'users', recipientId);
-        
         transaction.update(senderRef, { balance: increment(-amountNum) });
         transaction.update(receiverRef, { balance: increment(amountNum) });
-
-        const senderTxRef = doc(collection(db, 'users', user.uid, 'transactions'));
-        transaction.set(senderTxRef, { 
-          type: 'send', 
-          amount: amountNum, 
-          recipient: recipientData.username || recipient, 
-          status: 'completed', 
-          date: new Date().toISOString() 
-        });
-
-        const recipientTxRef = doc(collection(db, 'users', recipientId, 'transactions'));
-        transaction.set(recipientTxRef, { 
-          type: 'receive', 
-          amount: amountNum, 
-          sender: profile.username, 
-          status: 'completed', 
-          date: new Date().toISOString() 
-        });
-
-        const notifRef = doc(collection(db, 'users', recipientId, 'notifications'));
-        transaction.set(notifRef, {
-          title: "Funds Received",
-          message: `Success! You received $${amountNum} from @${profile.username}`,
-          type: 'transaction',
-          read: false,
-          date: new Date().toISOString()
-        });
+        transaction.set(doc(collection(db, 'users', user.uid, 'transactions')), { type: 'send', amount: amountNum, recipient: recipientData.username, status: 'completed', date: new Date().toISOString() });
+        transaction.set(doc(collection(db, 'users', recipientId, 'transactions')), { type: 'receive', amount: amountNum, sender: profile.username, status: 'completed', date: new Date().toISOString() });
       });
 
-      toast({ title: "Transfer Authorized", description: `Successfully sent $${amountNum} to ${recipientData.username}` });
+      toast({ title: "TRANSACTION AUTHORIZED" });
       setIsSendModalOpen(false);
       setSendAmount('');
       setRecipient('');
-      setRecipientName(null);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Failed", description: e.message });
-    } finally {
-      setIsSending(false);
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); } finally { setIsSending(false); }
   };
 
-  const handleLogout = () => {
-    signOut(auth).then(() => router.push('/'));
-  };
-
-  if (!mounted) return <div className="min-h-screen bg-background" />;
-  if (authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-12 w-12 text-primary animate-spin" /></div>;
+  if (!mounted || authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-body pb-32 relative overflow-hidden">
-      <header className="flex justify-between items-center p-6 pt-8 relative z-[60]">
-        <div className="relative">
-          <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 p-1 rounded-full hover:bg-muted transition-colors text-start">
-            <div className={cn(
-              "w-10 h-10 rounded-full bg-muted overflow-hidden flex items-center justify-center border-2 transition-all duration-500",
-              profile?.verified 
-                ? "border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.6)]" 
-                : "border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]"
-            )}>
-              {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" width={40} height={40} className="object-cover" /> : <User size={20} className="text-primary" />}
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{t.welcome}</p>
-              <div className="flex items-center gap-1"><p className="font-headline font-bold text-sm">{profile?.username}</p><ChevronDown size={12} /></div>
-            </div>
-          </button>
-        </div>
-        <div className="flex items-center gap-4">
-          <button onClick={() => setIsNotifOpen(true)} className="relative p-2 rounded-full hover:bg-muted transition-all">
-            <Bell size={24} className="text-foreground/80" />
-            {unreadCount > 0 && <span className="absolute top-1 right-1 w-5 h-5 bg-primary text-background rounded-full border-2 border-background flex items-center justify-center text-[8px] font-black">{unreadCount}</span>}
-          </button>
-        </div>
+    <div className="min-h-screen bg-background text-foreground pb-32">
+      <header className="flex justify-between items-center px-8 py-10">
+        <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-4 group">
+          <div className={cn("w-12 h-12 border transition-all duration-500 flex items-center justify-center", profile?.verified ? "border-primary cyan-glow" : "border-border")}>
+            <User size={20} className="text-muted-foreground group-hover:text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="text-[9px] text-muted-foreground font-bold tracking-[0.2em] uppercase">Authorized Entity</p>
+            <p className="font-headline font-bold text-sm tracking-tight">@{profile?.username}</p>
+          </div>
+        </button>
+        <button className="p-2 text-muted-foreground hover:text-white transition-all"><Bell size={24} /></button>
       </header>
 
-      {/* Profile & Settings Dialog */}
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden z-[200]">
-          <DialogHeader className="p-6 pb-0 sr-only">
-            <DialogTitle>{t.profileSettings}</DialogTitle>
-          </DialogHeader>
-          <div className="p-8 space-y-8">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className={cn(
-                "w-24 h-24 rounded-full bg-muted overflow-hidden flex items-center justify-center border-4 transition-all duration-500",
-                profile?.verified 
-                  ? "border-green-500 shadow-[0_0_25px_rgba(34,197,94,0.7)]" 
-                  : "border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-              )}>
-                {profile?.avatarUrl ? <Image src={profile.avatarUrl} alt="Avatar" width={96} height={96} className="object-cover" /> : <User size={40} className="text-primary" />}
-              </div>
-              <div>
-                <h3 className="text-lg font-headline font-black uppercase tracking-tight">@{profile?.username}</h3>
-                <div onClick={copyId} className="mt-2 flex items-center gap-2 px-3 py-1 bg-muted/50 rounded-full border border-white/5 cursor-pointer active:scale-95 transition-all">
-                  <span className="text-[9px] font-headline font-bold text-muted-foreground uppercase">{t.flashId}:</span>
-                  <span className="text-[9px] font-headline font-bold text-primary">{profile?.customId}</span>
-                  <Copy size={10} className="text-primary/40" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-               <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="h-20 bg-primary/10 border border-primary/20 rounded-2xl flex flex-col items-center justify-center gap-2 group hover:bg-primary hover:text-background transition-all">
-                <QrCode size={20} />
-                <span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.qrTitle}</span>
-              </button>
-              <Link href="/profile/edit" onClick={() => setIsSettingsOpen(false)} className="h-20 bg-muted/30 border border-white/5 rounded-2xl flex flex-col items-center justify-center gap-2 group hover:bg-white/5 transition-all">
-                <Settings size={20} className="text-muted-foreground" />
-                <span className="text-[8px] font-headline font-black uppercase tracking-widest">{t.editProfile}</span>
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {profile?.role === 'admin' && (
-                <Link href="/admin" onClick={() => setIsSettingsOpen(false)} className="w-full h-14 bg-primary/10 border border-primary/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-primary hover:text-background transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-background/50 flex items-center justify-center"><ShieldAlert size={18} /></div>
-                    <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.adminPanel}</span>
-                  </div>
-                  <ChevronRight size={14} />
-                </Link>
-              )}
-
-              <button onClick={toggleLanguage} className="w-full h-14 bg-muted/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-primary/5 transition-all">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-white/5"><Languages size={18} className="text-primary" /></div>
-                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.lang}</span>
-                </div>
-                <span className="text-[10px] font-headline font-black text-primary">{language === 'ar' ? 'العربية' : 'ENGLISH'}</span>
-              </button>
-
-              <button onClick={toggleTheme} className="w-full h-14 bg-muted/30 rounded-2xl px-5 flex items-center justify-between group hover:bg-secondary/5 transition-all">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center border border-white/5">
-                    {theme === 'dark' ? <Moon size={18} className="text-secondary" /> : <Sun size={18} className="text-secondary" />}
-                  </div>
-                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.theme}</span>
-                </div>
-                <span className="text-[10px] font-headline font-black text-secondary">{theme?.toUpperCase()}</span>
-              </button>
-            </div>
-
-            <button onClick={handleLogout} className="w-full h-14 border border-red-500/20 rounded-2xl px-5 flex items-center justify-center gap-3 text-red-500 hover:bg-red-500 hover:text-white transition-all">
-              <LogOut size={18} />
-              <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.logout}</span>
-            </button>
+      <main className="px-8 space-y-12">
+        <section className="text-center py-12 space-y-4">
+          <p className="text-muted-foreground text-[10px] uppercase tracking-[0.4em] font-bold">Consolidated Balance</p>
+          <h1 className="text-6xl font-headline font-bold text-white tracking-tighter font-financial">
+            ${profile?.balance?.toLocaleString()}<span className="text-2xl opacity-20">.00</span>
+          </h1>
+          <div className="inline-flex items-center gap-2 px-4 py-1 border border-primary/20 bg-primary/5">
+            <div className="w-1.5 h-1.5 bg-primary animate-pulse"></div>
+            <span className="text-[9px] text-primary tracking-[0.2em] font-bold uppercase">Secured v2.5.0</span>
           </div>
-        </DialogContent>
-      </Dialog>
+        </section>
 
-      {/* QR Code Dialog */}
-      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-8 text-center space-y-6 z-[250]">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{t.qrTitle}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <h3 className="font-headline font-black text-sm uppercase tracking-widest text-primary">{t.qrTitle}</h3>
-            <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest">{t.qrDesc}</p>
-          </div>
-          <div className="p-4 bg-white rounded-3xl mx-auto inline-block border-8 border-primary/20">
-            <img 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} 
-              alt="Flash QR" 
-              className="w-48 h-48"
-            />
-          </div>
-          <div className="p-4 bg-muted/50 rounded-2xl border border-white/5 relative group">
-            <p className="text-[11px] font-headline font-black text-foreground tracking-widest">{profile?.customId}</p>
-            <button onClick={copyId} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-primary/10 rounded-lg text-primary transition-all">
-              <Copy size={14} />
-            </button>
-          </div>
-          <button onClick={copyId} className="w-full py-4 bg-primary text-background font-headline font-black rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
-            <Copy size={14} /> {t.copyId}
+        <section className="grid grid-cols-3 gap-4">
+          <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-4 py-8 bg-card border border-border hover:border-primary transition-all">
+            <ArrowUpRight size={28} className="text-primary" />
+            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">Send</span>
           </button>
-        </DialogContent>
-      </Dialog>
+          <Link href="/withdraw" className="flex flex-col items-center gap-4 py-8 bg-card border border-border hover:border-secondary transition-all">
+            <ArrowDownLeft size={28} className="text-secondary" />
+            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">Withdraw</span>
+          </Link>
+          <button onClick={() => setIsDepositModalOpen(true)} className="flex flex-col items-center gap-4 py-8 bg-card border border-border hover:border-white transition-all">
+            <ArrowDown size={28} className="text-muted-foreground" />
+            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">Deposit</span>
+          </button>
+        </section>
 
-      {/* Notification Dialog */}
-      <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
-        <DialogContent className="max-w-sm bg-card border-white/5 rounded-[2.5rem] p-0 overflow-hidden z-[200]">
-          <DialogHeader className="p-6 border-b border-white/5 bg-muted/30 flex justify-between items-center space-y-0">
-            <DialogTitle className="font-headline font-black text-xs uppercase tracking-widest text-primary">{t.notifHeader}</DialogTitle>
-            {unreadCount > 0 && <button onClick={markAllAsRead} className="text-[8px] font-bold text-muted-foreground hover:text-primary uppercase tracking-widest">{t.markAllRead}</button>}
-          </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3">
-            {notifications.length === 0 ? (
-              <div className="py-20 text-center space-y-4 opacity-30"><Inbox className="mx-auto h-12 w-12" /><p className="text-[10px] font-headline uppercase">{t.noNotif}</p></div>
-            ) : notifications.map((n: any) => (
-              <div key={n.id} className={cn("p-4 rounded-2xl border transition-all flex justify-between gap-4 group", n.read ? "bg-card/20 border-white/5" : "bg-primary/5 border-primary/20")}>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={cn("w-1.5 h-1.5 rounded-full", n.read ? "bg-muted-foreground" : "bg-primary animate-pulse")} />
-                    <p className="font-headline font-bold text-[10px] uppercase text-foreground">{n.title}</p>
+        <section className="space-y-6 pt-8 border-t border-border">
+          <h3 className="text-[10px] font-headline font-bold uppercase tracking-[0.3em] text-muted-foreground">Recent Ledger Entries</h3>
+          <div className="space-y-3">
+            {transactions.map((tx: any) => (
+              <div key={tx.id} className="flex justify-between items-center p-6 bg-card border border-border hover:bg-muted transition-all">
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-1 h-8", tx.type === 'send' ? "bg-red-500/20" : "bg-primary/20")} />
+                  <div>
+                    <p className="font-headline font-bold text-[11px] uppercase tracking-wide">
+                      {tx.type === 'send' ? `DEBIT: @${tx.recipient}` : `CREDIT: @${tx.sender || 'SYSTEM'}`}
+                    </p>
+                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1 font-financial">
+                      {new Date(tx.date).toLocaleDateString()}
+                    </p>
                   </div>
-                  <p className="text-[9px] text-muted-foreground leading-relaxed">{n.message}</p>
                 </div>
-                <button onClick={() => deleteDoc(doc(db, 'users', user!.uid, 'notifications', n.id))} className="opacity-0 group-hover:opacity-100 p-2 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                <p className={cn("font-headline font-bold text-sm font-financial", tx.type === 'send' ? "text-white" : "text-primary")}>
+                  {tx.type === 'send' ? '-' : '+'}${tx.amount}
+                </p>
               </div>
             ))}
           </div>
+        </section>
+      </main>
+
+      <BottomNav onScanClick={() => setIsQrOpen(true)} />
+
+      {/* Simplified Modals for serious feel */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-sm bg-card border-border p-8 rounded-none">
+          <DialogHeader className="sr-only"><DialogTitle>Settings</DialogTitle></DialogHeader>
+          <div className="space-y-8">
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="w-20 h-20 border border-primary flex items-center justify-center"><User size={32} className="text-primary" /></div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-headline font-bold uppercase tracking-tight">@{profile?.username}</h3>
+                <button onClick={copyId} className="px-4 py-1.5 bg-muted text-[10px] font-headline font-bold uppercase tracking-widest border border-border flex items-center gap-2">
+                  ID: {profile?.customId} <Copy size={12} />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 border border-border flex items-center px-6 gap-4 hover:bg-muted transition-all">
+                <QrCode size={18} className="text-primary" />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Flash QR</span>
+              </button>
+              {profile?.role === 'admin' && (
+                <Link href="/admin" className="w-full h-14 border border-border flex items-center px-6 gap-4 hover:bg-muted transition-all">
+                  <ShieldAlert size={18} className="text-primary" />
+                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Admin Command</span>
+                </Link>
+              )}
+              <button onClick={toggleLanguage} className="w-full h-14 border border-border flex items-center px-6 gap-4 hover:bg-muted transition-all">
+                <Languages size={18} />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Language: {language === 'ar' ? 'العربية' : 'EN'}</span>
+              </button>
+              <button onClick={() => signOut(auth)} className="w-full h-14 border border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all">
+                <LogOut size={18} />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Terminate Session</span>
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
-      <section className="px-6 mb-8 text-center">
-        <div className="relative w-full p-8 rounded-[2rem] border border-border bg-card/40 backdrop-blur-2xl shadow-xl overflow-hidden group">
-          <p className="text-muted-foreground text-[10px] uppercase tracking-[0.3em] mb-4 font-bold">{t.totalBalance}</p>
-          <h1 className="text-5xl font-headline font-black text-foreground mb-4 tracking-tighter">${profile?.balance?.toLocaleString() || '0'}<span className="text-2xl text-muted-foreground/20">.00</span></h1>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/10 border border-secondary/20"><span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span className="text-[9px] text-secondary tracking-[0.2em] font-black uppercase">{t.secured}</span></div>
-        </div>
-      </section>
-
-      <section className="px-6 grid grid-cols-3 gap-6 mb-10 relative z-10">
-        <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-lg group-hover:scale-110 transition-all"><ArrowUpRight size={28} className="text-primary-foreground" /></div>
-          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.send}</span>
-        </button>
-        <Link href="/withdraw" className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center hover:border-secondary/30 group-hover:bg-muted transition-all"><ArrowDownLeft size={28} className="text-secondary" /></div>
-          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.withdraw}</span>
-        </Link>
-        <button onClick={() => setIsDepositModalOpen(true)} className="flex flex-col items-center gap-3 group">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center group-hover:bg-muted transition-all"><ArrowDown size={28} className="text-foreground" /></div>
-          <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-foreground/80">{t.deposit}</span>
-        </button>
-      </section>
-
-      <section className="px-6 rounded-t-[3rem] bg-muted/30 border-t border-border min-h-[400px] backdrop-blur-md pt-10">
-        <div className="flex justify-between items-center mb-8 px-2"><h3 className="text-sm font-headline font-black uppercase tracking-widest text-foreground">{t.recent}</h3></div>
-        <div className="space-y-4">
-          {transactions.map((tx: any) => (
-            <div key={tx.id} className="flex justify-between items-center p-5 rounded-[1.5rem] bg-card border border-border">
-              <div className="flex items-center gap-4">
-                <div className={cn("w-11 h-11 rounded-full flex items-center justify-center", (tx.type === 'receive' || tx.type === 'deposit') ? "bg-secondary/10 text-secondary" : "bg-red-500/10 text-red-500")}>{(tx.type === 'receive' || tx.type === 'deposit') ? <Download size={20} /> : <Send size={20} />}</div>
-                <div><p className="font-headline font-black text-[11px] uppercase tracking-wide">{tx.type === 'send' ? `Sent to ${tx.recipient}` : tx.type === 'receive' ? `Received from ${tx.sender}` : tx.type === 'deposit' ? (tx.service || 'Deposit') : tx.type === 'withdraw' ? (tx.service || 'Withdrawal') : tx.service}</p><p className="text-[9px] text-muted-foreground/30 uppercase tracking-[0.2em] mt-1">{tx.date ? new Date(tx.date).toLocaleDateString() : ''}</p></div>
-              </div>
-              <p className={cn("font-headline font-black text-sm", (tx.type === 'receive' || tx.type === 'deposit') ? "text-secondary" : "text-foreground")}>{(tx.type === 'receive' || tx.type === 'deposit') ? '+' : '-'}${tx.amount}</p>
+      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+        <DialogContent className="max-w-sm bg-card border-border p-10 text-center rounded-none">
+          <DialogHeader className="sr-only"><DialogTitle>QR</DialogTitle></DialogHeader>
+          <div className="space-y-8">
+            <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-primary">ENTITY QR IDENTIFIER</h3>
+            <div className="p-4 bg-white mx-auto inline-block">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" />
             </div>
-          ))}
-        </div>
-      </section>
+            <p className="text-[10px] font-financial font-bold tracking-widest border-t border-border pt-4 text-muted-foreground uppercase">{profile?.customId}</p>
+            <button onClick={copyId} className="w-full py-4 bg-primary text-primary-foreground font-headline font-bold text-xs uppercase tracking-widest">COPY IDENTIFIER</button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Modals for Send and Deposit */}
-      {isSendModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setIsSendModalOpen(false); setRecipient(''); setRecipientName(null); }}></div>
-          <div className="relative w-full max-w-lg bg-card border-t sm:border border-border sm:rounded-3xl rounded-t-3xl shadow-2xl p-6 space-y-6 animate-in slide-in-from-bottom-10">
-            <h2 className="text-xl font-headline font-bold text-foreground flex items-center gap-2"><Send className="text-primary" /> Quick Transfer</h2>
+      {/* Send Modal */}
+      <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
+        <DialogContent className="max-w-sm bg-card border-border p-10 rounded-none">
+          <DialogHeader className="sr-only"><DialogTitle>Transfer</DialogTitle></DialogHeader>
+          <div className="space-y-8">
+            <h2 className="text-xl font-headline font-bold text-white uppercase tracking-tight">SECURE TRANSFER</h2>
             <div className="space-y-4">
               <div className="relative">
                 <input 
                   type="text" 
-                  placeholder="Recipient Flash ID" 
+                  placeholder="RECIPIENT FLASH ID" 
                   value={recipient} 
                   onChange={(e) => setRecipient(e.target.value.toUpperCase())} 
-                  className="w-full bg-muted/50 border border-border rounded-xl py-3.5 px-4 text-center font-headline tracking-widest uppercase" 
+                  className="w-full bg-background border border-border h-14 px-4 text-center font-headline tracking-widest uppercase focus:border-primary outline-none" 
                 />
-                {isLookingUp && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>}
+                {isLookingUp && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary" size={16} />}
               </div>
-              
-              {recipientName ? (
-                <div className="flex items-center justify-center gap-2 p-3 bg-secondary/10 border border-secondary/20 rounded-xl animate-in zoom-in-95">
-                  <CheckCircle2 className="h-4 w-4 text-secondary" />
-                  <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary">{t.recipientFound} @{recipientName}</p>
-                </div>
-              ) : recipient.length >= 5 && !isLookingUp && (
-                <div className="flex items-center justify-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in">
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-red-500">{t.invalidRecipient}</p>
-                </div>
+              {recipientName && (
+                <p className="text-[9px] font-headline font-bold text-primary uppercase text-center tracking-widest">RECIPIENT: @{recipientName}</p>
               )}
-
-              <input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-5 text-center text-4xl font-headline font-black text-primary" />
+              <input 
+                type="number" 
+                placeholder="0.00" 
+                value={sendAmount} 
+                onChange={(e) => setSendAmount(e.target.value)} 
+                className="w-full bg-background border border-border h-20 text-center text-4xl font-headline font-bold text-primary outline-none focus:border-primary font-financial" 
+              />
             </div>
-            <button 
-              onClick={handleSendMoney} 
-              disabled={isSending || !recipientName} 
-              className="w-full bg-primary text-primary-foreground font-headline font-black py-4 rounded-xl disabled:opacity-50 disabled:grayscale transition-all"
-            >
-              {isSending ? <Loader2 className="animate-spin mx-auto" /> : "Authorize Transfer"}
+            <button onClick={handleSendMoney} disabled={isSending || !recipientName} className="w-full bg-primary text-primary-foreground font-headline font-bold py-5 text-xs tracking-widest disabled:opacity-50">
+              {isSending ? <Loader2 className="animate-spin mx-auto" /> : "AUTHORIZE TRANSFER"}
             </button>
           </div>
-        </div>
-      )}
-
-      {isDepositModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsDepositModalOpen(false)}></div>
-          <div className="relative w-full max-w-lg bg-card border-t sm:border border-border sm:rounded-3xl rounded-t-3xl shadow-2xl p-6 space-y-6 animate-in slide-in-from-bottom-10">
-            <h2 className="text-xl font-headline font-bold text-foreground flex items-center gap-2"><PlusCircle className="text-secondary" /> Deposit Request</h2>
-            <input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl py-5 text-center text-4xl font-headline font-black text-secondary" />
-            <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => addDoc(collection(db, 'deposits'), { userId: user!.uid, username: profile!.username, amount: parseFloat(sendAmount), type: 'bank', status: 'pending', date: new Date().toISOString() }).then(() => { toast({ title: "Request Sent" }); setIsDepositModalOpen(false); })} className="p-4 bg-muted/30 border border-border rounded-2xl flex flex-col items-center gap-2"><Building2 className="text-primary" /><span>Bank</span></button>
-              <button onClick={() => addDoc(collection(db, 'deposits'), { userId: user!.uid, username: profile!.username, amount: parseFloat(sendAmount), type: 'crypto', status: 'pending', date: new Date().toISOString() }).then(() => { toast({ title: "Request Sent" }); setIsDepositModalOpen(false); })} className="p-4 bg-muted/30 border border-border rounded-2xl flex flex-col items-center gap-2"><Bitcoin className="text-secondary" /><span>Crypto</span></button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <BottomNav onScanClick={() => setIsQrOpen(true)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
