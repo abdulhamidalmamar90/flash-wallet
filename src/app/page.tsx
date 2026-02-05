@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -29,8 +30,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !authLoading) {
-      // Small delay to check if Firestore doc exists via handleGoogleLogin logic
-      // But for normal email login, it redirects here
       router.push('/dashboard');
     }
   }, [user, authLoading, router]);
@@ -60,7 +59,6 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
     } catch (error: any) {
-      console.error("Login error:", error);
       let errorMessage = error.message;
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         errorMessage = language === 'ar' 
@@ -96,7 +94,6 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (error: any) {
-      console.error("Google login error:", error);
       toast({ 
         variant: "destructive", 
         title: "Google Auth Failed",

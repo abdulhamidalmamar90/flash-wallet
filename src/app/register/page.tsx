@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -71,26 +72,6 @@ export default function RegisterPage() {
     return `${firstLetter}${numbers}`;
   };
 
-  const initUser = async (uid: string, userEmail: string, customUsername?: string, customPhone?: string) => {
-    const userDoc = doc(db, 'users', uid);
-    const snap = await getDoc(userDoc);
-    if (!snap.exists()) {
-      await setDoc(userDoc, {
-        username: customUsername || userEmail.split('@')[0],
-        email: userEmail.toLowerCase(),
-        phone: customPhone || '',
-        customId: generateCustomId(),
-        balance: 0,
-        role: 'user',
-        verified: false,
-        language: language,
-        createdAt: new Date().toISOString()
-      });
-      return true;
-    }
-    return false;
-  };
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth || !db) return;
@@ -105,12 +86,17 @@ export default function RegisterPage() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
-      await initUser(
-        userCredential.user.uid, 
-        cleanEmail, 
-        cleanUsername, 
-        `${selectedCountry.prefix}${phone.trim()}`
-      );
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        username: cleanUsername,
+        email: cleanEmail,
+        phone: `${selectedCountry.prefix}${phone.trim()}`,
+        customId: generateCustomId(),
+        balance: 0,
+        role: 'user',
+        verified: false,
+        language: language,
+        createdAt: new Date().toISOString()
+      });
 
       toast({
         title: language === 'ar' ? "تم إنشاء الحساب!" : "Wallet Created!",
@@ -119,7 +105,6 @@ export default function RegisterPage() {
       
       router.push('/dashboard');
     } catch (error: any) {
-      console.error("Register error:", error);
       let message = error.message;
       if (error.code === 'auth/email-already-in-use') message = t.emailInUse;
       if (error.code === 'auth/weak-password') message = t.weakPassword;
@@ -150,9 +135,8 @@ export default function RegisterPage() {
         });
         router.push('/dashboard');
       } else {
-        // New Google user registration
         await setDoc(userDoc, {
-          username: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          username: result.user.displayName || 'User',
           email: result.user.email?.toLowerCase(),
           phone: '',
           customId: generateCustomId(),
@@ -162,14 +146,9 @@ export default function RegisterPage() {
           language: language,
           createdAt: new Date().toISOString()
         });
-        toast({
-          title: language === 'ar' ? "مرحباً بك!" : "Welcome!",
-          description: language === 'ar' ? "تم تفعيل حسابك عبر غوغل." : "Your account is activated via Google."
-        });
         router.push('/dashboard');
       }
     } catch (error: any) {
-      console.error("Google register error:", error);
       toast({
         variant: "destructive",
         title: "Google Auth Failed",
@@ -180,13 +159,7 @@ export default function RegisterPage() {
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-primary animate-spin" />
-      </div>
-    );
-  }
+  if (authLoading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0a]" onClick={() => setIsCountryOpen(false)}>
@@ -206,10 +179,6 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><User size={18} /></div>
             <input 
               type="text" 
-              autoComplete="username"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
               placeholder={t.username} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
               value={username}
@@ -222,11 +191,6 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Mail size={18} /></div>
             <input 
               type="email" 
-              autoComplete="email"
-              inputMode="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
               placeholder={t.email} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
               value={email}
@@ -265,11 +229,6 @@ export default function RegisterPage() {
               <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Phone size={18} /></div>
               <input 
                 type="tel" 
-                autoComplete="tel"
-                inputMode="tel"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck="false"
                 placeholder={t.phone} 
                 className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
                 value={phone}
@@ -283,10 +242,6 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Lock size={18} /></div>
             <input 
               type={showPassword ? "text" : "password"} 
-              autoComplete="new-password"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
               placeholder={t.password} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
               value={password}

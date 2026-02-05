@@ -59,7 +59,6 @@ export default function EditProfilePage() {
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  // Check for pending verification requests
   const verifQuery = useMemo(() => user ? query(
     collection(db, 'verifications'),
     where('userId', '==', user.uid),
@@ -75,7 +74,6 @@ export default function EditProfilePage() {
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
-  // Verification Form State
   const [verifCountry, setVerifCountry] = useState('');
   const [verifDocType, setVerifDocType] = useState('id_card');
   const [verifDocNumber, setVerifDocNumber] = useState('');
@@ -104,8 +102,6 @@ export default function EditProfilePage() {
     avatarHeader: language === 'ar' ? 'اختر صورتك الرمزية' : 'Choose Your Avatar',
     uploadLabel: language === 'ar' ? 'رفع صورة' : 'Upload Image',
     imageTooLarge: language === 'ar' ? 'حجم الصورة كبير جداً (الأقصى 1 ميجا)' : 'Image size too large (Max 1MB)',
-    
-    // Verification translations
     verifHeader: language === 'ar' ? 'توثيق الهوية (KYC)' : 'Identity Verification (KYC)',
     countryLabel: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
     docTypeLabel: language === 'ar' ? 'نوع الوثيقة' : 'Document Type',
@@ -128,9 +124,7 @@ export default function EditProfilePage() {
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setter(reader.result as string);
-      };
+      reader.onloadend = () => setter(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -146,12 +140,6 @@ export default function EditProfilePage() {
         avatarUrl: selectedAvatar,
         biometricsEnabled,
       });
-
-      if (biometricsEnabled) {
-        localStorage.setItem('flash_biometrics_uid', user.uid);
-      } else {
-        localStorage.removeItem('flash_biometrics_uid');
-      }
 
       if (newPassword.trim()) {
         await updatePassword(user, newPassword.trim());
@@ -224,37 +212,15 @@ export default function EditProfilePage() {
           >
             <Camera size={18} />
           </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept="image/*" 
-            onChange={(e) => handleFileChange(e, setSelectedAvatar)}
-          />
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setSelectedAvatar)} />
         </div>
         
-        <button 
-          type="button"
-          onClick={() => setIsAvatarOpen(!isAvatarOpen)}
-          className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors"
-        >
-          {t.avatarHeader}
-        </button>
+        <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors">{t.avatarHeader}</button>
 
         {isAvatarOpen && (
           <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
             {AVATARS.map((url, i) => (
-              <button 
-                key={i} 
-                type="button"
-                onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }}
-                className={cn(
-                  "w-12 h-12 rounded-full overflow-hidden border-2 transition-all",
-                  selectedAvatar === url ? "border-primary scale-110" : "border-transparent opacity-50 hover:opacity-100"
-                )}
-              >
-                <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" />
-              </button>
+              <button key={i} onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }} className={cn("w-12 h-12 rounded-full overflow-hidden border-2 transition-all", selectedAvatar === url ? "border-primary scale-110" : "border-transparent opacity-50 hover:opacity-100")}><img src={url} className="w-full h-full object-cover" /></button>
             ))}
           </div>
         )}
@@ -262,16 +228,11 @@ export default function EditProfilePage() {
 
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl">
         <div className="space-y-6">
-          {/* Email - Read Only */}
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.emailLabel}</Label>
             <div className="relative group">
               <Mail className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} />
-              <Input 
-                value={profile?.email || ''}
-                disabled
-                className={cn("h-12 bg-white/5 border-white/5 rounded-xl opacity-60 cursor-not-allowed", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")}
-              />
+              <Input value={profile?.email || ''} disabled className={cn("h-12 bg-white/5 border-white/5 rounded-xl opacity-60", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
             </div>
           </div>
 
@@ -279,12 +240,7 @@ export default function EditProfilePage() {
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
             <div className="relative group">
               <Phone className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
-              <Input 
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")}
-                placeholder="+201234567890"
-              />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} placeholder="+201234567890" />
             </div>
           </div>
 
@@ -292,21 +248,13 @@ export default function EditProfilePage() {
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.passLabel}</Label>
             <div className="relative group">
               <Lock className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
-              <Input 
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")}
-                placeholder={t.passPlaceholder}
-              />
+              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} placeholder={t.passPlaceholder} />
             </div>
           </div>
 
           <div className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Fingerprint className="text-primary h-6 w-6" />
-              </div>
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Fingerprint className="text-primary h-6 w-6" /></div>
               <div className={cn(language === 'ar' ? "text-right" : "text-left")}>
                 <p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">{t.biometricLabel}</p>
                 <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-0.5">{t.biometricDesc}</p>
@@ -348,74 +296,33 @@ export default function EditProfilePage() {
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.countryLabel}</Label>
               <Select onValueChange={setVerifCountry}>
-                <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase">
-                  <SelectValue placeholder="SELECT COUNTRY" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-white/10">
-                  {COUNTRIES.map(c => (
-                    <SelectItem key={c.code} value={c.code} className="font-headline text-[10px] uppercase">
-                      {language === 'ar' ? c.ar : c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase"><SelectValue placeholder="SELECT COUNTRY" /></SelectTrigger>
+                <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="font-headline text-[10px] uppercase">{language === 'ar' ? c.ar : c.name}</SelectItem>))}</SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docTypeLabel}</Label>
               <div className="grid grid-cols-2 gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setVerifDocType('id_card')}
-                  className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'id_card' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}
-                >
-                  <FileText size={18} />
-                  <span className="text-[9px] font-headline font-bold uppercase">{t.idCard}</span>
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setVerifDocType('passport')}
-                  className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'passport' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}
-                >
-                  <Globe size={18} />
-                  <span className="text-[9px] font-headline font-bold uppercase">{t.passport}</span>
-                </button>
+                <button type="button" onClick={() => setVerifDocType('id_card')} className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'id_card' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}><FileText size={18} /><span className="text-[9px] font-headline font-bold uppercase">{t.idCard}</span></button>
+                <button type="button" onClick={() => setVerifDocType('passport')} className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'passport' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}><Globe size={18} /><span className="text-[9px] font-headline font-bold uppercase">{t.passport}</span></button>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docNumberLabel}</Label>
-              <Input 
-                value={verifDocNumber}
-                onChange={(e) => setVerifDocNumber(e.target.value)}
-                placeholder="EX: A123456789"
-                className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase"
-              />
+              <Input value={verifDocNumber} onChange={(e) => setVerifDocNumber(e.target.value)} placeholder="EX: A123456789" className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase" />
             </div>
 
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docImageLabel}</Label>
-              <div 
-                onClick={() => docInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group relative overflow-hidden"
-              >
-                {verifDocImage ? (
-                  <img src={verifDocImage} alt="Document" className="w-full h-full object-cover" />
-                ) : (
-                  <>
-                    <Camera className="text-white/20 group-hover:text-primary transition-colors" size={32} />
-                    <span className="text-[8px] font-headline font-bold uppercase text-white/20">{t.uploadLabel}</span>
-                  </>
-                )}
+              <div onClick={() => docInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group relative overflow-hidden">
+                {verifDocImage ? (<img src={verifDocImage} className="w-full h-full object-cover" />) : (<><Camera className="text-white/20 group-hover:text-primary transition-colors" size={32} /><span className="text-[8px] font-headline font-bold uppercase text-white/20">{t.uploadLabel}</span></>)}
                 <input type="file" ref={docInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setVerifDocImage)} />
               </div>
             </div>
 
-            <Button 
-              onClick={handleRequestVerification} 
-              disabled={verifLoading || !verifDocImage || !verifDocNumber || !verifCountry}
-              className="w-full h-14 font-headline text-md rounded-xl bg-secondary text-background font-black tracking-widest"
-            >
+            <Button onClick={handleRequestVerification} disabled={verifLoading || !verifDocImage || !verifDocNumber || !verifCountry} className="w-full h-14 font-headline text-md rounded-xl bg-secondary text-background font-black tracking-widest">
               {verifLoading ? <Loader2 className="animate-spin" /> : t.submitVerif}
             </Button>
           </div>

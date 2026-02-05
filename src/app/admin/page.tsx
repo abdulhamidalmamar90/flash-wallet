@@ -159,18 +159,13 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (targetUserId: string) => {
     try {
-      // Delete user document from Firestore (Auth remains but record is purged)
       await deleteDoc(doc(db, 'users', targetUserId));
       toast({ 
         title: "USER PURGED", 
         description: "The entity record has been permanently removed from the ledger." 
       });
     } catch (e: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "PURGE FAILED", 
-        description: e.message 
-      });
+      toast({ variant: "destructive", title: "PURGE FAILED", description: e.message });
     }
   };
 
@@ -313,8 +308,6 @@ export default function AdminPage() {
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
                     <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p>
-                    
-                    {/* User Purge Option */}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <button className="text-red-500/40 hover:text-red-500 transition-colors p-1.5 bg-red-500/5 rounded-lg border border-red-500/10 hover:border-red-500/40">
