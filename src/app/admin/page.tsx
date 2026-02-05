@@ -178,7 +178,7 @@ export default function AdminPage() {
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
-    <div className="max-w-lg mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
       <header className="flex justify-between items-center p-5 glass-card rounded-[2rem] border-primary/20 gold-glow">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="p-2 hover:bg-primary/10 rounded-xl transition-all text-primary group"><LayoutDashboard className="h-6 w-6 group-hover:scale-110" /></Link>
@@ -189,23 +189,23 @@ export default function AdminPage() {
 
       <Tabs defaultValue="withdrawals" className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <ArrowUpCircle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Withdrawals</span><span className="sm:hidden">Out</span>
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <ArrowUpCircle className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Withdrawals</span><span className="sm:hidden">Out</span>
           </TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <ArrowDownCircle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Deposits</span><span className="sm:hidden">In</span>
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <ArrowDownCircle className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Deposits</span><span className="sm:hidden">In</span>
           </TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <ShieldCheck className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Verifications</span><span className="sm:hidden">KYC</span>
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <ShieldCheck className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Verifications</span><span className="sm:hidden">KYC</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <Users className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Ledger</span><span className="sm:hidden">Users</span>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <Users className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Ledger</span><span className="sm:hidden">Users</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="withdrawals" className="space-y-6">
-          <div className="space-y-4">
-            {withdrawals.length === 0 ? <p className="text-center text-[10px] text-muted-foreground uppercase py-10">No pending withdrawals</p> : withdrawals.map((req: any) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {withdrawals.length === 0 ? <p className="col-span-full text-center text-[10px] text-muted-foreground uppercase py-10">No pending withdrawals</p> : withdrawals.map((req: any) => (
               <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-primary/20 transition-all duration-500">
                 <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-orange-500/40" : req.status === 'approved' ? "bg-primary/40" : "bg-red-500/40")} />
                 <div className="flex justify-between items-start">
@@ -227,8 +227,8 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="deposits" className="space-y-6">
-          <div className="space-y-4">
-            {deposits.length === 0 ? <p className="text-center text-[10px] text-muted-foreground uppercase py-10">No pending deposits</p> : deposits.map((req: any) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {deposits.length === 0 ? <p className="col-span-full text-center text-[10px] text-muted-foreground uppercase py-10">No pending deposits</p> : deposits.map((req: any) => (
               <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-secondary/20 transition-all duration-500">
                 <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-cyan-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
                 <div className="flex justify-between items-start">
@@ -258,8 +258,8 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="verifications" className="space-y-6">
-          <div className="space-y-4">
-            {verifications.length === 0 ? <p className="text-center text-[10px] text-muted-foreground uppercase py-10">Verification queue is clear</p> : verifications.map((req: any) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {verifications.length === 0 ? <p className="col-span-full text-center text-[10px] text-muted-foreground uppercase py-10">Verification queue is clear</p> : verifications.map((req: any) => (
               <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden">
                 <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-cyan-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
                 <div className="flex justify-between items-start">
@@ -295,7 +295,7 @@ export default function AdminPage() {
 
         <TabsContent value="users" className="space-y-6">
           <Input placeholder="SEARCH LEDGER..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] tracking-widest uppercase font-headline pl-6" />
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredUsers.map((u: any) => (
               <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5 hover:border-white/10 transition-all group">
                 <div className="flex justify-between items-start mb-4">

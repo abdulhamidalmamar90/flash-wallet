@@ -9,8 +9,8 @@ import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { useAuth, useFirestore, useUser } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -85,6 +85,19 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      // Check if email already exists in Firestore
+      const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+      const emailSnap = await getDocs(q);
+      if (!emailSnap.empty) {
+        toast({
+          variant: "destructive",
+          title: language === 'ar' ? "فشل الإنشاء" : "Registration Failed",
+          description: t.emailInUse
+        });
+        setLoading(false);
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         username: cleanUsername,
@@ -125,19 +138,25 @@ export default function RegisterPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const userDoc = doc(db, 'users', result.user.uid);
-      const snap = await getDoc(userDoc);
+      const googleEmail = result.user.email?.toLowerCase();
       
-      if (snap.exists()) {
+      // 1. First check if this email already exists in our Firestore
+      const q = query(collection(db, 'users'), where('email', '==', googleEmail));
+      const emailSnap = await getDocs(q);
+      
+      if (!emailSnap.empty) {
+        // User already has an account, redirect to dashboard
         toast({
-          title: language === 'ar' ? "الحساب موجود" : "Account Exists",
-          description: t.accountExists
+          title: language === 'ar' ? "أهلاً بك مجدداً" : "Welcome Back",
+          description: language === 'ar' ? "جاري تحويلك للمحفظة..." : "Redirecting to vault..."
         });
         router.push('/dashboard');
       } else {
+        // 2. New User, create document
+        const userDoc = doc(db, 'users', result.user.uid);
         await setDoc(userDoc, {
           username: result.user.displayName || 'User',
-          email: result.user.email?.toLowerCase(),
+          email: googleEmail,
           phone: '',
           customId: generateCustomId(),
           balance: 0,
@@ -170,7 +189,7 @@ export default function RegisterPage() {
 
       <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700 overflow-y-auto max-h-[90vh]">
         <div className="text-center mb-10">
-          <h1 className="font-headline text-5xl font-black text-white mb-2 tracking-tighter">{t.title}</h1>
+          <h1 className="font-headline text-5xl font-black text-white mb-2 tracking-tighter">FLASH</h1>
           <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.3em]">{t.subtitle}</p>
         </div>
 

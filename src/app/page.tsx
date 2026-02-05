@@ -7,7 +7,7 @@ import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
@@ -80,10 +80,14 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const userDoc = doc(db, 'users', result.user.uid);
-      const snap = await getDoc(userDoc);
+      const googleEmail = result.user.email?.toLowerCase();
+
+      // Check if user exists in Firestore by email
+      const q = query(collection(db, 'users'), where('email', '==', googleEmail));
+      const snap = await getDocs(q);
       
-      if (!snap.exists()) {
+      if (snap.empty) {
+        // No Firestore profile for this email
         await signOut(auth);
         toast({
           variant: "destructive",
@@ -91,6 +95,7 @@ export default function LoginPage() {
           description: t.noAccountFound
         });
       } else {
+        // User exists, move to dashboard
         router.push('/dashboard');
       }
     } catch (error: any) {
