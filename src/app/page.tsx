@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
+import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { language } = useStore();
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
@@ -88,31 +90,38 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-5">
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all" size={18} />
+                <Mail className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
                 <input 
                   type="email" 
                   placeholder={t.email} 
-                  className="w-full bg-white/5 border border-white/5 h-16 pl-12 pr-4 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all"
+                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
                 />
               </div>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all" size={18} />
+                <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
                 <input 
-                  type="password" 
+                  type={showPassword ? "text" : "password"} 
                   placeholder={t.password} 
-                  className="w-full bg-white/5 border border-white/5 h-16 pl-12 pr-4 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all"
+                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
                 />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors", language === 'ar' ? "left-4" : "right-4")}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
             <button type="submit" disabled={loading} className="w-full h-16 bg-primary text-primary-foreground font-headline font-bold text-xs tracking-[0.2em] flex items-center justify-center gap-2 rounded-2xl gold-glow active:scale-95 hover:scale-[1.02] transition-all">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t.login} <ArrowRight size={16} /></>}
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t.login} <ArrowRight size={16} className={cn(language === 'ar' && "rotate-180")} /></>}
             </button>
           </form>
 
