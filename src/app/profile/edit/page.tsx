@@ -16,6 +16,7 @@ import {
   FileText,
   Globe,
   CheckCircle2,
+  Mail,
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -91,6 +92,7 @@ export default function EditProfilePage() {
 
   const t = {
     header: language === 'ar' ? 'تعديل الحساب' : 'Edit Profile',
+    emailLabel: language === 'ar' ? 'البريد الإلكتروني (لا يمكن تعديله)' : 'Email Address (Read-only)',
     phoneLabel: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
     passLabel: language === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
     passPlaceholder: language === 'ar' ? 'اتركه فارغاً إذا لا تريد التغيير' : 'Leave blank to keep current',
@@ -140,7 +142,7 @@ export default function EditProfilePage() {
 
     try {
       await updateDoc(doc(db, 'users', user.uid), {
-        phone,
+        phone: phone.trim(),
         avatarUrl: selectedAvatar,
         biometricsEnabled,
       });
@@ -151,8 +153,8 @@ export default function EditProfilePage() {
         localStorage.removeItem('flash_biometrics_uid');
       }
 
-      if (newPassword) {
-        await updatePassword(user, newPassword);
+      if (newPassword.trim()) {
+        await updatePassword(user, newPassword.trim());
       }
 
       toast({ title: t.success });
@@ -260,6 +262,19 @@ export default function EditProfilePage() {
 
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl">
         <div className="space-y-6">
+          {/* Email - Read Only */}
+          <div className="space-y-2">
+            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.emailLabel}</Label>
+            <div className="relative group">
+              <Mail className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} />
+              <Input 
+                value={profile?.email || ''}
+                disabled
+                className={cn("h-12 bg-white/5 border-white/5 rounded-xl opacity-60 cursor-not-allowed", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
             <div className="relative group">
