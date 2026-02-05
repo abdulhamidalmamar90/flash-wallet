@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState } from 'react';
@@ -20,6 +21,9 @@ import {
   LayoutDashboard,
   ShieldCheck,
   FileCheck,
+  Camera,
+  Globe,
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -82,6 +86,7 @@ export default function AdminPage() {
   };
 
   const handleApproveVerification = async (id: string, userId: string) => {
+    if (!id || !userId) return;
     try {
       await runTransaction(db, async (transaction) => {
         const verRef = doc(db, 'verifications', id);
@@ -91,7 +96,10 @@ export default function AdminPage() {
       });
       await sendNotification(userId, "Account Verified", "Your entity is now officially verified by FLASH authority.", 'verification');
       toast({ title: "USER VERIFIED" });
-    } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
+    } catch (e: any) { 
+      console.error("Verification error:", e);
+      toast({ variant: "destructive", title: "ERROR", description: e.message }); 
+    }
   };
 
   const handleUpdateBalance = async (targetUserId: string, currentBalance: number) => {
@@ -167,6 +175,7 @@ export default function AdminPage() {
             {verifications.map((req: any) => (
               <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden">
                 <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-cyan-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
+                
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><FileCheck className="h-6 w-6 text-secondary" /></div>
@@ -174,6 +183,43 @@ export default function AdminPage() {
                   </div>
                   <Badge className={cn("text-[8px] uppercase tracking-widest", req.status === 'pending' ? "bg-orange-500/20" : "bg-primary/20")}>{req.status}</Badge>
                 </div>
+
+                {/* Verification Details */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><Globe className="w-2 h-2" /> Country</p>
+                    <p className="text-[9px] font-headline font-bold text-white truncate">{req.details?.country || 'NOT SPECIFIED'}</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><FileText className="w-2 h-2" /> Doc Type</p>
+                    <p className="text-[9px] font-headline font-bold text-white uppercase">{req.details?.docType || 'ID'}</p>
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1 pt-1 border-t border-white/5">
+                    <p className="text-[7px] text-muted-foreground uppercase font-black">Document Number</p>
+                    <p className="text-[9px] font-headline font-bold text-primary tracking-widest">{req.details?.docNumber || 'NO NUMBER'}</p>
+                  </div>
+                </div>
+
+                {/* View Image Button */}
+                {req.documentUrl && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button className="w-full h-12 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group">
+                        <Camera className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+                        <span className="text-[9px] font-headline font-bold tracking-widest uppercase">Inspect Credentials</span>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]">
+                      <DialogHeader>
+                        <DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase text-center mb-4">Official Document Preview</DialogTitle>
+                      </DialogHeader>
+                      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10">
+                        <img src={req.documentUrl} alt="KYC Document" className="w-full h-full object-contain bg-black" />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
                     <button onClick={() => handleApproveVerification(req.id, req.userId)} className="flex-1 h-12 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
