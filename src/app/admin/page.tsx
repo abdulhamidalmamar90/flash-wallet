@@ -25,7 +25,9 @@ import {
   Globe,
   FileText,
   DollarSign,
-  Trash2
+  Trash2,
+  Wallet,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -96,6 +98,30 @@ export default function AdminPage() {
       await sendNotification(userId, "Withdrawal Confirmed", `Your request for $${amount} has been processed.`, 'transaction');
       toast({ title: "WITHDRAWAL APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
+  };
+
+  const handleRejectWithdrawal = async (id: string, userId: string, amount: number) => {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const withdrawalRef = doc(db, 'withdrawals', id);
+        const userRef = doc(db, 'users', userId);
+        const txRef = doc(collection(db, 'users', userId, 'transactions'));
+
+        transaction.update(withdrawalRef, { status: 'rejected' });
+        transaction.update(userRef, { balance: increment(amount) });
+        transaction.set(txRef, {
+          type: 'receive',
+          amount,
+          status: 'completed',
+          sender: 'SYSTEM REFUND',
+          date: new Date().toISOString()
+        });
+      });
+      await sendNotification(userId, "Withdrawal Rejected", `Your request for $${amount} was declined. Funds have been returned to your vault.`, 'transaction');
+      toast({ title: "WITHDRAWAL REJECTED & REFUNDED" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "ERROR" });
+    }
   };
 
   const handleApproveDeposit = async (id: string, userId: string, amount: number) => {
@@ -215,11 +241,30 @@ export default function AdminPage() {
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-primary">${req.amount}</p></div>
                 </div>
+                
+                <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
+                  <p className="text-[7px] text-muted-foreground uppercase font-black">Destination Intel</p>
+                  {req.type === 'bank' ? (
+                    <>
+                      <div className="flex justify-between"><span className="text-[8px] text-muted-foreground uppercase">Name:</span><span className="text-[9px] font-headline text-white">{req.details?.accountName || 'N/A'}</span></div>
+                      <div className="flex justify-between"><span className="text-[8px] text-muted-foreground uppercase">IBAN:</span><span className="text-[9px] font-headline text-primary tracking-tighter">{req.details?.iban || 'N/A'}</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between"><span className="text-[8px] text-muted-foreground uppercase">Network:</span><span className="text-[9px] font-headline text-secondary">{req.details?.network || 'N/A'}</span></div>
+                      <div className="flex justify-between items-center gap-2"><span className="text-[8px] text-muted-foreground uppercase">Address:</span><span className="text-[9px] font-headline text-white truncate max-w-[120px]">{req.details?.walletAddress || 'N/A'}</span></div>
+                    </>
+                  )}
+                </div>
+
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
                     <button onClick={() => handleApproveWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
-                    <button onClick={() => updateDoc(doc(db, 'withdrawals', req.id), { status: 'rejected' })} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                    <button onClick={() => handleRejectWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
                   </div>
+                )}
+                {req.status !== 'pending' && (
+                  <Badge className={cn("w-full h-10 flex items-center justify-center uppercase tracking-widest text-[9px]", req.status === 'approved' ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-500")}>{req.status}</Badge>
                 )}
               </div>
             ))}

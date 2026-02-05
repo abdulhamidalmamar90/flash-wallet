@@ -17,17 +17,46 @@ export default function WithdrawPage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
+  
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Bank States
+  const [accountName, setAccountName] = useState('');
+  const [iban, setIban] = useState('');
+
+  // Crypto States
+  const [network, setNetwork] = useState('USDT (TRC20)');
+  const [walletAddress, setWalletAddress] = useState('');
 
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  const handleWithdraw = async (type: 'bank' | 'crypto', details: any) => {
+  const handleWithdraw = async (type: 'bank' | 'crypto') => {
     if (!user || !amount || !profile) return;
     const amountNum = parseFloat(amount);
+    
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast({ variant: "destructive", title: "INVALID AMOUNT", description: "Please enter a valid amount." });
+      return;
+    }
+
     if (profile.balance < amountNum) {
       toast({ variant: "destructive", title: "INSUFFICIENT FUNDS", description: "Cannot complete withdrawal request." });
+      return;
+    }
+
+    const details = type === 'bank' 
+      ? { accountName, iban } 
+      : { network, walletAddress };
+
+    if (type === 'bank' && (!accountName || !iban)) {
+      toast({ variant: "destructive", title: "MISSING DETAILS", description: "Please provide bank account information." });
+      return;
+    }
+
+    if (type === 'crypto' && !walletAddress) {
+      toast({ variant: "destructive", title: "MISSING DETAILS", description: "Please provide a wallet address." });
       return;
     }
     
@@ -70,13 +99,19 @@ export default function WithdrawPage() {
     <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
       <header className="flex items-center gap-4">
         <button onClick={() => router.back()} className="p-2 glass-card rounded-xl hover:text-primary transition-colors"><ChevronLeft className="h-5 w-5" /></button>
-        <h1 className="text-lg font-headline font-bold tracking-widest">Withdraw Funds</h1>
+        <h1 className="text-lg font-headline font-bold tracking-widest uppercase">Withdraw Funds</h1>
       </header>
 
       <section className="glass-card p-6 rounded-3xl space-y-6">
         <div className="space-y-2">
           <Label className="text-xs tracking-[0.2em] font-headline uppercase">Amount to Withdraw</Label>
-          <Input type="number" placeholder="0.00" className="text-3xl font-headline font-bold h-20 text-center bg-background/50 border-white/10 rounded-2xl text-primary" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <Input 
+            type="number" 
+            placeholder="0.00" 
+            className="text-3xl font-headline font-bold h-20 text-center bg-background/50 border-white/10 rounded-2xl text-primary" 
+            value={amount} 
+            onChange={(e) => setAmount(e.target.value)} 
+          />
         </div>
 
         <Tabs defaultValue="bank" className="w-full">
@@ -89,13 +124,29 @@ export default function WithdrawPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-bold tracking-widest">Account Name</Label>
-                <div className="relative"><CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Full Legal Name" className="pl-10 rounded-xl bg-background/30 border-white/5" /></div>
+                <div className="relative">
+                  <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Full Legal Name" 
+                    className="pl-10 rounded-xl bg-background/30 border-white/5" 
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-bold tracking-widest">IBAN / SWIFT</Label>
-                <div className="relative"><Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="International Bank Account Number" className="pl-10 rounded-xl bg-background/30 border-white/5" /></div>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="International Bank Account Number" 
+                    className="pl-10 rounded-xl bg-background/30 border-white/5" 
+                    value={iban}
+                    onChange={(e) => setIban(e.target.value)}
+                  />
+                </div>
               </div>
-              <Button onClick={() => handleWithdraw('bank', {})} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background" disabled={loading || !amount}>{loading ? "PROCESSING..." : "REQUEST BANK WIRE"}</Button>
+              <Button onClick={() => handleWithdraw('bank')} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background" disabled={loading || !amount}>{loading ? "PROCESSING..." : "REQUEST BANK WIRE"}</Button>
             </div>
           </TabsContent>
 
@@ -103,13 +154,26 @@ export default function WithdrawPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-bold tracking-widest">Network</Label>
-                <select className="w-full h-10 px-3 rounded-xl bg-background/30 border border-white/5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                  <option>USDT (TRC20)</option>
-                  <option>BTC (Legacy)</option>
+                <select 
+                  className="w-full h-10 px-3 rounded-xl bg-background/30 border border-white/5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={network}
+                  onChange={(e) => setNetwork(e.target.value)}
+                >
+                  <option value="USDT (TRC20)">USDT (TRC20)</option>
+                  <option value="BTC (Legacy)">BTC (Legacy)</option>
+                  <option value="ETH (ERC20)">ETH (ERC20)</option>
                 </select>
               </div>
-              <div className="space-y-2"><Label className="text-[10px] uppercase font-bold tracking-widest">Wallet Address</Label><Input placeholder="0x..." className="rounded-xl bg-background/30 border-white/5" /></div>
-              <Button onClick={() => handleWithdraw('crypto', {})} className="w-full h-14 font-headline text-md rounded-xl bg-secondary text-background" disabled={loading || !amount}>{loading ? "INITIALIZING..." : "REQUEST CRYPTO SEND"}</Button>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold tracking-widest">Wallet Address</Label>
+                <Input 
+                  placeholder="0x..." 
+                  className="rounded-xl bg-background/30 border-white/5" 
+                  value={walletAddress}
+                  onChange={(e) => setWalletAddress(e.target.value)}
+                />
+              </div>
+              <Button onClick={() => handleWithdraw('crypto')} className="w-full h-14 font-headline text-md rounded-xl bg-secondary text-background" disabled={loading || !amount}>{loading ? "INITIALIZING..." : "REQUEST CRYPTO SEND"}</Button>
             </div>
           </TabsContent>
         </Tabs>
