@@ -103,20 +103,23 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [recipient, db]);
 
-  // Robust QR Scanner Logic
+  // Enhanced & Robust QR Scanner Logic
   useEffect(() => {
     let isMounted = true;
 
     const stopScanner = async () => {
       if (scannerRef.current) {
         try {
-          if (scannerRef.current.isScanning) {
+          // Check if it's currently scanning to avoid "already under transition" errors
+          if (scannerRef.current.getState() === 2) { // 2 means SCANNING
             await scannerRef.current.stop();
           }
           await scannerRef.current.clear();
-          scannerRef.current = null;
         } catch (e) {
-          console.error("Error stopping scanner:", e);
+          // Silently handle transition errors as they are common and often non-fatal for UI
+          console.warn("Scanner cleanup warning:", e);
+        } finally {
+          scannerRef.current = null;
         }
       }
     };
@@ -135,13 +138,13 @@ export default function Dashboard() {
 
       const readerElement = document.getElementById("reader");
       if (!readerElement) {
-        console.error("Scanner error: reader element not found");
         isStartingScanner.current = false;
         return;
       }
 
       try {
         await stopScanner(); // Clean up any existing instances first
+        
         const html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
         
@@ -155,13 +158,17 @@ export default function Dashboard() {
             setIsSendModalOpen(true);
             toast({ title: language === 'ar' ? "تم التعرف على الكود" : "ID DETECTED" });
           },
-          () => {}
+          () => {} // Silent on scan failure (it fires constantly)
         );
       } catch (err) {
         console.error("Scanner start error:", err);
         if (isMounted) {
           setIsScannerOpen(false);
-          toast({ variant: "destructive", title: "CAMERA ERROR", description: "Failed to initialize scanner." });
+          toast({ 
+            variant: "destructive", 
+            title: language === 'ar' ? "خطأ في الكاميرا" : "CAMERA ERROR", 
+            description: language === 'ar' ? "يرجى التحقق من صلاحيات الكاميرا" : "Please check camera permissions." 
+          });
         }
       } finally {
         isStartingScanner.current = false;
