@@ -47,19 +47,23 @@ export default function LoginPage() {
     e.preventDefault();
     if (!auth) return;
     
-    const cleanEmail = email.trim();
+    // تنظيف البريد الإلكتروني من المسافات وتحويله لأحرف صغيرة لضمان المطابقة
+    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !password) return;
 
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, cleanEmail, password);
-      // Success is handled by useEffect
     } catch (error: any) {
       console.error("Login error:", error);
+      let errorMessage = error.message;
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = language === 'ar' ? "بيانات الدخول غير صحيحة. تأكد من البريد وكلمة المرور." : "Invalid credentials. Please check your email and password.";
+      }
       toast({ 
         variant: "destructive", 
         title: t.error,
-        description: error.message // Show detailed error for mobile debugging
+        description: errorMessage
       });
       setLoading(false);
     }
@@ -111,6 +115,10 @@ export default function LoginPage() {
                 <input 
                   type="email" 
                   autoComplete="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
                   placeholder={t.email} 
                   className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
                   value={email}
@@ -123,6 +131,9 @@ export default function LoginPage() {
                 <input 
                   type={showPassword ? "text" : "password"} 
                   autoComplete="current-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
                   placeholder={t.password} 
                   className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
                   value={password}

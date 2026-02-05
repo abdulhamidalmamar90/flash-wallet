@@ -77,7 +77,7 @@ export default function RegisterPage() {
     if (!snap.exists()) {
       await setDoc(userDoc, {
         username: customUsername || userEmail.split('@')[0],
-        email: userEmail,
+        email: userEmail.toLowerCase(),
         phone: customPhone || '',
         customId: generateCustomId(),
         balance: 0,
@@ -93,8 +93,9 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!auth || !db) return;
     
-    const cleanEmail = email.trim();
-    if (!cleanEmail || !password || !username) return;
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim();
+    if (!cleanEmail || !password || !cleanUsername) return;
 
     setLoading(true);
 
@@ -103,7 +104,7 @@ export default function RegisterPage() {
       await initUser(
         userCredential.user.uid, 
         cleanEmail, 
-        username, 
+        cleanUsername, 
         `${selectedCountry.prefix}${phone}`
       );
 
@@ -135,7 +136,7 @@ export default function RegisterPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await initUser(result.user.uid, result.user.email || 'user');
+      await initUser(result.user.uid, result.user.email?.toLowerCase() || 'user');
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Google register error:", error);
@@ -176,6 +177,7 @@ export default function RegisterPage() {
             <input 
               type="text" 
               autoComplete="username"
+              autoCapitalize="none"
               placeholder={t.username} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
               value={username}
@@ -189,6 +191,10 @@ export default function RegisterPage() {
             <input 
               type="email" 
               autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               placeholder={t.email} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
               value={email}
@@ -242,6 +248,9 @@ export default function RegisterPage() {
             <input 
               type={showPassword ? "text" : "password"} 
               autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               placeholder={t.password} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
               value={password}
