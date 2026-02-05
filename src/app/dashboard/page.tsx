@@ -72,6 +72,7 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const isStartingScanner = useRef(false);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (mounted && !authLoading && !user) router.push('/'); }, [user, authLoading, router, mounted]);
@@ -102,59 +103,80 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [recipient, db]);
 
-  // QR Scanner Logic with DOM check and delay to fix "Element not found" error
+  // Robust QR Scanner Logic
   useEffect(() => {
     let isMounted = true;
 
-    if (isScannerOpen) {
-      const startScanner = async () => {
-        // Wait a small delay to ensure Radix UI has rendered the Dialog content into the DOM
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        if (!isMounted) return;
-
-        const readerElement = document.getElementById("reader");
-        if (!readerElement) {
-          console.error("Scanner error: reader element not found");
-          return;
-        }
-
+    const stopScanner = async () => {
+      if (scannerRef.current) {
         try {
-          const html5QrCode = new Html5Qrcode("reader");
-          scannerRef.current = html5QrCode;
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            (decodedText) => {
-              setRecipient(decodedText.toUpperCase());
-              setIsScannerOpen(false);
-              setIsSendModalOpen(true);
-              toast({ title: language === 'ar' ? "تم التعرف على الكود" : "ID DETECTED" });
-            },
-            () => {}
-          );
-        } catch (err) {
-          console.error("Scanner start error:", err);
-          if (isMounted) {
-            setIsScannerOpen(false);
-            toast({ variant: "destructive", title: "CAMERA ERROR", description: "Failed to initialize scanner." });
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
           }
+          await scannerRef.current.clear();
+          scannerRef.current = null;
+        } catch (e) {
+          console.error("Error stopping scanner:", e);
         }
-      };
+      }
+    };
+
+    const startScanner = async () => {
+      if (isStartingScanner.current) return;
+      isStartingScanner.current = true;
+
+      // Small delay to ensure Dialog and its contents are mounted in DOM
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      if (!isMounted || !isScannerOpen) {
+        isStartingScanner.current = false;
+        return;
+      }
+
+      const readerElement = document.getElementById("reader");
+      if (!readerElement) {
+        console.error("Scanner error: reader element not found");
+        isStartingScanner.current = false;
+        return;
+      }
+
+      try {
+        await stopScanner(); // Clean up any existing instances first
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
+        
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            if (!isMounted) return;
+            setRecipient(decodedText.toUpperCase());
+            setIsScannerOpen(false);
+            setIsSendModalOpen(true);
+            toast({ title: language === 'ar' ? "تم التعرف على الكود" : "ID DETECTED" });
+          },
+          () => {}
+        );
+      } catch (err) {
+        console.error("Scanner start error:", err);
+        if (isMounted) {
+          setIsScannerOpen(false);
+          toast({ variant: "destructive", title: "CAMERA ERROR", description: "Failed to initialize scanner." });
+        }
+      } finally {
+        isStartingScanner.current = false;
+      }
+    };
+
+    if (isScannerOpen) {
       startScanner();
     } else {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().then(() => {
-          scannerRef.current = null;
-        }).catch(err => console.error("Scanner stop error:", err));
-      }
+      stopScanner();
     }
 
     return () => {
       isMounted = false;
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(() => {});
-      }
+      stopScanner();
     };
   }, [isScannerOpen, language, toast]);
 
@@ -312,7 +334,6 @@ export default function Dashboard() {
             </DialogTitle>
           </DialogHeader>
           <div className="relative mt-4 overflow-hidden rounded-2xl border-2 border-primary/20 cyan-glow">
-            {/* The element with id="reader" must exist when Html5Qrcode is instantiated */}
             <div id="reader" className="w-full aspect-square bg-black"></div>
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
               <div className="w-48 h-48 border-2 border-primary/50 rounded-2xl animate-pulse flex items-center justify-center">
