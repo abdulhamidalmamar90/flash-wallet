@@ -40,7 +40,14 @@ export default function LoginPage() {
     if (savedUid) {
       setHasBiometrics(true);
     }
-  }, []);
+    
+    // Check if splash needs to be shown (one time per session)
+    const hasSeenSplash = sessionStorage.getItem('flash_splash_seen');
+    if (!hasSeenSplash) {
+      sessionStorage.setItem('flash_splash_seen', 'true');
+      router.push('/splash');
+    }
+  }, [router]);
 
   useEffect(() => {
     if (mounted && user && !authLoading) {
@@ -96,6 +103,7 @@ export default function LoginPage() {
       const success = true; 
       if (success) {
         toast({ title: t.biometricSuccess });
+        router.push('/dashboard');
       } else {
         toast({ variant: "destructive", title: t.biometricError });
       }
@@ -256,7 +264,7 @@ export default function LoginPage() {
 
       {isResetOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300" onClick={() => setIsResetOpen(false)}>
-          <div className="bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] shadow-2xl relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[#0a0a0a] border border-white/10 p-8 rounded-[2rem] shadow-2xl relative w-full max-sm" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setIsResetOpen(false)} className="absolute top-4 right-4 text-white/40 hover:text-white"><X size={20} /></button>
             <div className="text-center mb-6">
                <h3 className="font-headline font-black text-xl text-white uppercase tracking-tight">{t.resetTitle}</h3>
