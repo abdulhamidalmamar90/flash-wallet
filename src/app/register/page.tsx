@@ -92,13 +92,17 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth || !db) return;
+    
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password || !username) return;
+
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       await initUser(
         userCredential.user.uid, 
-        email, 
+        cleanEmail, 
         username, 
         `${selectedCountry.prefix}${phone}`
       );
@@ -110,6 +114,7 @@ export default function RegisterPage() {
       
       router.push('/dashboard');
     } catch (error: any) {
+      console.error("Register error:", error);
       let message = error.message;
       if (error.code === 'auth/email-already-in-use') message = t.emailInUse;
       if (error.code === 'auth/weak-password') message = t.weakPassword;
@@ -133,6 +138,7 @@ export default function RegisterPage() {
       await initUser(result.user.uid, result.user.email || 'user');
       router.push('/dashboard');
     } catch (error: any) {
+      console.error("Google register error:", error);
       toast({
         variant: "destructive",
         title: "Google Auth Failed",
@@ -169,6 +175,7 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><User size={18} /></div>
             <input 
               type="text" 
+              autoComplete="username"
               placeholder={t.username} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
               value={username}
@@ -181,6 +188,7 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Mail size={18} /></div>
             <input 
               type="email" 
+              autoComplete="email"
               placeholder={t.email} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
               value={email}
@@ -219,6 +227,7 @@ export default function RegisterPage() {
               <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Phone size={18} /></div>
               <input 
                 type="tel" 
+                autoComplete="tel"
                 placeholder={t.phone} 
                 className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
                 value={phone}
@@ -232,6 +241,7 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Lock size={18} /></div>
             <input 
               type={showPassword ? "text" : "password"} 
+              autoComplete="new-password"
               placeholder={t.password} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
               value={password}

@@ -27,7 +27,9 @@ export default function LoginPage() {
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
 
   useEffect(() => {
-    if (user && !authLoading) router.push('/dashboard');
+    if (user && !authLoading) {
+      router.push('/dashboard');
+    }
   }, [user, authLoading, router]);
 
   const t = {
@@ -44,11 +46,21 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
+    
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) return;
+
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await signInWithEmailAndPassword(auth, cleanEmail, password);
+      // Success is handled by useEffect
     } catch (error: any) {
-      toast({ variant: "destructive", title: t.error });
+      console.error("Login error:", error);
+      toast({ 
+        variant: "destructive", 
+        title: t.error,
+        description: error.message // Show detailed error for mobile debugging
+      });
       setLoading(false);
     }
   };
@@ -60,7 +72,12 @@ export default function LoginPage() {
     try {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Google Auth Failed" });
+      console.error("Google login error:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Google Auth Failed",
+        description: error.message 
+      });
       setLoading(false);
     }
   };
@@ -93,6 +110,7 @@ export default function LoginPage() {
                 <Mail className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
                 <input 
                   type="email" 
+                  autoComplete="email"
                   placeholder={t.email} 
                   className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
                   value={email}
@@ -104,6 +122,7 @@ export default function LoginPage() {
                 <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
                 <input 
                   type={showPassword ? "text" : "password"} 
+                  autoComplete="current-password"
                   placeholder={t.password} 
                   className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
                   value={password}
