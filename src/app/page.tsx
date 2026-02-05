@@ -55,9 +55,8 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      router.push('/dashboard');
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Google Auth Failed", description: error.message });
+      toast({ variant: "destructive", title: "Google Auth Failed" });
       setLoading(false);
     }
   };
@@ -66,12 +65,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background p-6">
-      {/* Futuristic Background */}
       <div 
         className="absolute inset-0 z-0 opacity-40 bg-cover bg-center" 
         style={{ backgroundImage: `url('${backgroundImage?.imageUrl || "https://images.unsplash.com/photo-1603347729548-6844517490c7"}')` }}
       >
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-[4px]"></div>
       </div>
 
       <div className="relative z-10 max-w-sm w-full space-y-8 animate-in fade-in zoom-in-95 duration-1000">
