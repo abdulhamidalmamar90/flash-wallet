@@ -9,6 +9,7 @@ import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
+import { LanguageToggle } from '@/components/ui/LanguageToggle';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -65,6 +66,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background p-6">
+      {/* Language Toggle Container */}
+      <div className="absolute top-6 right-6 z-[100]">
+        <LanguageToggle />
+      </div>
+
       <div 
         className="absolute inset-0 z-0 opacity-40 bg-cover bg-center" 
         style={{ backgroundImage: `url('${backgroundImage?.imageUrl || "https://images.unsplash.com/photo-1603347729548-6844517490c7"}')` }}
