@@ -24,15 +24,27 @@ import {
   Camera,
   Globe,
   FileText,
-  DollarSign
+  DollarSign,
+  Trash2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -143,6 +155,15 @@ export default function AdminPage() {
       toast({ title: "BALANCE UPDATED" });
       setEditingUserId(null);
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleDeleteUser = async (targetUserId: string) => {
+    try {
+      await deleteDoc(doc(db, 'users', targetUserId));
+      toast({ title: "USER DELETED", description: "The account has been purged from the system." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "PURGE FAILED", description: e.message });
+    }
   };
 
   const filteredUsers = allUsers.filter((u: any) => 
@@ -273,18 +294,54 @@ export default function AdminPage() {
           <Input placeholder="SEARCH LEDGER..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] tracking-widest uppercase font-headline pl-6" />
           <div className="space-y-4">
             {filteredUsers.map((u: any) => (
-              <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5 hover:border-white/10 transition-all">
+              <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5 hover:border-white/10 transition-all group">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
                     <div className={cn("w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border-2 transition-all duration-500 overflow-hidden", u.verified ? "border-green-500 cyan-glow" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="h-6 w-6 text-primary/40" />}</div>
-                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p><p className="text-[8px] text-muted-foreground uppercase">{u.email}</p></div>
+                    <div>
+                      <p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p>
+                      <p className="text-[8px] text-muted-foreground uppercase">{u.email}</p>
+                    </div>
                   </div>
-                  <div className="text-right"><p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p></div>
+                  <div className="text-right">
+                    <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="text-red-500/40 hover:text-red-500 transition-colors p-1 mt-2">
+                          <Trash2 size={16} />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="glass-card border-red-500/20 rounded-[2rem]">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-xs font-headline font-bold uppercase tracking-widest text-red-500">Confirm Asset Purge</AlertDialogTitle>
+                          <AlertDialogDescription className="text-[10px] text-muted-foreground uppercase leading-relaxed">
+                            This action will permanently remove @{u.username} from the FLASH ledger. All associated balances and credentials will be lost.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="bg-white/5 border-white/10 text-[9px] font-headline uppercase tracking-widest">Abort</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="bg-red-500 text-white text-[9px] font-headline uppercase tracking-widest"
+                          >
+                            Authorize Purge
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
                 {editingUserId === u.id ? (
-                  <div className="flex gap-2 animate-in slide-in-from-right-2"><Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-12 bg-background border-primary/20 rounded-xl" /><button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all"><Save size={20} /></button></div>
+                  <div className="flex gap-2 animate-in slide-in-from-right-2">
+                    <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-12 bg-background border-primary/20 rounded-xl" />
+                    <button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+                      <Save size={20} />
+                    </button>
+                  </div>
                 ) : (
-                  <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-12 bg-white/5 border border-white/5 rounded-xl text-[10px] font-headline font-bold uppercase tracking-widest hover:bg-primary/10 transition-all">Modify Asset Balance</button>
+                  <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-12 bg-white/5 border border-white/5 rounded-xl text-[10px] font-headline font-bold uppercase tracking-widest hover:bg-primary/10 transition-all">
+                    Modify Asset Balance
+                  </button>
                 )}
               </div>
             ))}
