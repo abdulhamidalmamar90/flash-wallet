@@ -1,12 +1,12 @@
-
 "use client"
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
-import { useAuth, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { useAuth, useUser, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !authLoading) {
+      // Small delay to check if Firestore doc exists via handleGoogleLogin logic
+      // But for normal email login, it redirects here
       router.push('/dashboard');
     }
   }, [user, authLoading, router]);
@@ -40,14 +43,14 @@ export default function LoginPage() {
     noAccount: language === 'ar' ? 'لا تملك حساباً؟' : "NO ACCOUNT?",
     create: language === 'ar' ? 'إنشاء هوية' : 'REGISTER',
     error: language === 'ar' ? 'فشل التحقق من الهوية' : 'Authorization failed',
-    social: language === 'ar' ? 'أو الدخول بواسطة' : 'OR CONTINUE WITH'
+    social: language === 'ar' ? 'أو الدخول بواسطة' : 'OR CONTINUE WITH',
+    noAccountFound: language === 'ar' ? 'عذراً، هذا الحساب غير مسجل لدينا. يرجى إنشاء حساب أولاً.' : 'Account not found. Please register first.',
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
     
-    // تنظيف البريد الإلكتروني بشكل صارم من المسافات والأحرف الكبيرة التي قد يضيفها الموبايل
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
@@ -74,11 +77,24 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
-    if (!auth) return;
+    if (!auth || !db) return;
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const userDoc = doc(db, 'users', result.user.uid);
+      const snap = await getDoc(userDoc);
+      
+      if (!snap.exists()) {
+        await signOut(auth);
+        toast({
+          variant: "destructive",
+          title: language === 'ar' ? "حساب غير موجود" : "Account Missing",
+          description: t.noAccountFound
+        });
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       console.error("Google login error:", error);
       toast({ 
@@ -86,6 +102,7 @@ export default function LoginPage() {
         title: "Google Auth Failed",
         description: error.message 
       });
+    } finally {
       setLoading(false);
     }
   };

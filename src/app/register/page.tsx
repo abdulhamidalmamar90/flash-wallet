@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -61,7 +60,8 @@ export default function RegisterPage() {
     hasAccount: language === 'ar' ? 'لديك حساب بالفعل؟' : 'Already have an account?',
     login: language === 'ar' ? 'تسجيل الدخول' : 'Authorize Access',
     emailInUse: language === 'ar' ? 'البريد الإلكتروني مستخدم بالفعل.' : 'Email already in use.',
-    weakPassword: language === 'ar' ? 'كلمة المرور ضعيفة جداً.' : 'Password is too weak.'
+    weakPassword: language === 'ar' ? 'كلمة المرور ضعيفة جداً.' : 'Password is too weak.',
+    accountExists: language === 'ar' ? 'هذا الحساب موجود بالفعل، يرجى تسجيل الدخول.' : 'This account already exists. Please login.',
   };
 
   const generateCustomId = () => {
@@ -86,14 +86,15 @@ export default function RegisterPage() {
         language: language,
         createdAt: new Date().toISOString()
       });
+      return true;
     }
+    return false;
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth || !db) return;
     
-    // تنظيف صارم للبيانات
     const cleanEmail = email.trim().toLowerCase();
     const cleanUsername = username.trim();
     const cleanPassword = password.trim();
@@ -139,8 +140,34 @@ export default function RegisterPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await initUser(result.user.uid, result.user.email?.toLowerCase() || 'user');
-      router.push('/dashboard');
+      const userDoc = doc(db, 'users', result.user.uid);
+      const snap = await getDoc(userDoc);
+      
+      if (snap.exists()) {
+        toast({
+          title: language === 'ar' ? "الحساب موجود" : "Account Exists",
+          description: t.accountExists
+        });
+        router.push('/dashboard');
+      } else {
+        // New Google user registration
+        await setDoc(userDoc, {
+          username: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          email: result.user.email?.toLowerCase(),
+          phone: '',
+          customId: generateCustomId(),
+          balance: 0,
+          role: 'user',
+          verified: false,
+          language: language,
+          createdAt: new Date().toISOString()
+        });
+        toast({
+          title: language === 'ar' ? "مرحباً بك!" : "Welcome!",
+          description: language === 'ar' ? "تم تفعيل حسابك عبر غوغل." : "Your account is activated via Google."
+        });
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       console.error("Google register error:", error);
       toast({
