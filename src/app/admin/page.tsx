@@ -16,20 +16,18 @@ import {
   Search, 
   Save, 
   User as UserIcon,
-  ArrowDownCircle,
   ArrowUpCircle,
   LayoutDashboard,
   ShieldCheck,
   FileCheck,
   Camera,
   Globe,
-  FileText,
-  Eye
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, increment, query, orderBy, runTransaction, setDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -84,30 +82,16 @@ export default function AdminPage() {
   };
 
   const handleApproveVerification = async (id: string, userId: string) => {
-    if (!id || !userId) return;
     try {
       await runTransaction(db, async (transaction) => {
         const verRef = doc(db, 'verifications', id);
         const userRef = doc(db, 'users', userId);
-        
-        // Safety check for existing document
-        const userSnap = await transaction.get(userRef);
-        
         transaction.update(verRef, { status: 'approved' });
-        
-        if (userSnap.exists()) {
-          transaction.update(userRef, { verified: true });
-        } else {
-          // If user doc somehow missing, create it as verified
-          transaction.set(userRef, { verified: true }, { merge: true });
-        }
+        transaction.update(userRef, { verified: true });
       });
       await sendNotification(userId, "Account Verified", "Your entity is now officially verified by FLASH authority.", 'verification');
       toast({ title: "USER VERIFIED" });
-    } catch (e: any) { 
-      console.error("Verification error:", e);
-      toast({ variant: "destructive", title: "ERROR", description: e.message }); 
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
   const handleUpdateBalance = async (targetUserId: string, currentBalance: number) => {
@@ -120,7 +104,13 @@ export default function AdminPage() {
         transaction.update(userRef, { balance: amountNum });
         if (diff !== 0) {
           const txRef = doc(collection(db, 'users', targetUserId, 'transactions'));
-          transaction.set(txRef, { type: diff > 0 ? 'deposit' : 'withdraw', amount: Math.abs(diff), status: 'completed', date: new Date().toISOString() });
+          transaction.set(txRef, { 
+            type: diff > 0 ? 'receive' : 'withdraw', 
+            amount: Math.abs(diff), 
+            status: 'completed', 
+            date: new Date().toISOString(),
+            sender: diff > 0 ? 'SYSTEM ADJUSTMENT' : undefined
+          });
         }
       });
       await sendNotification(targetUserId, "Balance Adjustment", `Administrator has updated your balance to $${amountNum}`, 'system');
@@ -182,52 +172,26 @@ export default function AdminPage() {
             {verifications.length === 0 ? <p className="text-center text-[10px] text-muted-foreground uppercase py-10">Verification queue is clear</p> : verifications.map((req: any) => (
               <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden">
                 <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-cyan-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
-                
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><FileCheck className="h-6 w-6 text-secondary" /></div>
-                    <div>
-                      <p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p>
-                      <p className="text-[7px] text-muted-foreground uppercase">Identity Submission</p>
-                    </div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">Identity Submission</p></div>
                   </div>
                   <Badge className={cn("text-[8px] uppercase tracking-widest", req.status === 'pending' ? "bg-orange-500/20" : "bg-primary/20")}>{req.status}</Badge>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
-                  <div className="flex flex-col gap-1">
-                    <p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><Globe className="w-2 h-2" /> Country</p>
-                    <p className="text-[9px] font-headline font-bold text-white truncate">{req.details?.country || req.country || 'N/A'}</p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><FileText className="w-2 h-2" /> Doc Type</p>
-                    <p className="text-[9px] font-headline font-bold text-white uppercase">{req.details?.docType || req.docType || 'ID'}</p>
-                  </div>
-                  <div className="col-span-2 flex flex-col gap-1 pt-1 border-t border-white/5">
-                    <p className="text-[7px] text-muted-foreground uppercase font-black">Document Number</p>
-                    <p className="text-[9px] font-headline font-bold text-primary tracking-widest">{req.details?.docNumber || req.docNumber || 'NOT PROVIDED'}</p>
-                  </div>
+                  <div className="flex flex-col gap-1"><p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><Globe className="w-2 h-2" /> Country</p><p className="text-[9px] font-headline font-bold text-white truncate">{req.details?.country || 'N/A'}</p></div>
+                  <div className="flex flex-col gap-1"><p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><FileText className="w-2 h-2" /> Doc Type</p><p className="text-[9px] font-headline font-bold text-white uppercase">{req.details?.docType || 'ID'}</p></div>
+                  <div className="col-span-2 flex flex-col gap-1 pt-1 border-t border-white/5"><p className="text-[7px] text-muted-foreground uppercase font-black">Document Number</p><p className="text-[9px] font-headline font-bold text-primary tracking-widest">{req.details?.docNumber || 'NOT PROVIDED'}</p></div>
                 </div>
-
                 {req.documentUrl && (
                   <Dialog>
                     <DialogTrigger asChild>
-                      <button className="w-full h-12 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group">
-                        <Camera className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                        <span className="text-[9px] font-headline font-bold tracking-widest uppercase">Inspect Credentials</span>
-                      </button>
+                      <button className="w-full h-12 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" /><span className="text-[9px] font-headline font-bold tracking-widest uppercase">Inspect Credentials</span></button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]">
-                      <DialogHeader>
-                        <DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase text-center mb-4">Official Document Preview</DialogTitle>
-                      </DialogHeader>
-                      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black">
-                        <img src={req.documentUrl} alt="KYC Document" className="w-full h-full object-contain" />
-                      </div>
-                    </DialogContent>
+                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><DialogHeader><DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase text-center mb-4">Official Document Preview</DialogTitle></DialogHeader><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.documentUrl} alt="KYC Document" className="w-full h-full object-contain" /></div></DialogContent>
                   </Dialog>
                 )}
-
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
                     <button onClick={() => handleApproveVerification(req.id, req.userId)} className="flex-1 h-12 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Verify</span></button>
@@ -246,12 +210,7 @@ export default function AdminPage() {
               <div key={u.id} className="glass-card p-6 rounded-[2rem] border-white/5 hover:border-white/10 transition-all">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border-2 transition-all duration-500 overflow-hidden",
-                      u.verified ? "border-green-500 cyan-glow" : "border-red-500"
-                    )}>
-                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="h-6 w-6 text-primary/40" />}
-                    </div>
+                    <div className={cn("w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border-2 transition-all duration-500 overflow-hidden", u.verified ? "border-green-500 cyan-glow" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="h-6 w-6 text-primary/40" />}</div>
                     <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p><p className="text-[8px] text-muted-foreground uppercase">{u.email}</p></div>
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p></div>
