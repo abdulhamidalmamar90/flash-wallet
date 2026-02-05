@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useMemo } from 'react';
@@ -19,7 +20,8 @@ import {
   ShieldAlert,
   QrCode,
   CheckCircle2,
-  Trash2
+  Trash2,
+  Wallet
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -167,7 +169,7 @@ export default function Dashboard() {
             {profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground" />}
           </div>
           <div className="text-left">
-            <p className="text-[10px] text-primary font-headline font-bold tracking-widest uppercase">Entity Verified</p>
+            <p className="text-[10px] text-primary font-headline font-bold tracking-widest uppercase">{profile?.verified ? "Entity Verified" : "Awaiting Verification"}</p>
             <p className="font-headline font-bold text-sm">@{profile?.username}</p>
           </div>
         </button>
@@ -189,18 +191,22 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="grid grid-cols-3 gap-4">
-          <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-3 py-6 glass-card rounded-2xl hover:border-primary transition-all group">
-            <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-background transition-all"><ArrowUpRight size={24} /></div>
-            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">Send</span>
+        <section className="grid grid-cols-4 gap-3">
+          <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-primary transition-all group">
+            <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-background transition-all"><ArrowUpRight size={20} /></div>
+            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Send</span>
           </button>
-          <Link href="/withdraw" className="flex flex-col items-center gap-3 py-6 glass-card rounded-2xl hover:border-secondary transition-all group">
-            <div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><ArrowDownLeft size={24} /></div>
-            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">Withdraw</span>
+          <Link href="/deposit" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-secondary transition-all group">
+            <div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><Wallet size={20} /></div>
+            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Deposit</span>
           </Link>
-          <Link href="/marketplace" className="flex flex-col items-center gap-3 py-6 glass-card rounded-2xl hover:border-white transition-all group">
-            <div className="p-3 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-background transition-all"><PlusCircle size={24} /></div>
-            <span className="text-[9px] font-headline font-bold uppercase tracking-widest">Services</span>
+          <Link href="/withdraw" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-white transition-all group">
+            <div className="p-3 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-background transition-all"><ArrowDownLeft size={20} /></div>
+            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Withdraw</span>
+          </Link>
+          <Link href="/marketplace" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-white transition-all group">
+            <div className="p-3 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-background transition-all"><PlusCircle size={20} /></div>
+            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Store</span>
           </Link>
         </section>
 
@@ -213,18 +219,22 @@ export default function Dashboard() {
             {transactions.map((tx: any) => (
               <div key={tx.id} className="flex justify-between items-center p-5 glass-card rounded-2xl border-white/5 hover:bg-white/5 transition-all">
                 <div className="flex items-center gap-4">
-                  <div className={cn("w-1 h-10 rounded-full", tx.type === 'send' ? "bg-red-500/40" : "bg-primary/40")} />
+                  <div className={cn("w-1 h-10 rounded-full", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "bg-red-500/40" : "bg-primary/40")} />
                   <div>
                     <p className="font-headline font-bold text-[10px] uppercase">
-                      {tx.type === 'send' ? `SENT TO @${tx.recipient}` : `RECEIVED FROM @${tx.sender || 'SYSTEM'}`}
+                      {tx.type === 'send' ? `SENT TO @${tx.recipient}` : 
+                       tx.type === 'receive' ? `RECEIVED FROM @${tx.sender || 'SYSTEM'}` :
+                       tx.type === 'withdraw' ? 'WITHDRAWAL INITIATED' :
+                       tx.type === 'deposit' ? 'DEPOSIT CONFIRMED' :
+                       `PURCHASE: ${tx.service}`}
                     </p>
                     <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">
                       {new Date(tx.date).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
-                <p className={cn("font-headline font-bold text-xs", tx.type === 'send' ? "text-white" : "text-primary")}>
-                  {tx.type === 'send' ? '-' : '+'}${tx.amount}
+                <p className={cn("font-headline font-bold text-xs", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "text-white" : "text-primary")}>
+                  {(tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? '-' : '+'}${tx.amount}
                 </p>
               </div>
             ))}

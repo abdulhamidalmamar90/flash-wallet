@@ -17,17 +17,19 @@ import {
   Save, 
   User as UserIcon,
   ArrowUpCircle,
+  ArrowDownCircle,
   LayoutDashboard,
   ShieldCheck,
   FileCheck,
   Camera,
   Globe,
-  FileText
+  FileText,
+  DollarSign
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -47,6 +49,9 @@ export default function AdminPage() {
 
   const withdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals'), orderBy('date', 'desc')), [db]);
   const { data: withdrawals = [] } = useCollection(withdrawalsQuery);
+
+  const depositsQuery = useMemo(() => query(collection(db, 'deposits'), orderBy('date', 'desc')), [db]);
+  const { data: deposits = [] } = useCollection(depositsQuery);
 
   const verificationsQuery = useMemo(() => query(collection(db, 'verifications'), orderBy('date', 'desc')), [db]);
   const { data: verifications = [] } = useCollection(verificationsQuery);
@@ -78,6 +83,27 @@ export default function AdminPage() {
       await updateDoc(ref, { status: 'approved' });
       await sendNotification(userId, "Withdrawal Confirmed", `Your request for $${amount} has been processed.`, 'transaction');
       toast({ title: "WITHDRAWAL APPROVED" });
+    } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
+  };
+
+  const handleApproveDeposit = async (id: string, userId: string, amount: number) => {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const depositRef = doc(db, 'deposits', id);
+        const userRef = doc(db, 'users', userId);
+        const txRef = doc(collection(db, 'users', userId, 'transactions'));
+        
+        transaction.update(depositRef, { status: 'approved' });
+        transaction.update(userRef, { balance: increment(amount) });
+        transaction.set(txRef, {
+          type: 'deposit',
+          amount,
+          status: 'completed',
+          date: new Date().toISOString()
+        });
+      });
+      await sendNotification(userId, "Deposit Approved", `Success! $${amount} has been credited to your vault.`, 'transaction');
+      toast({ title: "DEPOSIT APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
 
@@ -138,10 +164,11 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraws</TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ShieldCheck className="h-3 w-3 mr-1" /> KYC Queue</TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><Users className="h-3 w-3 mr-1" /> Ledger</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1">
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ArrowUpCircle className="h-3 w-3 mr-1" /> Out</TabsTrigger>
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ArrowDownCircle className="h-3 w-3 mr-1" /> In</TabsTrigger>
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ShieldCheck className="h-3 w-3 mr-1" /> KYC</TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><Users className="h-3 w-3 mr-1" /> Ledger</TabsTrigger>
         </TabsList>
 
         <TabsContent value="withdrawals" className="space-y-6">
@@ -160,6 +187,37 @@ export default function AdminPage() {
                   <div className="flex gap-4 pt-2">
                     <button onClick={() => handleApproveWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
                     <button onClick={() => updateDoc(doc(db, 'withdrawals', req.id), { status: 'rejected' })} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="deposits" className="space-y-6">
+          <div className="space-y-4">
+            {deposits.length === 0 ? <p className="text-center text-[10px] text-muted-foreground uppercase py-10">No pending deposits</p> : deposits.map((req: any) => (
+              <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-secondary/20 transition-all duration-500">
+                <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-cyan-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><DollarSign className="h-6 w-6 text-secondary" /></div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.method || 'Manual'} Deposit</p></div>
+                  </div>
+                  <div className="text-right"><p className="text-lg font-headline font-black text-secondary">${req.amount}</p></div>
+                </div>
+                {req.proofUrl && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-secondary group-hover:scale-110 transition-transform" /><span className="text-[8px] font-headline font-bold tracking-widest uppercase">View Proof</span></button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><DialogHeader><DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase text-center mb-4">Payment Evidence</DialogTitle></DialogHeader><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.proofUrl} alt="Deposit Proof" className="w-full h-full object-contain" /></div></DialogContent>
+                  </Dialog>
+                )}
+                {req.status === 'pending' && (
+                  <div className="flex gap-4 pt-2">
+                    <button onClick={() => handleApproveDeposit(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
+                    <button onClick={() => updateDoc(doc(db, 'deposits', req.id), { status: 'rejected' })} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
                   </div>
                 )}
               </div>

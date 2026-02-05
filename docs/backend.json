@@ -62,6 +62,21 @@
         "date": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "username", "type", "amount", "status", "date"]
+    },
+    "DepositRequest": {
+      "title": "Deposit Request",
+      "description": "Stored in /deposits/{depositId}. Global queue for admin to approve money entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "amount": { "type": "number" },
+        "method": { "type": "string" },
+        "proofUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "username", "amount", "status", "date"]
     }
   },
   "auth": {
@@ -83,6 +98,10 @@
     "/withdrawals/{withdrawalId}": {
       "schema": "WithdrawalRequest",
       "description": "Global queue for withdrawals pending admin action"
+    },
+    "/deposits/{depositId}": {
+      "schema": "DepositRequest",
+      "description": "Global queue for deposits pending admin action"
     }
   }
 }
