@@ -21,7 +21,8 @@ import {
   QrCode,
   CheckCircle2,
   Trash2,
-  Wallet
+  Wallet,
+  Send
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -169,7 +170,7 @@ export default function Dashboard() {
             {profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground" />}
           </div>
           <div className="text-left">
-            <p className="text-[10px] text-primary font-headline font-bold tracking-widest uppercase">{profile?.verified ? "Entity Verified" : "Awaiting Verification"}</p>
+            <p className="text-[10px] text-primary font-headline font-bold tracking-widest uppercase">{profile?.verified ? (language === 'ar' ? "هوية موثقة" : "Entity Verified") : (language === 'ar' ? "في انتظار التوثيق" : "Awaiting Verification")}</p>
             <p className="font-headline font-bold text-sm">@{profile?.username}</p>
           </div>
         </button>
@@ -181,7 +182,7 @@ export default function Dashboard() {
 
       <main className="px-8 space-y-10">
         <section className="text-center py-10 glass-card rounded-[2.5rem] gold-glow border-primary/20">
-          <p className="text-muted-foreground text-[10px] uppercase tracking-[0.4em] font-headline mb-4">Current Asset Value</p>
+          <p className="text-muted-foreground text-[10px] uppercase tracking-[0.4em] font-headline mb-4">{language === 'ar' ? 'إجمالي الأصول' : 'Current Asset Value'}</p>
           <h1 className="text-5xl font-headline font-bold text-white tracking-tighter">
             ${profile?.balance?.toLocaleString()}<span className="text-xl opacity-20">.00</span>
           </h1>
@@ -191,29 +192,25 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="grid grid-cols-4 gap-3">
+        <section className="grid grid-cols-3 gap-3">
           <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-primary transition-all group">
-            <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-background transition-all"><ArrowUpRight size={20} /></div>
-            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Send</span>
+            <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-background transition-all"><Send size={20} /></div>
+            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إرسال' : 'Send'}</span>
           </button>
           <Link href="/deposit" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-secondary transition-all group">
             <div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><Wallet size={20} /></div>
-            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Deposit</span>
+            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إيداع' : 'Deposit'}</span>
           </Link>
           <Link href="/withdraw" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-white transition-all group">
             <div className="p-3 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-background transition-all"><ArrowDownLeft size={20} /></div>
-            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Withdraw</span>
-          </Link>
-          <Link href="/marketplace" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-white transition-all group">
-            <div className="p-3 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-background transition-all"><PlusCircle size={20} /></div>
-            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">Store</span>
+            <span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'سحب' : 'Withdraw'}</span>
           </Link>
         </section>
 
         <section className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">Recent Ledger</h3>
-            <Link href="/transactions" className="text-[8px] font-headline text-primary hover:underline">EXTRACT ALL</Link>
+            <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'سجل العمليات' : 'Recent Ledger'}</h3>
+            <Link href="/transactions" className="text-[8px] font-headline text-primary hover:underline">{language === 'ar' ? 'استخراج الكل' : 'EXTRACT ALL'}</Link>
           </div>
           <div className="space-y-3">
             {transactions.map((tx: any) => (
@@ -222,11 +219,11 @@ export default function Dashboard() {
                   <div className={cn("w-1 h-10 rounded-full", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "bg-red-500/40" : "bg-primary/40")} />
                   <div>
                     <p className="font-headline font-bold text-[10px] uppercase">
-                      {tx.type === 'send' ? `SENT TO @${tx.recipient}` : 
-                       tx.type === 'receive' ? `RECEIVED FROM @${tx.sender || 'SYSTEM'}` :
-                       tx.type === 'withdraw' ? 'WITHDRAWAL INITIATED' :
-                       tx.type === 'deposit' ? 'DEPOSIT CONFIRMED' :
-                       `PURCHASE: ${tx.service}`}
+                      {tx.type === 'send' ? (language === 'ar' ? `تحويل إلى @${tx.recipient}` : `SENT TO @${tx.recipient}`) : 
+                       tx.type === 'receive' ? (language === 'ar' ? `استلام من @${tx.sender || 'SYSTEM'}` : `RECEIVED FROM @${tx.sender || 'SYSTEM'}`) :
+                       tx.type === 'withdraw' ? (language === 'ar' ? 'طلب سحب رصيد' : 'WITHDRAWAL INITIATED') :
+                       tx.type === 'deposit' ? (language === 'ar' ? 'تأكيد إيداع' : 'DEPOSIT CONFIRMED') :
+                       `${tx.service}`}
                     </p>
                     <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">
                       {new Date(tx.date).toLocaleDateString()}
@@ -246,7 +243,7 @@ export default function Dashboard() {
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">Settings & Entity Control</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">{language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}</DialogTitle></DialogHeader>
           <div className="space-y-8 mt-4">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className={cn(
@@ -265,25 +262,25 @@ export default function Dashboard() {
             <div className="space-y-3">
               <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
                 <QrCode size={18} className="text-primary" />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">My Flash Identifier</span>
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'المعرف الرقمي الخاص بي' : 'My Flash Identifier'}</span>
               </button>
               <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
                 <Settings size={18} className="text-muted-foreground" />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Configure Account</span>
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تعديل الحساب' : 'Configure Account'}</span>
               </Link>
               {profile?.role === 'admin' && (
                 <Link href="/admin" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 border-primary/40 hover:bg-primary/10 transition-all">
                   <ShieldAlert size={18} className="text-primary" />
-                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">Admin Command</span>
+                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">{language === 'ar' ? 'لوحة التحكم (أدمن)' : 'Admin Command'}</span>
                 </Link>
               )}
               <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-white/5 transition-all">
                 <Languages size={18} />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Language: {language === 'ar' ? 'العربية' : 'EN'}</span>
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'اللغة: العربية' : 'Language: EN'}</span>
               </button>
               <button onClick={() => signOut(auth)} className="w-full h-14 glass-card rounded-2xl border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all">
                 <LogOut size={18} />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Terminate Access</span>
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تسجيل الخروج' : 'Terminate Access'}</span>
               </button>
             </div>
           </div>
@@ -292,26 +289,26 @@ export default function Dashboard() {
 
       <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[1001]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">Cryptographic Identifier</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader>
           <div className="space-y-8 mt-6">
             <div className="p-6 bg-white rounded-3xl inline-block shadow-[0_0_30px_rgba(255,255,255,0.1)]">
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" />
             </div>
             <div className="space-y-2">
-              <p className="text-[10px] font-headline font-bold text-muted-foreground uppercase">Entity ID</p>
+              <p className="text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p>
               <p className="text-sm font-headline font-black tracking-widest text-white">{profile?.customId}</p>
             </div>
-            <button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">COPY FLASH ID</button>
+            <button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] max-h-[80vh] overflow-y-auto z-[1000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center mb-4">Security Feed</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center mb-4">{language === 'ar' ? 'شريط الحماية' : 'Security Feed'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {notifications.length === 0 ? (
-              <p className="text-center text-[10px] text-muted-foreground uppercase font-headline py-10">System is clear</p>
+              <p className="text-center text-[10px] text-muted-foreground uppercase font-headline py-10">{language === 'ar' ? 'النظام خالي من التنبيهات' : 'System is clear'}</p>
             ) : (
               notifications.map((n: any) => (
                 <div key={n.id} className={cn("p-4 rounded-2xl border transition-all relative group", n.read ? "bg-white/5 border-white/5" : "bg-primary/5 border-primary/20 shadow-lg")}>
@@ -330,13 +327,13 @@ export default function Dashboard() {
 
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-10 rounded-[2.5rem] z-[1000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">Fast Transfer Protocol</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">{language === 'ar' ? 'بروتوكول التحويل السريع' : 'Fast Transfer Protocol'}</DialogTitle></DialogHeader>
           <div className="space-y-8 mt-6">
             <div className="space-y-4">
               <div className="relative group">
                 <input 
                   type="text" 
-                  placeholder="RECIPIENT FLASH ID" 
+                  placeholder={language === 'ar' ? "معرف المستلم" : "RECIPIENT FLASH ID"} 
                   value={recipient} 
                   onChange={(e) => setRecipient(e.target.value.toUpperCase())} 
                   className="w-full bg-white/5 border border-white/10 h-14 px-6 rounded-2xl font-headline text-[10px] tracking-widest uppercase focus:border-primary outline-none transition-all" 
@@ -346,7 +343,7 @@ export default function Dashboard() {
               {recipientName && (
                 <div className="flex items-center justify-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
                   <CheckCircle2 size={12} className="text-green-500" />
-                  <p className="text-[9px] font-headline font-bold text-green-500 uppercase tracking-widest">VERIFIED: @{recipientName}</p>
+                  <p className="text-[9px] font-headline font-bold text-green-500 uppercase tracking-widest">{language === 'ar' ? 'موثق:' : 'VERIFIED:'} @{recipientName}</p>
                 </div>
               )}
               <div className="relative">
@@ -361,7 +358,7 @@ export default function Dashboard() {
               </div>
             </div>
             <button onClick={handleSendMoney} disabled={isSending || !recipientName} className="w-full bg-primary text-primary-foreground font-headline font-bold py-5 rounded-2xl gold-glow active:scale-95 disabled:opacity-50 transition-all uppercase tracking-widest text-xs">
-              {isSending ? <Loader2 className="animate-spin mx-auto" /> : "AUTHORIZE TRANSACTION"}
+              {isSending ? <Loader2 className="animate-spin mx-auto" /> : (language === 'ar' ? "تأكيد العملية" : "AUTHORIZE TRANSACTION")}
             </button>
           </div>
         </DialogContent>

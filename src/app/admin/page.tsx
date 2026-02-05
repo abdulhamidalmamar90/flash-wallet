@@ -154,7 +154,7 @@ export default function AdminPage() {
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
-    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
+    <div className="max-w-lg mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
       <header className="flex justify-between items-center p-5 glass-card rounded-[2rem] border-primary/20 gold-glow">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="p-2 hover:bg-primary/10 rounded-xl transition-all text-primary group"><LayoutDashboard className="h-6 w-6 group-hover:scale-110" /></Link>
@@ -164,11 +164,19 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ArrowUpCircle className="h-3 w-3 mr-1" /> Out</TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ArrowDownCircle className="h-3 w-3 mr-1" /> In</TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><ShieldCheck className="h-3 w-3 mr-1" /> KYC</TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[6px] uppercase tracking-widest data-[state=active]:bg-primary transition-all"><Users className="h-3 w-3 mr-1" /> Ledger</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1">
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <ArrowUpCircle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Withdrawals</span><span className="sm:hidden">Out</span>
+          </TabsTrigger>
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <ArrowDownCircle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Deposits</span><span className="sm:hidden">In</span>
+          </TabsTrigger>
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <ShieldCheck className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Verifications</span><span className="sm:hidden">KYC</span>
+          </TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <Users className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Ledger</span><span className="sm:hidden">Users</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="withdrawals" className="space-y-6">
