@@ -60,15 +60,15 @@
   .cyan-glow {
     box-shadow: 0 0 20px hsl(var(--secondary) / 0.2);
   }
+
+  .gold-glow-text {
+    text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+  }
 }
 
 @layer components {
   .btn-primary {
     @apply bg-primary text-primary-foreground font-headline font-bold uppercase tracking-widest px-6 py-4 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98];
-  }
-  
-  .btn-primary:hover {
-    @apply gold-glow;
   }
 }
 
