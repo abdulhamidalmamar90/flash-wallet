@@ -102,10 +102,23 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [recipient, db]);
 
-  // QR Scanner Logic
+  // QR Scanner Logic with DOM check and delay to fix "Element not found" error
   useEffect(() => {
+    let isMounted = true;
+
     if (isScannerOpen) {
       const startScanner = async () => {
+        // Wait a small delay to ensure Radix UI has rendered the Dialog content into the DOM
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        if (!isMounted) return;
+
+        const readerElement = document.getElementById("reader");
+        if (!readerElement) {
+          console.error("Scanner error: reader element not found");
+          return;
+        }
+
         try {
           const html5QrCode = new Html5Qrcode("reader");
           scannerRef.current = html5QrCode;
@@ -121,9 +134,11 @@ export default function Dashboard() {
             () => {}
           );
         } catch (err) {
-          console.error("Scanner error:", err);
-          setIsScannerOpen(false);
-          toast({ variant: "destructive", title: "CAMERA ERROR", description: "Could not access camera for scanning." });
+          console.error("Scanner start error:", err);
+          if (isMounted) {
+            setIsScannerOpen(false);
+            toast({ variant: "destructive", title: "CAMERA ERROR", description: "Failed to initialize scanner." });
+          }
         }
       };
       startScanner();
@@ -131,11 +146,12 @@ export default function Dashboard() {
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().then(() => {
           scannerRef.current = null;
-        }).catch(err => console.error("Stop scanner error:", err));
+        }).catch(err => console.error("Scanner stop error:", err));
       }
     }
 
     return () => {
+      isMounted = false;
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(() => {});
       }
@@ -230,7 +246,7 @@ export default function Dashboard() {
         <section className="text-center py-10 glass-card rounded-[2.5rem] gold-glow border-primary/20">
           <p className="text-muted-foreground text-[10px] uppercase tracking-[0.4em] font-headline mb-4">{language === 'ar' ? 'إجمالي الأصول' : 'Current Asset Value'}</p>
           <h1 className="text-5xl font-headline font-bold text-white tracking-tighter">
-            ${profile?.balance?.toLocaleString()}<span className="text-xl opacity-20">.00</span>
+            ${profile?.balance?.toLocaleString()}<span className="textxl opacity-20">.00</span>
           </h1>
           <div className="mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
             <div className="w-1.5 h-1.5 bg-primary animate-pulse rounded-full"></div>
@@ -296,6 +312,7 @@ export default function Dashboard() {
             </DialogTitle>
           </DialogHeader>
           <div className="relative mt-4 overflow-hidden rounded-2xl border-2 border-primary/20 cyan-glow">
+            {/* The element with id="reader" must exist when Html5Qrcode is instantiated */}
             <div id="reader" className="w-full aspect-square bg-black"></div>
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
               <div className="w-48 h-48 border-2 border-primary/50 rounded-2xl animate-pulse flex items-center justify-center">
