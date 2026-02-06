@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from 'react';
@@ -290,7 +289,7 @@ ${detailsText}
     const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
     const handleClear = () => onChange(value.slice(0, -1));
     return (
-      <div className="space-y-8">
+      <div className="space-y-8" dir="ltr">
         <div className="flex justify-center gap-4">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
