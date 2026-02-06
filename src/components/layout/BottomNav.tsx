@@ -41,7 +41,7 @@ export function BottomNav() {
     { 
       label: profile?.role === 'admin' ? (language === 'ar' ? 'الإدارة' : 'ADMIN') : (language === 'ar' ? 'حسابي' : 'PROFILE'), 
       icon: profile?.role === 'admin' ? ShieldAlert : User, 
-      href: profile?.role === 'admin' ? '/admin' : '/dashboard' 
+      href: profile?.role === 'admin' ? '/admin' : '/profile/edit' 
     },
   ];
 
