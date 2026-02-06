@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -29,7 +30,9 @@ import {
   Check,
   Fingerprint,
   Briefcase,
-  ChevronLeft
+  ChevronLeft,
+  Smartphone,
+  ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -286,7 +289,8 @@ export default function Dashboard() {
     );
   };
 
-  if (!mounted || authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+  if (!mounted) return null;
+  if (authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
@@ -295,13 +299,19 @@ export default function Dashboard() {
           <div className={cn(
             "w-14 h-14 rounded-2xl border-2 transition-all duration-500 flex items-center justify-center relative overflow-hidden",
             profile?.verified 
-              ? "border-green-500 cyan-glow" 
+              ? "border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]" 
               : "border-red-500 shadow-lg"
           )}>
             {profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground" />}
           </div>
           <div className="text-left">
-            <p className="text-[10px] text-primary font-headline font-bold tracking-widest uppercase">{profile?.verified ? (language === 'ar' ? "هوية موثقة" : "Entity Verified") : (language === 'ar' ? "في انتظار التوثيق" : "Awaiting Verification")}</p>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              {profile?.verified && <ShieldCheck size={10} className="text-green-500" />}
+              {profile?.phoneVerified && <Smartphone size={10} className="text-blue-500" />}
+              <p className="text-[9px] text-primary font-headline font-bold tracking-widest uppercase">
+                {profile?.verified ? (language === 'ar' ? "هوية موثقة" : "Entity Verified") : (language === 'ar' ? "غير موثق" : "Unverified")}
+              </p>
+            </div>
             <p className="font-headline font-bold text-sm">@{profile?.username}</p>
           </div>
         </button>
@@ -426,6 +436,20 @@ export default function Dashboard() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-md font-headline font-bold tracking-tight">@{profile?.username}</h3>
+                <div className="flex flex-wrap justify-center gap-2 mb-2">
+                  <div className={cn(
+                    "px-2 py-0.5 rounded-full text-[7px] font-bold uppercase border",
+                    profile?.verified ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
+                  )}>
+                    {profile?.verified ? (language === 'ar' ? "هوية موثقة" : "ID Verified") : (language === 'ar' ? "هوية معلقة" : "ID Pending")}
+                  </div>
+                  <div className={cn(
+                    "px-2 py-0.5 rounded-full text-[7px] font-bold uppercase border",
+                    profile?.phoneVerified ? "bg-blue-500/10 border-blue-500/20 text-blue-500" : "bg-white/5 border-white/10 text-white/30"
+                  )}>
+                    {profile?.phoneVerified ? (language === 'ar' ? "رقم موثق" : "Phone Verified") : (language === 'ar' ? "رقم غير مؤكد" : "Phone Pending")}
+                  </div>
+                </div>
                 <button onClick={copyId} className="px-4 py-2 bg-muted text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-border/40 flex items-center gap-2 hover:bg-muted/80 transition-all">
                   ID: {profile?.customId} <Copy size={12} />
                 </button>

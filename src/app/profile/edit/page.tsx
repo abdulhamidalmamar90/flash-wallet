@@ -173,6 +173,8 @@ export default function EditProfilePage() {
     verified: language === 'ar' ? 'موثق' : 'Verified',
     identityVerified: language === 'ar' ? 'هوية موثقة' : 'Identity Verified',
     awaitingVerification: language === 'ar' ? 'في انتظار التوثيق' : 'Awaiting Verification',
+    phoneStatusVerified: language === 'ar' ? "رقم موثق" : "Phone Verified",
+    phoneStatusUnverified: language === 'ar' ? "رقم غير موثق" : "Phone Unverified",
     kycTitle: language === 'ar' ? 'توثيق الهوية (KYC)' : 'Identity Verification (KYC)',
     residenceCountry: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
     documentType: language === 'ar' ? 'نوع الوثيقة' : 'Document Type',
@@ -398,16 +400,30 @@ export default function EditProfilePage() {
           <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform z-10"><Camera size={18} /></button>
           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
         </div>
-        <div className="text-center space-y-1">
-          <div className={cn(
-            "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-headline font-bold uppercase tracking-widest mx-auto w-fit",
-            profile?.verified ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
-          )}>
-            {profile?.verified ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
-            {profile?.verified ? t.identityVerified : t.awaitingVerification}
+        
+        <div className="text-center space-y-2">
+          {/* Status Badges - Separated */}
+          <div className="flex flex-wrap justify-center gap-2">
+            <div className={cn(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-headline font-bold uppercase tracking-widest",
+              profile?.verified ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"
+            )}>
+              {profile?.verified ? <ShieldCheck size={10} /> : <ShieldAlert size={10} />}
+              {profile?.verified ? t.identityVerified : t.awaitingVerification}
+            </div>
+            
+            <div className={cn(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-headline font-bold uppercase tracking-widest",
+              isPhoneVerified ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" : "bg-white/5 text-white/40 border border-white/10"
+            )}>
+              <Smartphone size={10} className={cn(!isPhoneVerified && "opacity-50")} />
+              {isPhoneVerified ? t.phoneStatusVerified : t.phoneStatusUnverified}
+            </div>
           </div>
+          
           <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[8px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors block mx-auto mt-2">{t.avatarHeader}</button>
         </div>
+
         {isAvatarOpen && (
           <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
             {AVATARS.map((url, i) => (
