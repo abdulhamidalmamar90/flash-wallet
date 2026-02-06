@@ -86,7 +86,11 @@ export default function WithdrawPage() {
         country: 'CR',
         fee: 2.0,
         fields: [
-          { label: language === 'ar' ? 'نوع الشبكة' : 'Network Type', type: 'select', options: 'Tron (TRC20), TRX, BNB Smart Chain (BEP20)' },
+          { 
+            label: language === 'ar' ? 'نوع الشبكة' : 'Network Type', 
+            type: 'select', 
+            options: 'Tron (TRC20), BNB Smart Chain (BEP20)' 
+          },
           { label: language === 'ar' ? 'عنوان الشبكة' : 'Network Address', type: 'text' }
         ]
       });
@@ -96,7 +100,6 @@ export default function WithdrawPage() {
 
   const methodFee = selectedMethod?.fee || 0;
   const amountVal = parseFloat(amount || '0');
-  const totalDeduction = amountVal; // In crypto, user receives (amount - 2), so total from balance is just 'amount'
   const netAmount = Math.max(0, amountVal - methodFee);
 
   const t = {
@@ -119,6 +122,18 @@ export default function WithdrawPage() {
 
   const handleInputChange = (label: string, value: string) => {
     setFormData(prev => ({ ...prev, [label]: value }));
+  };
+
+  const handleBack = () => {
+    if (step === 1) {
+      router.back();
+    } else if (step === 3 && selectedCountry === 'CR') {
+      // Specifically handle returning from Crypto Step 3 to Step 1
+      setSelectedMethod(null);
+      setStep(1);
+    } else {
+      setStep(step - 1);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,7 +170,7 @@ export default function WithdrawPage() {
           userId: user.uid,
           username: profile.username,
           methodName: selectedMethod.name,
-          amount: netAmount, // Record net amount to be sent
+          amount: netAmount, 
           fee: methodFee,
           details: formData,
           status: 'pending',
@@ -314,7 +329,7 @@ ${detailsText}
   return (
     <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in duration-500 pb-32">
       <header className="flex items-center gap-4">
-        <button onClick={() => step === 1 ? router.back() : setStep(step - 1)} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
+        <button onClick={handleBack} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
           <ChevronLeft className={cn("h-5 w-5", language === 'ar' && "rotate-180")} />
         </button>
         <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
