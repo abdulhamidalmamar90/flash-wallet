@@ -8,7 +8,7 @@ import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
-import { useAuth, useFirestore, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
@@ -302,7 +302,8 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="flex gap-2 relative z-50">
+          {/* Phone Field Forced LTR */}
+          <div className="flex gap-2 relative z-50" dir="ltr">
             <div className="relative">
               <button 
                 type="button"
@@ -330,11 +331,12 @@ export default function RegisterPage() {
               )}
             </div>
             <div className="group relative flex-1">
-              <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Phone size={18} /></div>
+              <div className="absolute top-3.5 left-4 text-white/40 group-focus-within:text-primary"><Phone size={18} /></div>
               <input 
                 type="tel" 
+                dir="ltr"
                 placeholder={t.phone} 
-                className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-[14px] font-body text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-[14px] font-body text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 pl-12 pr-4 text-left"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required 

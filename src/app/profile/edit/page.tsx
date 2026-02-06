@@ -68,7 +68,6 @@ export default function EditProfilePage() {
   const { language } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const otpInputs = useRef<HTMLInputElement[]>([]);
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
@@ -128,7 +127,6 @@ export default function EditProfilePage() {
     setVerifyingPhone(true);
     
     try {
-      // Create invisible verifier
       const verifier = new RecaptchaVerifier(auth, 'recaptcha-verifier-hidden', {
         size: 'invisible'
       });
@@ -282,18 +280,18 @@ export default function EditProfilePage() {
             </div>
           </div>
 
+          {/* Phone Field Forced LTR */}
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
-            {/* FORCE LTR FOR PHONE FIELD */}
             <div className="flex gap-2 relative z-50" dir="ltr">
               <div className="relative">
                 <button 
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }}
-                  className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2 text-white/70 hover:bg-white/10 transition-all min-w-[90px]"
+                  className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2 text-white/70 hover:bg-white/10 transition-all min-w-[100px]"
                 >
                   <span>{selectedCountry.flag}</span>
-                  <span className="text-xs">{selectedCountry.prefix}</span>
+                  <span className="text-xs">{selectedCountry.code}</span>
                   <ChevronDown size={14} className={cn(isCountryOpen && "rotate-180 transition-transform")} />
                 </button>
                 {isCountryOpen && (
@@ -313,13 +311,17 @@ export default function EditProfilePage() {
                 )}
               </div>
               <div className="relative flex-1 flex gap-2">
-                <Input 
-                  type="tel" 
-                  value={phone} 
-                  onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} 
-                  className="h-12 bg-white/5 border-white/10 rounded-xl font-body flex-1" 
-                  placeholder="123456789" 
-                />
+                <div className="relative flex-1">
+                  <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
+                  <Input 
+                    type="tel" 
+                    dir="ltr"
+                    value={phone} 
+                    onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} 
+                    className="h-12 bg-white/5 border-white/10 rounded-xl font-body pl-10 pr-4 text-left" 
+                    placeholder="123456789" 
+                  />
+                </div>
                 {!isPhoneVerified ? (
                   <Button 
                     type="button"
