@@ -36,18 +36,8 @@ import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
 import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc, addDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const COUNTRIES = [
@@ -160,19 +150,6 @@ export default function AdminPage() {
       await sendNotification(userId, "Deposit Approved", `Success! $${amount} has been credited to your vault.`, 'transaction');
       toast({ title: "DEPOSIT APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
-  };
-
-  const handleApproveVerification = async (id: string, userId: string) => {
-    try {
-      await runTransaction(db, async (transaction) => {
-        const verRef = doc(db, 'verifications', id);
-        const userRef = doc(db, 'users', userId);
-        transaction.update(verRef, { status: 'approved' });
-        transaction.update(userRef, { verified: true });
-      });
-      await sendNotification(userId, "Account Verified", "Your entity is now officially verified by FLASH authority.", 'verification');
-      toast({ title: "USER VERIFIED" });
-    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
   const handleUpdateBalance = async (targetUserId: string, currentBalance: number) => {

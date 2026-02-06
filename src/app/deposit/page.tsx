@@ -7,6 +7,7 @@ import { useStore } from '@/app/lib/store';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, Loader2, Wallet, Camera, Check, Info, Landmark, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -32,7 +33,7 @@ export default function DepositPage() {
 
   // Fetch methods based on user's country
   const methodsQuery = useMemo(() => {
-    if (!profile?.country) return null;
+    if (!db || !profile?.country) return null;
     return query(collection(db, 'deposit_methods'), where('country', '==', profile.country), where('isActive', '==', true));
   }, [db, profile?.country]);
   
