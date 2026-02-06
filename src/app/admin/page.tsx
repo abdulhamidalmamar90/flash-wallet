@@ -35,7 +35,7 @@ import {
   Type,
   AlignLeft,
   ListFilter,
-  Image as ImageIcon,
+  ImageIcon,
   Percent,
   Coins,
   Edit2,
@@ -54,7 +54,8 @@ import {
   Hash,
   Filter,
   Unlock,
-  Briefcase
+  Briefcase,
+  Contact
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -1190,7 +1191,7 @@ export default function AdminPage() {
                     {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <div className="text-secondary font-headline font-bold text-xs">{m.country}</div>}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
+                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p clothings-p-8>
                     <p className="text-[8px] text-primary/60 uppercase">1 USD = {m.exchangeRate} {m.currencyCode}</p>
                     <p className="text-[7px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percentage' ? '%' : ' ' + m.currencyCode}</p>
                   </div>
@@ -1220,9 +1221,10 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between gap-2">
                     <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Access Authority:</Label>
                     <Select defaultValue={u.role || 'user'} onValueChange={(val) => handleUpdateRole(u.id, val)}>
-                      <SelectTrigger className="h-8 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase w-[100px] font-headline"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-8 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase w-[120px] font-headline"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">
                         <SelectItem value="user" className="text-[9px] uppercase">User</SelectItem>
+                        <SelectItem value="employee" className="text-[9px] uppercase text-blue-400 font-bold flex items-center gap-1"><Contact size={10} /> Employee</SelectItem>
                         <SelectItem value="agent" className="text-[9px] uppercase text-secondary font-bold flex items-center gap-1"><Briefcase size={10} /> Agent</SelectItem>
                         <SelectItem value="admin" className="text-[9px] uppercase text-primary font-bold">Admin</SelectItem>
                       </SelectContent>
