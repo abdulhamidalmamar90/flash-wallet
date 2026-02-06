@@ -73,8 +73,9 @@ export default function WithdrawPage() {
   
   const { data: allMethods = [], loading: methodsLoading } = useCollection(methodsQuery);
 
+  // Updated filteredMethods to isolate country-specific methods from Global
   const filteredMethods = useMemo(() => {
-    return allMethods.filter((m: any) => m.country === selectedCountry || m.country === 'GL');
+    return allMethods.filter((m: any) => m.country === selectedCountry);
   }, [allMethods, selectedCountry]);
 
   useEffect(() => {
