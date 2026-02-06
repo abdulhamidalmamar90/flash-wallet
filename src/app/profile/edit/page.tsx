@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -25,7 +24,8 @@ import {
   X,
   KeyRound,
   Delete,
-  Fingerprint
+  Fingerprint,
+  Plus
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
