@@ -60,22 +60,35 @@ export default function WithdrawPage() {
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
+  // Fetch all active methods to filter available countries
+  const allMethodsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, 'withdrawal_methods'), where('isActive', '==', true));
+  }, [db]);
+  const { data: allWithdrawMethods = [], loading: initialLoading } = useCollection(allMethodsQuery);
+
+  const availableCountries = useMemo(() => {
+    const codes = new Set(allWithdrawMethods.map((m: any) => m.country));
+    codes.add('CR'); // Always include Crypto as it's a built-in automated gateway
+    return COUNTRIES.filter(c => codes.has(c.code));
+  }, [allWithdrawMethods]);
+
   useEffect(() => {
-    if (profile?.country && !selectedCountry) {
+    if (profile?.country && !selectedCountry && availableCountries.some(c => c.code === profile.country)) {
       setSelectedCountry(profile.country);
     }
-  }, [profile?.country, selectedCountry]);
+  }, [profile?.country, selectedCountry, availableCountries]);
 
   const methodsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, 'withdrawal_methods'), where('isActive', '==', true));
   }, [db]);
   
-  const { data: allMethods = [], loading: methodsLoading } = useCollection(methodsQuery);
+  const { data: allMethodsList = [], loading: methodsLoading } = useCollection(methodsQuery);
 
   const filteredMethods = useMemo(() => {
-    return allMethods.filter((m: any) => m.country === selectedCountry);
-  }, [allMethods, selectedCountry]);
+    return allMethodsList.filter((m: any) => m.country === selectedCountry);
+  }, [allMethodsList, selectedCountry]);
 
   useEffect(() => {
     if (selectedCountry === 'CR' && step === 2) {
@@ -109,7 +122,6 @@ export default function WithdrawPage() {
     } else {
       fee = (local * (selectedMethod.feeValue || 0)) / 100;
     }
-    // Round the net amount to the nearest integer as requested
     return { 
       localAmount: local, 
       fee: fee, 
@@ -133,6 +145,7 @@ export default function WithdrawPage() {
     willReceive: language === 'ar' ? 'المبلغ الذي سيصلك' : 'You will receive',
     cryptoNotice: language === 'ar' ? 'سيصلك المبلغ الذي أدخلته مخصوماً منه 2 دولار (عمولة الشبكة)' : 'You will receive the amount you entered minus $2.00 (Network Fee)',
     localValue: language === 'ar' ? 'القيمة بالعملة المحلية' : 'Local Currency Value',
+    loadingCountries: language === 'ar' ? 'جاري تحميل الدول المتاحة...' : 'Loading available countries...'
   };
 
   const handleInputChange = (label: string, value: string) => {
@@ -229,18 +242,27 @@ ${detailsText}
           <div className="space-y-6 animate-in fade-in zoom-in-95">
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t.selectCountry}</Label>
-              <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setStep(2); }}>
-                <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase font-headline">
-                  <SelectValue placeholder="CHOOSE LOCATION" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-white/10">
-                  {COUNTRIES.map(c => (
-                    <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
-                      {language === 'ar' ? c.ar : c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {initialLoading ? (
+                <div className="h-14 flex items-center justify-center glass-card rounded-2xl">
+                  <Loader2 className="animate-spin h-4 w-4 text-primary mr-2" />
+                  <span className="text-[10px] uppercase font-headline text-muted-foreground">{t.loadingCountries}</span>
+                </div>
+              ) : (
+                <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setStep(2); }}>
+                  <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase font-headline">
+                    <SelectValue placeholder="CHOOSE LOCATION" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    {availableCountries.length === 0 ? (
+                      <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
+                    ) : availableCountries.map(c => (
+                      <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
+                        {language === 'ar' ? c.ar : c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             {selectedCountry && <Button onClick={() => setStep(2)} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl"> {t.nextBtn} </Button>}
           </div>

@@ -61,11 +61,23 @@ export default function DepositPage() {
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
+  // Fetch all active methods to filter available countries
+  const allMethodsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, 'deposit_methods'), where('isActive', '==', true));
+  }, [db]);
+  const { data: allDepositMethods = [], loading: initialLoading } = useCollection(allMethodsQuery);
+
+  const availableCountries = useMemo(() => {
+    const codes = new Set(allDepositMethods.map((m: any) => m.country));
+    return COUNTRIES.filter(c => codes.has(c.code));
+  }, [allDepositMethods]);
+
   useEffect(() => {
-    if (profile?.country && !selectedCountry) {
+    if (profile?.country && !selectedCountry && availableCountries.some(c => c.code === profile.country)) {
       setSelectedCountry(profile.country);
     }
-  }, [profile?.country, selectedCountry]);
+  }, [profile?.country, selectedCountry, availableCountries]);
 
   const methodsQuery = useMemo(() => {
     if (!db || !selectedCountry) return null;
@@ -78,16 +90,17 @@ export default function DepositPage() {
     header: language === 'ar' ? 'إيداع رصيد' : 'Deposit Assets',
     selectCountry: language === 'ar' ? 'اختر الدولة' : 'Select Country',
     selectMethod: language === 'ar' ? 'اختر وسيلة الإيداع' : 'Select Deposit Gateway',
-    noMethods: language === 'ar' ? 'لا تتوفر وسائل إيداع في هذا البلد حالياً' : 'No gateways available for this region',
+    noMethods: language === 'ar' ? 'لا تتوفر وسائل إيداع حالياً' : 'No gateways available',
     amountLabel: language === 'ar' ? 'المبلغ المطلوب إيداعه' : 'Amount to Deposit',
     proofLabel: language === 'ar' ? 'صورة إثبات الدفع' : 'Payment Evidence',
     senderLabel: language === 'ar' ? 'اسم المرسل' : 'Sender Name',
     instructions: language === 'ar' ? 'قم بالتحويل للبيانات المذكورة وارفاق صورة الوصل للمراجعة.' : 'Transfer to the credentials above and attach the receipt for review.',
-    submitBtn: language === 'ar' ? 'إرسال طلب الإيداع' : 'إرسال طلب الإيداع',
+    submitBtn: language === 'ar' ? 'إرسال طلب الإيداع' : 'SUBMIT REQUEST',
     nextBtn: language === 'ar' ? 'استمرار' : 'CONTINUE',
     success: language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Deposit request submitted!',
     error: language === 'ar' ? 'حدث خطأ ما' : 'An error occurred',
-    details: language === 'ar' ? 'بيانات التحويل' : 'Gateway Credentials'
+    details: language === 'ar' ? 'بيانات التحويل' : 'Gateway Credentials',
+    loadingCountries: language === 'ar' ? 'جاري تحميل الدول المتاحة...' : 'Loading available countries...'
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,18 +164,27 @@ export default function DepositPage() {
           <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t.selectCountry}</Label>
-              <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setStep(2); }}>
-                <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase tracking-widest font-headline">
-                  <SelectValue placeholder="CHOOSE COUNTRY" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-white/10">
-                  {COUNTRIES.map(c => (
-                    <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
-                      {language === 'ar' ? c.ar : c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {initialLoading ? (
+                <div className="h-14 flex items-center justify-center glass-card rounded-2xl">
+                  <Loader2 className="animate-spin h-4 w-4 text-primary mr-2" />
+                  <span className="text-[10px] uppercase font-headline text-muted-foreground">{t.loadingCountries}</span>
+                </div>
+              ) : (
+                <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setStep(2); }}>
+                  <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase tracking-widest font-headline">
+                    <SelectValue placeholder="CHOOSE COUNTRY" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    {availableCountries.length === 0 ? (
+                      <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
+                    ) : availableCountries.map(c => (
+                      <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
+                        {language === 'ar' ? c.ar : c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             {selectedCountry && (
                <Button onClick={() => setStep(2)} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest">
