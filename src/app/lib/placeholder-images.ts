@@ -9,9 +9,9 @@ export type ImagePlaceholder = {
 export const PlaceHolderImages: ImagePlaceholder[] = [
   {
     "id": "brand-logo",
-    "description": "Futuristic 3D metallic logo with blue and orange digital circuitry highlights",
-    "imageUrl": "https://images.unsplash.com/photo-1732111816779-aeec50f788ba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxmdXR1cmlzdGljJTIwbG9nb3xlbnwwfHx8fDE3NzAyMTY5NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    "imageHint": "futuristic logo"
+    "description": "Flash Wallet Official Logo",
+    "imageUrl": "https://raw.githubusercontent.com/abdulhamidalmamar90/flash-wallet/main/Flash%20logo/flash_logo%20(6).png",
+    "imageHint": "brand logo"
   },
   {
     "id": "login-bg",

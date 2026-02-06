@@ -17,6 +17,7 @@ import {
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import Image from 'next/image';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ export default function LoginPage() {
   const { language } = useStore();
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
+  const brandLogo = PlaceHolderImages.find(img => img.id === 'brand-logo');
 
   useEffect(() => {
     if (!auth || !db) return;
@@ -170,8 +172,17 @@ export default function LoginPage() {
       </div>
 
       <div className="relative z-10 max-w-sm w-full space-y-8 animate-in fade-in zoom-in-95 duration-1000">
-        <div className="text-center space-y-2">
-          <h1 className="font-headline text-5xl font-black tracking-tighter text-white gold-glow-text">FLASH</h1>
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <div className="relative w-48 h-20 mb-2 gold-glow">
+            <Image 
+              src={brandLogo?.imageUrl || ""} 
+              alt="FLASH" 
+              fill 
+              className="object-contain" 
+              priority 
+              data-ai-hint="brand logo"
+            />
+          </div>
           <p className="text-[10px] text-primary uppercase tracking-[0.5em] font-bold">{t.title}</p>
         </div>
 

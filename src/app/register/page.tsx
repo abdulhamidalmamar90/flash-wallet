@@ -20,6 +20,7 @@ import {
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const COUNTRIES = [
   // Arab Countries
@@ -77,6 +78,7 @@ export default function RegisterPage() {
   const [isCountryOpen, setIsCountryOpen] = useState(false);
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
+  const brandLogo = PlaceHolderImages.find(img => img.id === 'brand-logo');
 
   const generateCustomId = () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -268,8 +270,17 @@ export default function RegisterPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700 overflow-y-auto max-h-[90vh]">
-        <div className="text-center mb-10">
-          <h1 className="font-headline text-5xl font-black text-white mb-2 tracking-tighter text-primary gold-glow-text">FLASH</h1>
+        <div className="text-center mb-10 flex flex-col items-center">
+          <div className="relative w-48 h-20 mb-2 gold-glow">
+            <Image 
+              src={brandLogo?.imageUrl || ""} 
+              alt="FLASH" 
+              fill 
+              className="object-contain" 
+              priority 
+              data-ai-hint="brand logo"
+            />
+          </div>
           <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.3em]">{t.subtitle}</p>
         </div>
 

@@ -13,9 +13,19 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-        hostname: 'picsum.photos',
-        hostname: 'api.qrserver.com',
+        hostname: 'images.unsplash.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos'
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.qrserver.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com'
       }
     ],
   },
