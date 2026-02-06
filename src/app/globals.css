@@ -6,15 +6,15 @@
   :root {
     --background: 53 71% 92%; /* #F5F0CD - Creamy Yellow Background */
     --foreground: 240 10% 4%;
-    --card: 186 81% 83%; /* #B1F0F7 - Soft Cyan Card */
+    --card: 0 0% 100%; /* #FFFFFF - Pure White Card */
     --card-foreground: 240 10% 10%;
-    --popover: 186 81% 83%;
+    --popover: 0 0% 100%;
     --popover-foreground: 240 10% 4%;
     --primary: 45 94% 73%; /* #FADA7A - Vibrant Gold */
     --primary-foreground: 240 10% 10%;
     --secondary: 199 53% 68%; /* #81BFDA - Sky Blue */
     --secondary-foreground: 240 10% 10%;
-    --muted: 186 81% 83%;
+    --muted: 0 0% 100%;
     --muted-foreground: 240 5% 40%;
     --accent: 45 94% 73%;
     --accent-foreground: 240 10% 10%;
