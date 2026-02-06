@@ -11,12 +11,10 @@ import {
   Camera, 
   Check, 
   Loader2,
-  ShieldCheck,
   Mail,
   ChevronDown,
   Smartphone,
-  CheckCircle2,
-  AlertCircle
+  CheckCircle2
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -53,7 +51,7 @@ const COUNTRIES = [
   { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
   { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
   { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
-  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '973' },
+  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
   { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
   { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
   { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
@@ -67,8 +65,10 @@ export default function EditProfilePage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const language = useStore().language;
+  const { language } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const otpInputs = useRef<HTMLInputElement[]>([]);
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
@@ -82,14 +82,12 @@ export default function EditProfilePage() {
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
-  // Phone Verification States
+  // Phone Verification
   const [isOtpOpen, setIsOtpOpen] = useState(false);
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
-  const otpInputs = useRef<HTMLInputElement[]>([]);
-  const recaptchaVerifier = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -123,30 +121,6 @@ export default function EditProfilePage() {
     otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
     validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
     verified: language === 'ar' ? 'موثق' : 'Verified',
-    hostnameError: language === 'ar' ? 'خطأ في التحقق (reCAPTCHA)' : 'Verification Error (reCAPTCHA)',
-    hostnameDesc: language === 'ar' ? 'يرجى التأكد من إضافة النطاق الحالي إلى Authorized Domains في إعدادات Firebase Authentication.' : 'Please ensure current domain is added to Authorized Domains in Firebase Auth settings.'
-  };
-
-  const setupRecaptcha = () => {
-    if (!auth) return;
-    
-    // Clean up old verifier if it exists
-    if (recaptchaVerifier.current) {
-      try {
-        recaptchaVerifier.current.clear();
-      } catch (e) {}
-    }
-
-    try {
-      recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {
-          console.log("reCAPTCHA verified");
-        }
-      });
-    } catch (e) {
-      console.error("reCAPTCHA Init Error", e);
-    }
   };
 
   const handleSendOtp = async () => {
@@ -154,24 +128,23 @@ export default function EditProfilePage() {
     setVerifyingPhone(true);
     
     try {
-      setupRecaptcha();
+      // Create invisible verifier
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-verifier-hidden', {
+        size: 'invisible'
+      });
+      
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
-      const result = await signInWithPhoneNumber(auth, fullPhone, recaptchaVerifier.current!);
+      const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
       setConfirmationResult(result);
       setIsOtpOpen(true);
       toast({ title: language === 'ar' ? "تم إرسال الكود" : "OTP Sent" });
     } catch (error: any) {
-      console.error("OTP Error", error);
-      // Handle cryptic error -39 or hostname errors
-      if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential' || error.message.includes('39')) {
-        toast({ 
-          variant: "destructive", 
-          title: t.hostnameError, 
-          description: t.hostnameDesc 
-        });
-      } else {
-        toast({ variant: "destructive", title: "Error", description: error.message });
-      }
+      console.error("Phone Auth Error", error);
+      toast({ 
+        variant: "destructive", 
+        title: language === 'ar' ? "فشل الإرسال" : "Failed to Send",
+        description: error.message 
+      });
     } finally {
       setVerifyingPhone(false);
     }
@@ -243,8 +216,8 @@ export default function EditProfilePage() {
         <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
       </header>
 
-      {/* Crucial container for invisible reCAPTCHA */}
-      <div id="recaptcha-container"></div>
+      {/* Hidden ReCAPTCHA Anchor */}
+      <div id="recaptcha-verifier-hidden" className="hidden"></div>
 
       <div className="flex flex-col items-center gap-4 py-6">
         <div className="relative group">
@@ -311,6 +284,7 @@ export default function EditProfilePage() {
 
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
+            {/* FORCE LTR FOR PHONE FIELD */}
             <div className="flex gap-2 relative z-50" dir="ltr">
               <div className="relative">
                 <button 
@@ -384,7 +358,7 @@ export default function EditProfilePage() {
         </Button>
       </form>
 
-      {/* Verification OTP Modal */}
+      {/* OTP Verification Modal */}
       <Dialog open={isOtpOpen} onOpenChange={setIsOtpOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader>
