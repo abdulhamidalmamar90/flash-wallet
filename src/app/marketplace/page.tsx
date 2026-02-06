@@ -1,9 +1,9 @@
-
 "use client"
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
   Search, 
   ChevronLeft, 
