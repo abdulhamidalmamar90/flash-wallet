@@ -39,7 +39,6 @@ const AVATARS = [
 ];
 
 const COUNTRIES = [
-  // Arab Countries
   { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
   { code: 'EG', name: 'Egypt', ar: 'مصر' },
   { code: 'AE', name: 'UAE', ar: 'الإمارات' },
@@ -58,7 +57,6 @@ const COUNTRIES = [
   { code: 'BH', name: 'Bahrain', ar: 'البحرين' },
   { code: 'TN', name: 'Tunisia', ar: 'تونس' },
   { code: 'SD', name: 'Sudan', ar: 'السودان' },
-  // Global Countries
   { code: 'US', name: 'USA', ar: 'أمريكا' },
   { code: 'GB', name: 'UK', ar: 'بريطانيا' },
   { code: 'CA', name: 'Canada', ar: 'كندا' },
@@ -194,7 +192,7 @@ export default function EditProfilePage() {
 
     setVerifLoading(true);
     try {
-      await addDoc(collection(db, 'verifications'), {
+      const docRef = await addDoc(collection(db, 'verifications'), {
         userId: user.uid,
         username: profile.username,
         status: 'pending',
@@ -207,7 +205,7 @@ export default function EditProfilePage() {
         }
       });
 
-      // Telegram Photo Notification for KYC
+      // Telegram Photo Notification for KYC with Buttons
       await sendTelegramPhoto(verifDocImage, `
 🛡️ <b>New KYC Verification Request</b>
 ━━━━━━━━━━━━━━━━
@@ -217,7 +215,14 @@ export default function EditProfilePage() {
 <b>Doc Type:</b> ${verifDocType.toUpperCase()}
 <b>Doc Number:</b> <code>${verifDocNumber}</code>
 <b>Date:</b> ${new Date().toLocaleString()}
-      `);
+      `, {
+        inline_keyboard: [
+          [
+            { text: "✅ Approve", callback_data: `app_ver_${docRef.id}` },
+            { text: "❌ Reject", callback_data: `rej_ver_${docRef.id}` }
+          ]
+        ]
+      });
 
       toast({ title: "Request Sent", description: t.verifPendingDesc });
     } catch (error: any) {

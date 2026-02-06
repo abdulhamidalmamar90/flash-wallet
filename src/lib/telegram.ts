@@ -1,14 +1,13 @@
 'use client';
 
 /**
- * @fileOverview Telegram Notification Service
- * Sends automated alerts for critical financial operations including photo support.
+ * @fileOverview Telegram Notification Service with Interactive Buttons support.
  */
 
 const TELEGRAM_TOKEN = '8236708164:AAHi0AYmvf3_IJEpYAgug-GYdf4O9AkvZY4';
 const TELEGRAM_CHAT_ID = '7306867055';
 
-export async function sendTelegramNotification(message: string) {
+export async function sendTelegramNotification(message: string, replyMarkup?: any) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   
   try {
@@ -21,6 +20,7 @@ export async function sendTelegramNotification(message: string) {
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
         parse_mode: 'HTML',
+        reply_markup: replyMarkup,
       }),
     });
   } catch (error) {
@@ -28,11 +28,10 @@ export async function sendTelegramNotification(message: string) {
   }
 }
 
-export async function sendTelegramPhoto(base64Image: string, caption: string) {
+export async function sendTelegramPhoto(base64Image: string, caption: string, replyMarkup?: any) {
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`;
   
   try {
-    // Convert data URI to Blob
     const fetchResponse = await fetch(base64Image);
     const blob = await fetchResponse.blob();
     
@@ -41,6 +40,9 @@ export async function sendTelegramPhoto(base64Image: string, caption: string) {
     formData.append('photo', blob, 'evidence.jpg');
     formData.append('caption', caption);
     formData.append('parse_mode', 'HTML');
+    if (replyMarkup) {
+      formData.append('reply_markup', JSON.stringify(replyMarkup));
+    }
 
     await fetch(url, {
       method: 'POST',

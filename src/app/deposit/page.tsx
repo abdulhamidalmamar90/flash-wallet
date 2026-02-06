@@ -14,10 +14,8 @@ import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
 import { collection, doc, addDoc, query, where } from 'firebase/firestore';
 import { sendTelegramPhoto } from '@/lib/telegram';
-import Link from 'next/link';
 
 const COUNTRIES = [
-  // Arab Countries
   { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
   { code: 'EG', name: 'Egypt', ar: 'مصر' },
   { code: 'AE', name: 'UAE', ar: 'الإمارات' },
@@ -36,7 +34,6 @@ const COUNTRIES = [
   { code: 'BH', name: 'Bahrain', ar: 'البحرين' },
   { code: 'TN', name: 'Tunisia', ar: 'تونس' },
   { code: 'SD', name: 'Sudan', ar: 'السودان' },
-  // Global Countries
   { code: 'US', name: 'USA', ar: 'أمريكا' },
   { code: 'GB', name: 'UK', ar: 'بريطانيا' },
   { code: 'CA', name: 'Canada', ar: 'كندا' },
@@ -117,7 +114,7 @@ export default function DepositPage() {
 
     setLoading(true);
     try {
-      await addDoc(collection(db, 'deposits'), {
+      const docRef = await addDoc(collection(db, 'deposits'), {
         userId: user.uid,
         username: profile.username,
         senderName: senderName || profile.username,
@@ -128,7 +125,7 @@ export default function DepositPage() {
         date: new Date().toISOString()
       });
 
-      // Telegram Photo Notification
+      // Telegram Notification with Buttons
       await sendTelegramPhoto(proofImage, `
 💰 <b>New Deposit Request</b>
 ━━━━━━━━━━━━━━━━
@@ -139,7 +136,14 @@ export default function DepositPage() {
 <b>Sender:</b> ${senderName || profile.username}
 <b>Country:</b> ${selectedCountry}
 <b>Date:</b> ${new Date().toLocaleString()}
-      `);
+      `, {
+        inline_keyboard: [
+          [
+            { text: "✅ Approve", callback_data: `app_dep_${docRef.id}` },
+            { text: "❌ Reject", callback_data: `rej_dep_${docRef.id}` }
+          ]
+        ]
+      });
 
       toast({ title: t.success });
       router.push('/dashboard');

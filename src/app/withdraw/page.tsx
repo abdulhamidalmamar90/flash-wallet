@@ -62,11 +62,13 @@ export default function WithdrawPage() {
     
     setLoading(true);
     try {
+      let globalWithdrawId = "";
       await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', user.uid);
         transaction.update(userRef, { balance: increment(-amountNum) });
         
         const globalWithdrawRef = doc(collection(db, 'withdrawals'));
+        globalWithdrawId = globalWithdrawRef.id;
         transaction.set(globalWithdrawRef, {
           userId: user.uid,
           username: profile.username,
@@ -86,7 +88,7 @@ export default function WithdrawPage() {
         });
       });
 
-      // Telegram Notification
+      // Telegram Notification with Buttons
       const detailsText = type === 'bank' 
         ? `🏦 <b>Bank Details:</b>\n- Name: ${accountName}\n- IBAN: <code>${iban}</code>`
         : `⚡ <b>Crypto Details:</b>\n- Network: ${network}\n- Address: <code>${walletAddress}</code>`;
@@ -100,7 +102,14 @@ export default function WithdrawPage() {
 <b>Method:</b> ${type.toUpperCase()}
 ${detailsText}
 <b>Date:</b> ${new Date().toLocaleString()}
-      `);
+      `, {
+        inline_keyboard: [
+          [
+            { text: "✅ Approve", callback_data: `app_wit_${globalWithdrawId}` },
+            { text: "❌ Reject", callback_data: `rej_wit_${globalWithdrawId}` }
+          ]
+        ]
+      });
 
       toast({ title: "REQUEST PENDING", description: `Your $${amount} withdrawal request has been submitted for approval.` });
       router.push('/dashboard');
