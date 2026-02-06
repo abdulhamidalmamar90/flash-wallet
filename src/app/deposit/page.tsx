@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -229,7 +230,7 @@ export default function DepositPage() {
                 <span className="text-[8px] text-muted-foreground uppercase">{t.details}</span>
               </div>
               <div className="p-6 bg-background/50 rounded-2xl border border-white/5 text-center space-y-2">
-                <p className="text-xl font-headline font-black text-white tracking-widest break-all">{selectedMethod.details}</p>
+                <p className="text-xl font-headline font-black text-white tracking-widest break-all whitespace-pre-wrap">{selectedMethod.details}</p>
                 <p className="text-[8px] text-muted-foreground uppercase font-black tracking-tighter">Copy data exactly as shown</p>
               </div>
             </div>

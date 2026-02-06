@@ -37,6 +37,7 @@ import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
 import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc, addDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -352,7 +353,7 @@ export default function AdminPage() {
         <TabsContent value="config" className="space-y-6">
           <div className="glass-card p-6 rounded-[2rem] border-primary/10 space-y-6">
             <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Database size={14} /> Deposit Infrastructure</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
                 <Select onValueChange={setNewMethodCountry}>
@@ -364,9 +365,14 @@ export default function AdminPage() {
                 <Label className="text-[8px] uppercase tracking-widest">Service Name</Label>
                 <Input placeholder="E.G. INSTAPAY" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodName} onChange={(e) => setNewMethodName(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest">Payment Data</Label>
-                <Input placeholder="ACCOUNT / WALLET #" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodDetails} onChange={(e) => setNewMethodDetails(e.target.value)} />
+              <div className="space-y-2 lg:col-span-1">
+                <Label className="text-[8px] uppercase tracking-widest">Payment Data (Multi-line)</Label>
+                <Textarea 
+                  placeholder="ACCOUNT / WALLET / IBAN DETAILS" 
+                  className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" 
+                  value={newMethodDetails} 
+                  onChange={(e) => setNewMethodDetails(e.target.value)} 
+                />
               </div>
             </div>
             <button onClick={handleAddDepositMethod} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy New Method</button>
@@ -375,14 +381,14 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {depositMethods.map((m: any) => (
               <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-headline font-bold text-xs">{m.country}</div>
-                  <div>
-                    <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest">{m.details}</p>
+                <div className="flex items-center gap-4 flex-1 mr-4">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-headline font-bold text-xs shrink-0">{m.country}</div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
+                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest whitespace-pre-line line-clamp-2">{m.details}</p>
                   </div>
                 </div>
-                <button onClick={() => handleDeleteMethod(m.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                <button onClick={() => handleDeleteMethod(m.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors shrink-0"><Trash2 size={16} /></button>
               </div>
             ))}
           </div>
