@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Loader2, Wallet, Camera, Check, Info, Landmark, QrCode } from 'lucide-react';
+import { ChevronLeft, Loader2, Wallet, Camera, Check, Info, Landmark, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
 import { collection, doc, addDoc, query, where } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function DepositPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function DepositPage() {
   const { language } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [step, setStep] = useState(1); // 1: Select Method, 2: Details & Proof
+  const [step, setStep] = useState(1); 
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [amount, setAmount] = useState('');
   const [proofImage, setProofImage] = useState<string | null>(null);
@@ -31,7 +32,6 @@ export default function DepositPage() {
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  // Fetch methods based on user's country
   const methodsQuery = useMemo(() => {
     if (!db || !profile?.country) return null;
     return query(collection(db, 'deposit_methods'), where('country', '==', profile.country), where('isActive', '==', true));
@@ -43,6 +43,8 @@ export default function DepositPage() {
     header: language === 'ar' ? 'إيداع رصيد' : 'Deposit Assets',
     selectMethod: language === 'ar' ? 'اختر وسيلة الإيداع' : 'Select Deposit Gateway',
     noMethods: language === 'ar' ? 'لا تتوفر وسائل إيداع في بلدك حالياً' : 'No gateways available for your region',
+    noCountry: language === 'ar' ? 'يرجى تحديد بلدك أولاً من الإعدادات' : 'Please select your country in profile settings first',
+    goToSettings: language === 'ar' ? 'اذهب للإعدادات' : 'GO TO SETTINGS',
     amountLabel: language === 'ar' ? 'المبلغ المطلوب إيداعه' : 'Amount to Deposit',
     proofLabel: language === 'ar' ? 'صورة إثبات الدفع' : 'Payment Evidence',
     instructions: language === 'ar' ? 'قم بالتحويل للبيانات المذكورة وارفاق صورة الوصل للمراجعة.' : 'Transfer to the credentials above and attach the receipt for review.',
@@ -101,11 +103,25 @@ export default function DepositPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{t.selectMethod}</h2>
-            <Badge variant="outline" className="text-[8px] uppercase tracking-widest border-primary/20 text-primary">{profile?.country || 'GLOBAL'}</Badge>
+            {profile?.country ? (
+              <Badge variant="outline" className="text-[8px] uppercase tracking-widest border-primary/20 text-primary">{profile.country}</Badge>
+            ) : (
+              <Badge variant="destructive" className="text-[8px] uppercase tracking-widest">{language === 'ar' ? 'دولة غير محددة' : 'NO COUNTRY'}</Badge>
+            )}
           </div>
           
           <div className="grid grid-cols-1 gap-4">
-            {methods.length === 0 ? (
+            {!profile?.country ? (
+              <div className="glass-card p-10 rounded-3xl text-center space-y-6">
+                <Info className="mx-auto text-muted-foreground" size={32} />
+                <p className="text-[10px] font-headline font-bold uppercase text-muted-foreground leading-relaxed">{t.noCountry}</p>
+                <Link href="/profile/edit">
+                  <Button className="h-12 bg-primary text-background rounded-xl font-headline font-bold text-[9px] tracking-widest uppercase">
+                    <Settings className="mr-2 h-4 w-4" /> {t.goToSettings}
+                  </Button>
+                </Link>
+              </div>
+            ) : methods.length === 0 ? (
               <div className="glass-card p-10 rounded-3xl text-center space-y-4">
                 <Info className="mx-auto text-muted-foreground" size={32} />
                 <p className="text-[10px] font-headline font-bold uppercase text-muted-foreground">{t.noMethods}</p>

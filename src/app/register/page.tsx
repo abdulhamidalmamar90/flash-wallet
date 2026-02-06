@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, User, Phone, ArrowRight, Loader2, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, Loader2, ChevronDown, Eye, EyeOff, Globe } from 'lucide-react';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
@@ -85,7 +85,6 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Check if email already exists in Firestore
       const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
       const emailSnap = await getDocs(q);
       if (!emailSnap.empty) {
@@ -103,6 +102,7 @@ export default function RegisterPage() {
         username: cleanUsername,
         email: cleanEmail,
         phone: `${selectedCountry.prefix}${phone.trim()}`,
+        country: selectedCountry.code,
         customId: generateCustomId(),
         balance: 0,
         role: 'user',
@@ -140,24 +140,22 @@ export default function RegisterPage() {
       const result = await signInWithPopup(auth, provider);
       const googleEmail = result.user.email?.toLowerCase();
       
-      // 1. First check if this email already exists in our Firestore
       const q = query(collection(db, 'users'), where('email', '==', googleEmail));
       const emailSnap = await getDocs(q);
       
       if (!emailSnap.empty) {
-        // User already has an account, redirect to dashboard
         toast({
           title: language === 'ar' ? "أهلاً بك مجدداً" : "Welcome Back",
           description: language === 'ar' ? "جاري تحويلك للمحفظة..." : "Redirecting to vault..."
         });
         router.push('/dashboard');
       } else {
-        // 2. New User, create document
         const userDoc = doc(db, 'users', result.user.uid);
         await setDoc(userDoc, {
           username: result.user.displayName || 'User',
           email: googleEmail,
           phone: '',
+          country: selectedCountry.code,
           customId: generateCustomId(),
           balance: 0,
           role: 'user',
@@ -189,7 +187,7 @@ export default function RegisterPage() {
 
       <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700 overflow-y-auto max-h-[90vh]">
         <div className="text-center mb-10">
-          <h1 className="font-headline text-5xl font-black text-white mb-2 tracking-tighter">FLASH</h1>
+          <h1 className="font-headline text-5xl font-black text-white mb-2 tracking-tighter text-primary gold-glow-text">FLASH</h1>
           <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.3em]">{t.subtitle}</p>
         </div>
 
@@ -223,9 +221,10 @@ export default function RegisterPage() {
               <button 
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }}
-                className="h-full bg-white/5 border border-white/10 rounded-2xl px-3 flex items-center gap-2 text-white/70 hover:bg-white/10 transition-all"
+                className="h-full bg-white/5 border border-white/10 rounded-2xl px-3 flex items-center gap-2 text-white/70 hover:bg-white/10 transition-all min-w-[100px]"
               >
                 <span>{selectedCountry.flag}</span>
+                <span className="text-xs">{selectedCountry.code}</span>
                 <ChevronDown size={14} className={cn(isCountryOpen && "rotate-180 transition-transform")} />
               </button>
               {isCountryOpen && (
@@ -284,7 +283,7 @@ export default function RegisterPage() {
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10"></span></div>
-          <div className="relative flex justify-center"><span className="bg-transparent px-3 text-[9px] text-white/40 uppercase tracking-widest font-bold">{t.social}</span></div>
+          <div className="relative flex justify-center"><span className="bg-[#0b0b0d] px-3 text-[9px] text-white/40 uppercase tracking-widest font-bold">{t.social}</span></div>
         </div>
 
         <button onClick={handleGoogleLogin} disabled={loading} className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all group disabled:opacity-50">

@@ -68,6 +68,7 @@ export default function EditProfilePage() {
   const pendingRequest = verifRequests?.find(r => r.status === 'pending');
 
   const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
@@ -83,6 +84,7 @@ export default function EditProfilePage() {
   useEffect(() => {
     if (profile) {
       setPhone(profile.phone || '');
+      setCountry(profile.country || '');
       setSelectedAvatar(profile.avatarUrl || AVATARS[0]);
       setBiometricsEnabled(profile.biometricsEnabled || false);
     }
@@ -92,6 +94,7 @@ export default function EditProfilePage() {
     header: language === 'ar' ? 'تعديل الحساب' : 'Edit Profile',
     emailLabel: language === 'ar' ? 'البريد الإلكتروني (لا يمكن تعديله)' : 'Email Address (Read-only)',
     phoneLabel: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
+    countryLabel: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
     passLabel: language === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
     passPlaceholder: language === 'ar' ? 'اتركه فارغاً إذا لا تريد التغيير' : 'Leave blank to keep current',
     biometricLabel: language === 'ar' ? 'تفعيل الدخول بالبصمة' : 'Enable Fingerprint Login',
@@ -103,7 +106,6 @@ export default function EditProfilePage() {
     uploadLabel: language === 'ar' ? 'رفع صورة' : 'Upload Image',
     imageTooLarge: language === 'ar' ? 'حجم الصورة كبير جداً (الأقصى 1 ميجا)' : 'Image size too large (Max 1MB)',
     verifHeader: language === 'ar' ? 'توثيق الهوية (KYC)' : 'Identity Verification (KYC)',
-    countryLabel: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
     docTypeLabel: language === 'ar' ? 'نوع الوثيقة' : 'Document Type',
     docNumberLabel: language === 'ar' ? 'رقم الوثيقة' : 'Document Number',
     docImageLabel: language === 'ar' ? 'صورة الوثيقة' : 'Document Photo',
@@ -137,6 +139,7 @@ export default function EditProfilePage() {
     try {
       await updateDoc(doc(db, 'users', user.uid), {
         phone: phone.trim(),
+        country: country,
         avatarUrl: selectedAvatar,
         biometricsEnabled,
       });
@@ -242,6 +245,22 @@ export default function EditProfilePage() {
               <Phone className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} placeholder="+201234567890" />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.countryLabel}</Label>
+            <Select value={country} onValueChange={setCountry}>
+              <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase">
+                <SelectValue placeholder="SELECT COUNTRY" />
+              </SelectTrigger>
+              <SelectContent className="bg-card border-white/10">
+                {COUNTRIES.map(c => (
+                  <SelectItem key={c.code} value={c.code} className="font-headline text-[10px] uppercase">
+                    {language === 'ar' ? c.ar : c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
