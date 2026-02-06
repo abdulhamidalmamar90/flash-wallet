@@ -6,7 +6,14 @@ import { useRouter } from 'next/navigation';
 import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { 
+  signInWithEmailAndPassword, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithRedirect, 
+  getRedirectResult,
+  signOut 
+} from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -27,6 +34,40 @@ export default function LoginPage() {
   const { language } = useStore();
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
+
+  // Handle Redirect Result for Mobile/WebView environments
+  useEffect(() => {
+    if (!auth || !db) return;
+
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          setLoading(true);
+          const googleEmail = result.user.email?.toLowerCase();
+          const q = query(collection(db, 'users'), where('email', '==', googleEmail));
+          const snap = await getDocs(q);
+          
+          if (snap.empty) {
+            await signOut(auth);
+            toast({
+              variant: "destructive",
+              title: language === 'ar' ? "حساب غير موجود" : "Account Missing",
+              description: language === 'ar' ? 'عذراً، هذا الحساب غير مسجل لدينا. يرجى إنشاء حساب أولاً.' : 'Account not found. Please register first.'
+            });
+          } else {
+            router.push('/dashboard');
+          }
+        }
+      } catch (error: any) {
+        console.error("Redirect Auth Error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkRedirect();
+  }, [auth, db, router, toast, language]);
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -50,7 +91,6 @@ export default function LoginPage() {
     e.preventDefault();
     if (!auth) return;
     
-    // Use strictly cleaned data for production
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
@@ -79,22 +119,33 @@ export default function LoginPage() {
     if (!auth || !db) return;
     setLoading(true);
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const googleEmail = result.user.email?.toLowerCase();
+    
+    // Detect if we are in a WebView/Mobile environment
+    const isWebView = typeof window !== 'undefined' && 
+      ((window as any).Capacitor?.isNativePlatform || /WV|WebView|Android/i.test(navigator.userAgent));
 
-      const q = query(collection(db, 'users'), where('email', '==', googleEmail));
-      const snap = await getDocs(q);
-      
-      if (snap.empty) {
-        await signOut(auth);
-        toast({
-          variant: "destructive",
-          title: language === 'ar' ? "حساب غير موجود" : "Account Missing",
-          description: t.noAccountFound
-        });
+    try {
+      if (isWebView) {
+        // Use Redirect for WebViews to bypass popup block
+        await signInWithRedirect(auth, provider);
       } else {
-        router.push('/dashboard');
+        // Use Popup for standard browsers
+        const result = await signInWithPopup(auth, provider);
+        const googleEmail = result.user.email?.toLowerCase();
+
+        const q = query(collection(db, 'users'), where('email', '==', googleEmail));
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
+          await signOut(auth);
+          toast({
+            variant: "destructive",
+            title: language === 'ar' ? "حساب غير موجود" : "Account Missing",
+            description: t.noAccountFound
+          });
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error: any) {
       toast({ 
@@ -103,7 +154,7 @@ export default function LoginPage() {
         description: error.message 
       });
     } finally {
-      setLoading(false);
+      if (!isWebView) setLoading(false);
     }
   };
 

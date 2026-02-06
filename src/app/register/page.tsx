@@ -9,7 +9,14 @@ import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { useAuth, useFirestore, useUser } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider, 
+  signOut 
+} from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -71,6 +78,55 @@ export default function RegisterPage() {
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
 
+  const generateCustomId = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const firstLetter = letters.charAt(Math.floor(Math.random() * letters.length));
+    const numbers = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
+    return `${firstLetter}${numbers}`;
+  };
+
+  // Handle Redirect Result for Mobile/WebView
+  useEffect(() => {
+    if (!auth || !db) return;
+
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          setLoading(true);
+          const googleEmail = result.user.email?.toLowerCase();
+          const q = query(collection(db, 'users'), where('email', '==', googleEmail));
+          const emailSnap = await getDocs(q);
+          
+          if (!emailSnap.empty) {
+            router.push('/dashboard');
+          } else {
+            const userDoc = doc(db, 'users', result.user.uid);
+            await setDoc(userDoc, {
+              username: result.user.displayName || 'User',
+              email: googleEmail,
+              phone: '',
+              country: 'US', // Default or detected
+              customId: generateCustomId(),
+              balance: 0,
+              role: 'user',
+              verified: false,
+              language: language,
+              createdAt: new Date().toISOString()
+            });
+            router.push('/dashboard');
+          }
+        }
+      } catch (error: any) {
+        console.error("Redirect Auth Error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkRedirect();
+  }, [auth, db, router, language]);
+
   useEffect(() => {
     if (user && !authLoading) {
       router.push('/dashboard');
@@ -92,13 +148,6 @@ export default function RegisterPage() {
     emailInUse: language === 'ar' ? 'البريد الإلكتروني مستخدم بالفعل.' : 'Email already in use.',
     weakPassword: language === 'ar' ? 'كلمة المرور ضعيفة جداً.' : 'Password is too weak.',
     accountExists: language === 'ar' ? 'هذا الحساب موجود بالفعل، يرجى تسجيل الدخول.' : 'This account already exists. Please login.',
-  };
-
-  const generateCustomId = () => {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const firstLetter = letters.charAt(Math.floor(Math.random() * letters.length));
-    const numbers = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
-    return `${firstLetter}${numbers}`;
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -165,34 +214,38 @@ export default function RegisterPage() {
     if (!auth || !db) return;
     setLoading(true);
     const provider = new GoogleAuthProvider();
+    
+    const isWebView = typeof window !== 'undefined' && 
+      ((window as any).Capacitor?.isNativePlatform || /WV|WebView|Android/i.test(navigator.userAgent));
+
     try {
-      const result = await signInWithPopup(auth, provider);
-      const googleEmail = result.user.email?.toLowerCase();
-      
-      const q = query(collection(db, 'users'), where('email', '==', googleEmail));
-      const emailSnap = await getDocs(q);
-      
-      if (!emailSnap.empty) {
-        toast({
-          title: language === 'ar' ? "أهلاً بك مجدداً" : "Welcome Back",
-          description: language === 'ar' ? "جاري تحويلك للمحفظة..." : "Redirecting to vault..."
-        });
-        router.push('/dashboard');
+      if (isWebView) {
+        await signInWithRedirect(auth, provider);
       } else {
-        const userDoc = doc(db, 'users', result.user.uid);
-        await setDoc(userDoc, {
-          username: result.user.displayName || 'User',
-          email: googleEmail,
-          phone: '',
-          country: selectedCountry.code,
-          customId: generateCustomId(),
-          balance: 0,
-          role: 'user',
-          verified: false,
-          language: language,
-          createdAt: new Date().toISOString()
-        });
-        router.push('/dashboard');
+        const result = await signInWithPopup(auth, provider);
+        const googleEmail = result.user.email?.toLowerCase();
+        
+        const q = query(collection(db, 'users'), where('email', '==', googleEmail));
+        const emailSnap = await getDocs(q);
+        
+        if (!emailSnap.empty) {
+          router.push('/dashboard');
+        } else {
+          const userDoc = doc(db, 'users', result.user.uid);
+          await setDoc(userDoc, {
+            username: result.user.displayName || 'User',
+            email: googleEmail,
+            phone: '',
+            country: selectedCountry.code,
+            customId: generateCustomId(),
+            balance: 0,
+            role: 'user',
+            verified: false,
+            language: language,
+            createdAt: new Date().toISOString()
+          });
+          router.push('/dashboard');
+        }
       }
     } catch (error: any) {
       toast({
@@ -201,7 +254,7 @@ export default function RegisterPage() {
         description: error.message
       });
     } finally {
-      setLoading(false);
+      if (!isWebView) setLoading(false);
     }
   };
 
