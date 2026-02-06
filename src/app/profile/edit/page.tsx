@@ -57,7 +57,6 @@ const COUNTRIES = [
   { code: 'YE', name: 'Yemen', ar: 'اليمن' },
   { code: 'BH', name: 'Bahrain', ar: 'البحرين' },
   { code: 'TN', name: 'Tunisia', ar: 'تونس' },
-  { code: 'TN', name: 'Tunisia', ar: 'تونس' },
   { code: 'SD', name: 'Sudan', ar: 'السودان' },
   // Global Countries
   { code: 'US', name: 'USA', ar: 'أمريكا' },
@@ -265,7 +264,7 @@ export default function EditProfilePage() {
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.emailLabel}</Label>
             <div className="relative group">
               <Mail className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} />
-              <Input value={profile?.email || ''} disabled className={cn("h-12 bg-white/5 border-white/5 rounded-xl opacity-60", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
+              <Input value={profile?.email || ''} disabled className={cn("h-12 bg-white/5 border-white/5 rounded-xl opacity-60 font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
             </div>
           </div>
 
@@ -273,19 +272,27 @@ export default function EditProfilePage() {
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
             <div className="relative group">
               <Phone className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} placeholder="+201234567890" />
+              <Input 
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                className={cn("h-12 bg-white/5 border-white/10 rounded-xl font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} 
+                placeholder="+201234567890" 
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.countryLabel}</Label>
             <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase">
+              <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-body text-[12px]">
                 <SelectValue placeholder="SELECT COUNTRY" />
               </SelectTrigger>
               <SelectContent className="bg-card border-white/10">
                 {COUNTRIES.map(c => (
-                  <SelectItem key={c.code} value={c.code} className="font-headline text-[10px] uppercase">
+                  <SelectItem key={c.code} value={c.code} className="font-body text-[12px] uppercase">
                     {language === 'ar' ? c.ar : c.name}
                   </SelectItem>
                 ))}
@@ -297,7 +304,16 @@ export default function EditProfilePage() {
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.passLabel}</Label>
             <div className="relative group">
               <Lock className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={cn("h-12 bg-white/5 border-white/10 rounded-xl", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} placeholder={t.passPlaceholder} />
+              <Input 
+                type="password" 
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)} 
+                className={cn("h-12 bg-white/5 border-white/10 rounded-xl font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} 
+                placeholder={t.passPlaceholder} 
+              />
             </div>
           </div>
 
@@ -345,8 +361,8 @@ export default function EditProfilePage() {
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.countryLabel}</Label>
               <Select onValueChange={setVerifCountry}>
-                <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase"><SelectValue placeholder="SELECT COUNTRY" /></SelectTrigger>
-                <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="font-headline text-[10px] uppercase">{language === 'ar' ? c.ar : c.name}</SelectItem>))}</SelectContent>
+                <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-body text-[12px]"><SelectValue placeholder="SELECT COUNTRY" /></SelectTrigger>
+                <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="font-body text-[12px] uppercase">{language === 'ar' ? c.ar : c.name}</SelectItem>))}</SelectContent>
               </Select>
             </div>
 
@@ -360,7 +376,15 @@ export default function EditProfilePage() {
 
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docNumberLabel}</Label>
-              <Input value={verifDocNumber} onChange={(e) => setVerifDocNumber(e.target.value)} placeholder="EX: A123456789" className="h-12 bg-white/5 border-white/10 rounded-xl font-headline text-[10px] uppercase" />
+              <Input 
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck="false"
+                value={verifDocNumber} 
+                onChange={(e) => setVerifDocNumber(e.target.value)} 
+                placeholder="EX: A123456789" 
+                className="h-12 bg-white/5 border-white/10 rounded-xl font-body text-[12px] uppercase" 
+              />
             </div>
 
             <div className="space-y-2">

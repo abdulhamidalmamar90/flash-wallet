@@ -50,6 +50,7 @@ export default function LoginPage() {
     e.preventDefault();
     if (!auth) return;
     
+    // Use strictly cleaned data for production
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
@@ -60,7 +61,7 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
     } catch (error: any) {
       let errorMessage = error.message;
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
         errorMessage = language === 'ar' 
           ? "بيانات الدخول غير صحيحة. تأكد من البريد وكلمة المرور." 
           : "Invalid credentials. Please check your email and password.";
@@ -140,7 +141,7 @@ export default function LoginPage() {
                   autoCorrect="off"
                   spellCheck="false"
                   placeholder={t.email} 
-                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[13px] font-body tracking-wider text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
+                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[14px] font-body tracking-wider text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
@@ -155,7 +156,7 @@ export default function LoginPage() {
                   autoCorrect="off"
                   spellCheck="false"
                   placeholder={t.password} 
-                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[13px] font-body tracking-wider text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
+                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[14px] font-body tracking-wider text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
