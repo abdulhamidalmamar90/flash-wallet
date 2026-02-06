@@ -1,9 +1,11 @@
+
 import type {Metadata, Viewport} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageHandler } from "@/components/layout/LanguageHandler";
 import { ThemeHandler } from "@/components/layout/ThemeHandler";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { BottomNav } from '@/components/layout/BottomNav';
 
 export const metadata: Metadata = {
   title: 'FLASH | Premium Digital Bank',
@@ -40,8 +42,11 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <LanguageHandler />
           <ThemeHandler />
-          <main className="min-h-screen page-fade">
-            {children}
+          <main className="min-h-screen">
+            <div className="page-fade">
+              {children}
+            </div>
+            <BottomNav />
           </main>
           <Toaster />
         </FirebaseClientProvider>

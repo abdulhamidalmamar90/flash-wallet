@@ -46,7 +46,6 @@ import {
   addDoc 
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { BottomNav } from '@/components/layout/BottomNav';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -56,13 +55,12 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const { language, toggleLanguage } = useStore();
+  const { language, toggleLanguage, isScannerOpen, setScannerOpen } = useStore();
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
   const [recipientName, setRecipientName] = useState<string | null>(null);
@@ -110,13 +108,11 @@ export default function Dashboard() {
     const stopScanner = async () => {
       if (scannerRef.current) {
         try {
-          // Check if it's currently scanning to avoid "already under transition" errors
-          if (scannerRef.current.getState() === 2) { // 2 means SCANNING
+          if (scannerRef.current.getState() === 2) { 
             await scannerRef.current.stop();
           }
           await scannerRef.current.clear();
         } catch (e) {
-          // Silently handle transition errors as they are common and often non-fatal for UI
           console.warn("Scanner cleanup warning:", e);
         } finally {
           scannerRef.current = null;
@@ -128,7 +124,6 @@ export default function Dashboard() {
       if (isStartingScanner.current) return;
       isStartingScanner.current = true;
 
-      // Small delay to ensure Dialog and its contents are mounted in DOM
       await new Promise(resolve => setTimeout(resolve, 600));
       
       if (!isMounted || !isScannerOpen) {
@@ -143,7 +138,7 @@ export default function Dashboard() {
       }
 
       try {
-        await stopScanner(); // Clean up any existing instances first
+        await stopScanner(); 
         
         const html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
@@ -154,16 +149,16 @@ export default function Dashboard() {
           (decodedText) => {
             if (!isMounted) return;
             setRecipient(decodedText.toUpperCase());
-            setIsScannerOpen(false);
+            setScannerOpen(false);
             setIsSendModalOpen(true);
             toast({ title: language === 'ar' ? "تم التعرف على الكود" : "ID DETECTED" });
           },
-          () => {} // Silent on scan failure (it fires constantly)
+          () => {} 
         );
       } catch (err) {
         console.error("Scanner start error:", err);
         if (isMounted) {
-          setIsScannerOpen(false);
+          setScannerOpen(false);
           toast({ 
             variant: "destructive", 
             title: language === 'ar' ? "خطأ في الكاميرا" : "CAMERA ERROR", 
@@ -185,7 +180,7 @@ export default function Dashboard() {
       isMounted = false;
       stopScanner();
     };
-  }, [isScannerOpen, language, toast]);
+  }, [isScannerOpen, language, toast, setScannerOpen]);
 
   const copyId = () => {
     if (profile?.customId) {
@@ -205,9 +200,8 @@ export default function Dashboard() {
       const snap = await getDocs(q);
       if (snap.empty) { setIsSending(false); return; }
 
-      const recipientDoc = snap.docs[0];
-      const recipientId = recipientDoc.id;
-      const recipientData = recipientDoc.data();
+      const recipientId = snap.docs[0].id;
+      const recipientData = snap.docs[0].data();
 
       await runTransaction(db, async (transaction) => {
         const senderRef = doc(db, 'users', user.uid);
@@ -249,7 +243,7 @@ export default function Dashboard() {
   if (!mounted || authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-32 page-fade">
+    <div className="min-h-screen bg-background text-foreground pb-32">
       <header className="flex justify-between items-center px-8 py-10">
         <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-4 group">
           <div className={cn(
@@ -330,10 +324,8 @@ export default function Dashboard() {
         </section>
       </main>
 
-      <BottomNav onScanClick={() => setIsScannerOpen(true)} />
-
       {/* QR Scanner Dialog */}
-      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+      <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-4 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader>
             <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">
@@ -352,7 +344,7 @@ export default function Dashboard() {
             {language === 'ar' ? 'وجه الكاميرا نحو رمز QR للمستلم' : 'POINT CAMERA AT RECIPIENT QR CODE'}
           </p>
           <button 
-            onClick={() => setIsScannerOpen(false)} 
+            onClick={() => setScannerOpen(false)} 
             className="mt-6 w-full h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all"
           >
             <X size={16} />

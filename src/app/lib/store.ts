@@ -1,3 +1,4 @@
+
 "use client"
 
 import { create } from 'zustand';
@@ -9,9 +10,11 @@ export type Theme = 'dark' | 'light';
 interface UIState {
   language: Language;
   theme: Theme;
+  isScannerOpen: boolean;
   toggleLanguage: () => void;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
+  setScannerOpen: (open: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -19,6 +22,7 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       language: 'ar',
       theme: 'dark',
+      isScannerOpen: false,
       toggleLanguage: () => set((state) => ({ 
         language: state.language === 'en' ? 'ar' : 'en' 
       })),
@@ -26,14 +30,25 @@ export const useUIStore = create<UIState>()(
       toggleTheme: () => set((state) => ({ 
         theme: state.theme === 'dark' ? 'light' : 'dark' 
       })),
+      setScannerOpen: (open) => set({ isScannerOpen: open }),
     }),
     {
       name: 'flash-ui-storage',
+      partialize: (state) => ({ language: state.language, theme: state.theme }),
     }
   )
 );
 
 export const useStore = () => {
-  const { language, theme, toggleLanguage, toggleTheme, setTheme } = useUIStore();
-  return { language, theme, toggleLanguage, toggleTheme, setTheme };
+  const { 
+    language, 
+    theme, 
+    isScannerOpen, 
+    toggleLanguage, 
+    toggleTheme, 
+    setTheme, 
+    setScannerOpen 
+  } = useUIStore();
+  
+  return { language, theme, isScannerOpen, toggleLanguage, toggleTheme, setTheme, setScannerOpen };
 };

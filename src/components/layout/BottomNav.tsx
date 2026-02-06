@@ -10,13 +10,9 @@ import { useMemo } from 'react';
 import { useDoc, useUser, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
 
-interface BottomNavProps {
-  onScanClick?: () => void;
-}
-
-export function BottomNav({ onScanClick }: BottomNavProps) {
+export function BottomNav() {
   const pathname = usePathname();
-  const { language } = useStore();
+  const { language, setScannerOpen } = useStore();
   const { user } = useUser();
   const db = useFirestore();
 
@@ -27,8 +23,9 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
   
   const { data: profile } = useDoc(userDocRef);
 
-  const isDashboard = pathname === '/dashboard' || pathname === '/dashboard/' || pathname === '/admin' || pathname === '/admin/';
-  if (pathname === '/' || pathname === '/register') return null;
+  // Hide on auth pages
+  const isAuthPage = pathname === '/' || pathname === '/register' || pathname === '/onboarding' || pathname === '/splash' || pathname === '/otp';
+  if (isAuthPage) return null;
 
   const navItems = [
     { label: language === 'ar' ? 'الرئيسية' : 'HOME', icon: Home, href: '/dashboard' },
@@ -52,7 +49,7 @@ export function BottomNav({ onScanClick }: BottomNavProps) {
                 <button
                   onClick={(e) => {
                     e.preventDefault();
-                    onScanClick?.();
+                    setScannerOpen(true);
                   }}
                   className="relative -top-10 w-16 h-16 shrink-0 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary),0.3)] border-4 border-background hover:scale-105 transition-all duration-300 gold-glow active:scale-95"
                 >
