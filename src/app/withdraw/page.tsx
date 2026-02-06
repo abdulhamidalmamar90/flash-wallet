@@ -8,7 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Loader2, Landmark, Check, Info, Coins, Wallet } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  Loader2, 
+  Landmark, 
+  Check, 
+  Info, 
+  Coins, 
+  Wallet,
+  ShieldCheck,
+  ArrowRight,
+  AlertCircle
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -16,6 +27,7 @@ import { collection, doc, addDoc, query, where, increment, runTransaction } from
 import { sendTelegramNotification } from '@/lib/telegram';
 import { useStore } from '@/app/lib/store';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const COUNTRIES = [
   { code: 'GL', name: 'Global / Worldwide', ar: 'عالمي / دولي' },
@@ -56,11 +68,11 @@ export default function WithdrawPage() {
   const [amount, setAmount] = useState('');
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  // Fetch all active methods to filter available countries
   const allMethodsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, 'withdrawal_methods'), where('isActive', '==', true));
@@ -69,7 +81,7 @@ export default function WithdrawPage() {
 
   const availableCountries = useMemo(() => {
     const codes = new Set(allWithdrawMethods.map((m: any) => m.country));
-    codes.add('CR'); // Always include Crypto as it's a built-in automated gateway
+    codes.add('CR'); 
     return COUNTRIES.filter(c => codes.has(c.code));
   }, [allWithdrawMethods]);
 
@@ -87,6 +99,9 @@ export default function WithdrawPage() {
   const { data: allMethodsList = [], loading: methodsLoading } = useCollection(methodsQuery);
 
   const filteredMethods = useMemo(() => {
+    if (selectedCountry === 'GL') {
+      return allMethodsList.filter((m: any) => m.country === 'GL');
+    }
     return allMethodsList.filter((m: any) => m.country === selectedCountry);
   }, [allMethodsList, selectedCountry]);
 
@@ -125,7 +140,7 @@ export default function WithdrawPage() {
     return { 
       localAmount: local, 
       fee: fee, 
-      net: Math.round(Math.max(0, local - fee))
+      net: Math.round(Math.max(0, local - fee)) 
     };
   }, [selectedMethod, amount]);
 
@@ -135,7 +150,7 @@ export default function WithdrawPage() {
     selectMethod: language === 'ar' ? 'اختر وسيلة السحب' : 'Select Gateway',
     noMethods: language === 'ar' ? 'لا تتوفر وسائل سحب حالياً' : 'No gateways available',
     amountLabel: language === 'ar' ? 'المبلغ المطلوب سحبه ($)' : 'Withdrawal Amount (USD)',
-    submitBtn: language === 'ar' ? 'تأكيد السحب' : 'AUTHORIZE WITHDRAWAL',
+    submitBtn: language === 'ar' ? 'تأكيد طلب السحب' : 'AUTHORIZE WITHDRAWAL',
     nextBtn: language === 'ar' ? 'استمرار' : 'CONTINUE',
     success: language === 'ar' ? 'تم تقديم الطلب بنجاح' : 'Withdrawal request submitted',
     balance: language === 'ar' ? 'الرصيد المتاح' : 'Available Balance',
@@ -145,7 +160,11 @@ export default function WithdrawPage() {
     willReceive: language === 'ar' ? 'المبلغ الذي سيصلك' : 'You will receive',
     cryptoNotice: language === 'ar' ? 'سيصلك المبلغ الذي أدخلته مخصوماً منه 2 دولار (عمولة الشبكة)' : 'You will receive the amount you entered minus $2.00 (Network Fee)',
     localValue: language === 'ar' ? 'القيمة بالعملة المحلية' : 'Local Currency Value',
-    loadingCountries: language === 'ar' ? 'جاري تحميل الدول المتاحة...' : 'Loading available countries...'
+    loadingCountries: language === 'ar' ? 'جاري تحميل الدول المتاحة...' : 'Loading available countries...',
+    authTitle: language === 'ar' ? 'تأكيد الأمان' : 'Security Authorization',
+    confirmText: language === 'ar' ? 'هل أنت متأكد من رغبتك في سحب هذا المبلغ؟' : 'Are you sure you want to authorize this withdrawal?',
+    finalConfirm: language === 'ar' ? 'تأكيد نهائي' : 'Final Confirmation',
+    abort: language === 'ar' ? 'إلغاء' : 'Abort'
   };
 
   const handleInputChange = (label: string, value: string) => {
@@ -160,7 +179,7 @@ export default function WithdrawPage() {
     } else setStep(step - 1);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleInitiateWithdrawal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !amount || !profile || !selectedMethod) return;
 
@@ -176,6 +195,13 @@ export default function WithdrawPage() {
       return;
     }
 
+    setIsConfirming(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!user || !amount || !profile || !selectedMethod) return;
+    const amountUsd = parseFloat(amount);
+
     setLoading(true);
     try {
       let requestId = "";
@@ -183,9 +209,11 @@ export default function WithdrawPage() {
         const userRef = doc(db, 'users', user.uid);
         transaction.update(userRef, { balance: increment(-amountUsd) });
         
-        const requestRef = doc(collection(db, 'withdrawals'));
-        requestId = requestRef.id;
-        transaction.set(requestRef, {
+        const requestRef = doc(collection(db, 'service_requests')); // Using shared queue logic
+        const withdrawalRef = doc(collection(db, 'withdrawals'));
+        requestId = withdrawalRef.id;
+        
+        transaction.set(withdrawalRef, {
           userId: user.uid,
           username: profile.username,
           methodName: selectedMethod.name,
@@ -232,6 +260,7 @@ ${detailsText}
       toast({ variant: "destructive", title: "ERROR", description: err.message });
     } finally {
       setLoading(false);
+      setIsConfirming(false);
     }
   };
 
@@ -264,7 +293,7 @@ ${detailsText}
                 </Select>
               )}
             </div>
-            {selectedCountry && <Button onClick={() => setStep(2)} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl"> {t.nextBtn} </Button>}
+            {selectedCountry && <Button onClick={() => setStep(2)} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl hover:scale-[1.02] transition-all gold-glow"> {t.nextBtn} </Button>}
           </div>
         );
       case 2:
@@ -300,7 +329,7 @@ ${detailsText}
       case 3:
         const isCrypto = selectedCountry === 'CR';
         return (
-          <form onSubmit={handleSubmit} className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4">
+          <form onSubmit={handleInitiateWithdrawal} className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
@@ -354,7 +383,7 @@ ${detailsText}
               ))}
             </div>
 
-            <Button type="submit" disabled={loading || !amount || calculations.net <= 0} className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary text-background font-black tracking-widest">
+            <Button type="submit" disabled={loading || !amount || calculations.net <= 0} className="w-full h-16 text-xs font-headline rounded-xl gold-glow bg-primary text-background font-black tracking-[0.2em] uppercase hover:scale-[1.02] transition-all">
               {loading ? <Loader2 className="animate-spin" /> : t.submitBtn}
             </Button>
           </form>
@@ -374,6 +403,70 @@ ${detailsText}
       </header>
 
       {renderStep()}
+
+      {/* Withdrawal Confirmation Dialog */}
+      <Dialog open={isConfirming} onOpenChange={(val) => !loading && setIsConfirming(val)}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000]">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
+              <ShieldCheck size={16} className="text-primary" /> {t.authTitle}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-6 space-y-6">
+            <div className="p-6 bg-primary/5 border border-primary/20 rounded-3xl text-center space-y-4">
+              <p className="text-[10px] font-headline font-bold uppercase tracking-widest leading-relaxed text-white/80">
+                {t.confirmText}
+              </p>
+              
+              <div className="py-4 border-y border-white/5 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-[8px] text-muted-foreground uppercase font-black">Requested:</span>
+                  <span className="text-sm font-headline font-bold text-white">${amount}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[8px] text-muted-foreground uppercase font-black">Method:</span>
+                  <span className="text-[10px] font-headline font-bold text-primary">{selectedMethod?.name}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-[8px] text-muted-foreground uppercase font-black">Net Payout:</span>
+                  <span className="text-2xl font-headline font-black text-primary">
+                    {calculations.net.toLocaleString()} {selectedMethod?.currencyCode}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-left bg-black/20 p-3 rounded-xl">
+                <p className="text-[7px] text-muted-foreground uppercase font-black">Destination Intel:</p>
+                {Object.entries(formData).map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4">
+                    <span className="text-[7px] text-white/40 uppercase shrink-0">{k}:</span>
+                    <span className="text-[8px] font-headline text-white truncate">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handleConfirmSubmit} 
+                disabled={loading} 
+                className="w-full h-14 bg-primary text-background rounded-xl font-headline text-[10px] uppercase tracking-widest font-black gold-glow flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <>{t.finalConfirm} <ArrowRight size={14} /></>}
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setIsConfirming(false)} 
+                className="w-full h-10 text-[8px] font-headline uppercase text-muted-foreground" 
+                disabled={loading}
+              >
+                {t.abort}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
