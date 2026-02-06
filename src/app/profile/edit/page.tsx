@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   User, 
@@ -20,7 +20,9 @@ import {
   FileText,
   Globe,
   UploadCloud,
-  Clock
+  Clock,
+  Crop as CropIcon,
+  X
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
@@ -31,10 +33,13 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sendTelegramPhoto } from '@/lib/telegram';
 import { Textarea } from '@/components/ui/textarea';
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '@/lib/crop-image';
+import { Slider } from '@/components/ui/slider';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -93,6 +98,13 @@ export default function EditProfilePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+
+  // Cropper States
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
 
   // Phone Verification
   const [isOtpOpen, setIsOtpOpen] = useState(false);
@@ -158,6 +170,41 @@ export default function EditProfilePage() {
     submitKyc: language === 'ar' ? 'إرسال لطلب التوثيق' : 'SUBMIT FOR VERIFICATION',
     kycPending: language === 'ar' ? 'طلب التوثيق قيد المراجعة' : 'Verification Pending Review',
     kycRejected: language === 'ar' ? 'تم رفض التوثيق، يرجى المحاولة مرة أخرى' : 'Verification rejected, please retry',
+    cropTitle: language === 'ar' ? 'ضبط الصورة' : 'Crop Image',
+    applyCrop: language === 'ar' ? 'قص وحفظ' : 'Apply Crop',
+    cancel: language === 'ar' ? 'إلغاء' : 'Cancel'
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageToCrop(reader.result as string);
+        setIsCropDialogOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onCropComplete = useCallback((_area: any, pixels: any) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  const handleApplyCrop = async () => {
+    if (imageToCrop && croppedAreaPixels) {
+      try {
+        const croppedImage = await getCroppedImg(imageToCrop, croppedAreaPixels);
+        if (croppedImage) {
+          setSelectedAvatar(croppedImage);
+          setIsCropDialogOpen(false);
+          setImageToCrop(null);
+        }
+      } catch (e) {
+        console.error(e);
+        toast({ variant: "destructive", title: "Crop Error", description: "Failed to crop image." });
+      }
+    }
   };
 
   const handleSendOtp = async () => {
@@ -290,14 +337,7 @@ export default function EditProfilePage() {
             {selectedAvatar ? <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={48} className="text-white/20" />}
           </div>
           <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform z-10"><Camera size={18} /></button>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onloadend = () => setSelectedAvatar(reader.result as string);
-              reader.readAsDataURL(file);
-            }
-          }} />
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
         </div>
         <div className="text-center space-y-1">
           <div className={cn(
@@ -330,7 +370,7 @@ export default function EditProfilePage() {
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.emailLabel}</Label>
             <div className="relative group">
-              <Mail className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} />
+              <Mail className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} size={18} />
               <input value={profile?.email || ''} readOnly className={cn("w-full h-12 bg-white/5 border border-white/5 rounded-xl opacity-60 font-body outline-none", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
             </div>
           </div>
@@ -446,6 +486,63 @@ export default function EditProfilePage() {
           )}
         </div>
       )}
+
+      {/* Image Cropper Dialog */}
+      <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
+        <DialogContent className="max-w-md glass-card border-white/10 p-0 overflow-hidden rounded-[2rem] z-[2001]">
+          <DialogHeader className="p-6 border-b border-white/5">
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase flex items-center gap-2">
+              <CropIcon size={16} className="text-primary" /> {t.cropTitle}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="relative w-full aspect-square bg-black/50">
+            {imageToCrop && (
+              <Cropper
+                image={imageToCrop}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            )}
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="space-y-3">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">Zoom Level</Label>
+              <Slider
+                value={[zoom]}
+                min={1}
+                max={3}
+                step={0.1}
+                onValueChange={(vals) => setZoom(vals[0])}
+                className="py-4"
+              />
+            </div>
+            
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setIsCropDialogOpen(false)} 
+                className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase"
+              >
+                {t.cancel}
+              </Button>
+              <Button 
+                onClick={handleApplyCrop} 
+                className="flex-1 h-12 bg-primary text-background rounded-xl text-[10px] font-headline uppercase font-bold gold-glow"
+              >
+                {t.applyCrop}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* OTP Verification Modal */}
       <Dialog open={isOtpOpen} onOpenChange={setIsOtpOpen}>
