@@ -400,7 +400,7 @@ export default function Dashboard() {
       </Dialog>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] z-[1000] animate-in fade-in slide-in-from-bottom-10 duration-500 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:slide-out-to-bottom-10">
+        <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-10 duration-500 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-10">
           <DialogHeader className="relative mb-4">
             <button 
               onClick={() => setIsSettingsOpen(false)} 
@@ -416,7 +416,7 @@ export default function Dashboard() {
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-8 mt-4">
+          <div className="space-y-6 sm:space-y-8 mt-4">
             <div className="flex flex-col items-center gap-4 text-center animate-in fade-in zoom-in-95 duration-700 delay-100 fill-mode-both">
               <div className={cn(
                 "w-20 h-20 rounded-2xl border-2 flex items-center justify-center relative overflow-hidden shadow-xl",
@@ -432,7 +432,7 @@ export default function Dashboard() {
               </div>
             </div>
             
-            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both">
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both pb-4">
               <ThemeToggle />
               <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
                 <QrCode size={18} className="text-primary" />
@@ -562,6 +562,13 @@ export default function Dashboard() {
         @keyframes scan {
           0% { top: 0%; }
           100% { top: 100%; }
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>
