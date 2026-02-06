@@ -134,6 +134,7 @@ export default function RegisterPage() {
     hasAccount: language === 'ar' ? 'لديك حساب بالفعل؟' : 'Already have an account?',
     login: language === 'ar' ? 'تسجيل الدخول' : 'Authorize Access',
     emailInUse: language === 'ar' ? 'البريد الإلكتروني مستخدم بالفعل.' : 'Email already in use.',
+    phoneInUse: language === 'ar' ? 'رقم الهاتف مستخدم مسبقاً في حساب آخر.' : 'Phone number already in use.',
     weakPassword: language === 'ar' ? 'كلمة المرور ضعيفة جداً.' : 'Password is too weak.',
     accountExists: language === 'ar' ? 'هذا الحساب موجود بالفعل، يرجى تسجيل الدخول.' : 'This account already exists. Please login.',
   };
@@ -145,14 +146,16 @@ export default function RegisterPage() {
     const cleanEmail = email.trim().toLowerCase();
     const cleanUsername = username.trim();
     const cleanPassword = password.trim();
+    const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
 
     if (!cleanEmail || !cleanPassword || !cleanUsername) return;
 
     setLoading(true);
 
     try {
-      const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-      const emailSnap = await getDocs(q);
+      // 1. Check email duplicate
+      const qEmail = query(collection(db, 'users'), where('email', '==', cleanEmail));
+      const emailSnap = await getDocs(qEmail);
       if (!emailSnap.empty) {
         toast({
           variant: "destructive",
@@ -163,11 +166,26 @@ export default function RegisterPage() {
         return;
       }
 
+      // 2. Check phone duplicate
+      if (phone.trim()) {
+        const qPhone = query(collection(db, 'users'), where('phone', '==', fullPhone));
+        const phoneSnap = await getDocs(qPhone);
+        if (!phoneSnap.empty) {
+          toast({
+            variant: "destructive",
+            title: language === 'ar' ? "الرقم مستخدم" : "Duplicate Phone",
+            description: t.phoneInUse
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         username: cleanUsername,
         email: cleanEmail,
-        phone: `${selectedCountry.prefix}${phone.trim()}`,
+        phone: fullPhone,
         country: selectedCountry.code,
         customId: generateCustomId(),
         balance: 0,

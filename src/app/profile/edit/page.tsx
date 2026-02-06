@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
-import { doc, updateDoc, addDoc, collection, query, where, limit } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -71,7 +71,7 @@ const COUNTRIES = [
   { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
   { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
   { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
-  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
+  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحري', flag: '🇧🇭', prefix: '+973' },
   { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
   { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
   { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
@@ -191,7 +191,8 @@ export default function EditProfilePage() {
     pinLocked: language === 'ar' ? 'تم تأمين الحساب بـ PIN' : 'Vault Locked with PIN',
     pinDesc: language === 'ar' ? 'يستخدم الرمز لتأكيد السحب والتحويل' : 'Used to authorize transfers and withdrawals',
     pinLockedDesc: language === 'ar' ? 'غير قابل للتعديل لأمانك. راسل الإدارة للتصفير.' : 'PIN is locked for your security. Contact admin to reset.',
-    authVault: language === 'ar' ? 'تأمين الخزنة' : 'Authorize Vault PIN'
+    authVault: language === 'ar' ? 'تأمين الخزنة' : 'Authorize Vault PIN',
+    phoneInUse: language === 'ar' ? 'هذا الرقم مستخدم مسبقاً في حساب آخر' : 'This phone number is already in use by another account'
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,11 +228,23 @@ export default function EditProfilePage() {
   };
 
   const handleSendOtp = async () => {
-    if (!phone || !auth) return;
+    if (!phone || !auth || !db) return;
     setVerifyingPhone(true);
     try {
-      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
+      
+      // Check for phone duplicate (not current user)
+      const q = query(collection(db, 'users'), where('phone', '==', fullPhone));
+      const snap = await getDocs(q);
+      const isUsedByOthers = snap.docs.some(doc => doc.id !== user?.uid);
+      
+      if (isUsedByOthers) {
+        toast({ variant: "destructive", title: language === 'ar' ? "الرقم مستخدم" : "Phone in use", description: t.phoneInUse });
+        setVerifyingPhone(false);
+        return;
+      }
+
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
       const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
       setConfirmationResult(result);
       setIsOtpOpen(true);
@@ -244,17 +257,20 @@ export default function EditProfilePage() {
   };
 
   const handleVerifyOtp = async () => {
-    if (!confirmationResult) return;
+    if (!confirmationResult || !user || !db) return;
     setVerifyingPhone(true);
     const code = otpCode.join('');
+    const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
     try {
       await confirmationResult.confirm(code);
+      // Immediately update phone and verification status in DB
+      await updateDoc(doc(db, 'users', user.uid), { 
+        phone: fullPhone,
+        phoneVerified: true 
+      });
       setIsPhoneVerified(true);
       setIsOtpOpen(false);
-      toast({ title: language === 'ar' ? "تم التحقق بنجاح" : "Phone Verified" });
-      if (user && db) {
-        await updateDoc(doc(db, 'users', user.uid), { phoneVerified: true });
-      }
+      toast({ title: language === 'ar' ? "تم التحقق والربط بنجاح" : "Phone Verified & Linked" });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Invalid Code", description: "The OTP entered is incorrect." });
     } finally {
@@ -267,9 +283,20 @@ export default function EditProfilePage() {
     if (!user || !db) return;
     setLoading(true);
     try {
+      const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
+      
+      // Check duplicate on save too
+      const q = query(collection(db, 'users'), where('phone', '==', fullPhone));
+      const snap = await getDocs(q);
+      if (snap.docs.some(d => d.id !== user.uid)) {
+        toast({ variant: "destructive", title: t.phoneInUse });
+        setLoading(false);
+        return;
+      }
+
       const updates: any = {
         username: username.trim(),
-        phone: `${selectedCountry.prefix}${phone.trim()}`,
+        phone: fullPhone,
         country: selectedCountry.code,
         avatarUrl: selectedAvatar,
         phoneVerified: isPhoneVerified
@@ -402,7 +429,6 @@ export default function EditProfilePage() {
         </div>
         
         <div className="text-center space-y-2">
-          {/* Status Badges - Separated */}
           <div className="flex flex-wrap justify-center gap-2">
             <div className={cn(
               "flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-headline font-bold uppercase tracking-widest",
@@ -414,10 +440,10 @@ export default function EditProfilePage() {
             
             <div className={cn(
               "flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-headline font-bold uppercase tracking-widest",
-              isPhoneVerified ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" : "bg-white/5 text-white/40 border border-white/10"
+              profile?.phoneVerified ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" : "bg-white/5 text-white/40 border border-white/10"
             )}>
-              <Smartphone size={10} className={cn(!isPhoneVerified && "opacity-50")} />
-              {isPhoneVerified ? t.phoneStatusVerified : t.phoneStatusUnverified}
+              <Smartphone size={10} className={cn(!profile?.phoneVerified && "opacity-50")} />
+              {profile?.phoneVerified ? t.phoneStatusVerified : t.phoneStatusUnverified}
             </div>
           </div>
           
@@ -471,13 +497,13 @@ export default function EditProfilePage() {
               </div>
             </div>
             
-            {!isPhoneVerified ? (
+            {!profile?.phoneVerified ? (
               <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary hover:text-background text-[10px] font-headline font-bold uppercase tracking-widest">
                 {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.verifyBtn}
               </Button>
             ) : (
               <div className="h-12 flex items-center justify-center gap-2 text-green-500 font-headline font-bold text-[10px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20 w-full">
-                <CheckCircle2 size={14} /> {t.verified}
+                <CheckCircle2 size={14} /> {t.verified}: {profile?.phone}
               </div>
             )}
           </div>
