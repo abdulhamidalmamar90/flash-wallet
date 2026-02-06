@@ -36,7 +36,6 @@ export default function LoginPage() {
   const { language } = useStore();
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
-  const brandLogo = PlaceHolderImages.find(img => img.id === 'brand-logo');
 
   useEffect(() => {
     if (!auth || !db) return;
@@ -173,16 +172,7 @@ export default function LoginPage() {
 
       <div className="relative z-10 max-w-sm w-full space-y-8 animate-in fade-in zoom-in-95 duration-1000">
         <div className="text-center space-y-2 flex flex-col items-center">
-          <div className="relative w-48 h-20 mb-2 gold-glow">
-            <Image 
-              src={brandLogo?.imageUrl || ""} 
-              alt="FLASH" 
-              fill 
-              className="object-contain" 
-              priority 
-              data-ai-hint="brand logo"
-            />
-          </div>
+          <h1 className="text-6xl font-headline font-bold text-white tracking-tighter gold-glow-text">FLASH</h1>
           <p className="text-[10px] text-primary uppercase tracking-[0.5em] font-bold">{t.title}</p>
         </div>
 

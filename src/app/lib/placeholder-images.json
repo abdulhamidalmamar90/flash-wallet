@@ -3,8 +3,8 @@
   "placeholderImages": [
     {
       "id": "brand-logo",
-      "description": "Flash Wallet Official Logo",
-      "imageUrl": "https://raw.githubusercontent.com/abdulhamidalmamar90/flash-wallet/main/Flash%20logo/flash_logo%20(6).png",
+      "description": "Flash Wallet Official Logo placeholder",
+      "imageUrl": "https://picsum.photos/seed/flash/400/200",
       "imageHint": "brand logo"
     },
     {

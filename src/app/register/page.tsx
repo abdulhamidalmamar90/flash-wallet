@@ -23,7 +23,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 const COUNTRIES = [
-  // Arab Countries
   { code: 'SA', nameEn: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameEn: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
@@ -42,7 +41,6 @@ const COUNTRIES = [
   { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
   { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
   { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
-  // Global Countries
   { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
   { code: 'GB', nameEn: 'UK', nameAr: 'بريطانيا', flag: '🇬🇧', prefix: '+44' },
   { code: 'CA', nameEn: 'Canada', nameAr: 'كندا', flag: '🇨🇦', prefix: '+1' },
@@ -78,7 +76,6 @@ export default function RegisterPage() {
   const [isCountryOpen, setIsCountryOpen] = useState(false);
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
-  const brandLogo = PlaceHolderImages.find(img => img.id === 'brand-logo');
 
   const generateCustomId = () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -87,7 +84,6 @@ export default function RegisterPage() {
     return `${firstLetter}${numbers}`;
   };
 
-  // Handle Redirect Result for Mobile/WebView
   useEffect(() => {
     if (!auth || !db) return;
 
@@ -108,7 +104,7 @@ export default function RegisterPage() {
               username: result.user.displayName || 'User',
               email: googleEmail,
               phone: '',
-              country: 'US', // Default or detected
+              country: 'US', 
               customId: generateCustomId(),
               balance: 0,
               role: 'user',
@@ -271,16 +267,7 @@ export default function RegisterPage() {
 
       <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700 overflow-y-auto max-h-[90vh]">
         <div className="text-center mb-10 flex flex-col items-center">
-          <div className="relative w-48 h-20 mb-2 gold-glow">
-            <Image 
-              src={brandLogo?.imageUrl || ""} 
-              alt="FLASH" 
-              fill 
-              className="object-contain" 
-              priority 
-              data-ai-hint="brand logo"
-            />
-          </div>
+          <h1 className="text-5xl font-headline font-bold text-white tracking-tighter gold-glow-text mb-2">FLASH</h1>
           <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.3em]">{t.subtitle}</p>
         </div>
 
