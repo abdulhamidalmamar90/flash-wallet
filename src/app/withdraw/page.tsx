@@ -73,7 +73,6 @@ export default function WithdrawPage() {
   
   const { data: allMethods = [], loading: methodsLoading } = useCollection(methodsQuery);
 
-  // Updated filteredMethods to isolate country-specific methods from Global
   const filteredMethods = useMemo(() => {
     return allMethods.filter((m: any) => m.country === selectedCountry);
   }, [allMethods, selectedCountry]);
@@ -100,7 +99,6 @@ export default function WithdrawPage() {
     }
   }, [selectedCountry, step, language]);
 
-  // Financial Calculations
   const calculations = useMemo(() => {
     if (!selectedMethod || !amount) return { localAmount: 0, fee: 0, net: 0 };
     const usd = parseFloat(amount || '0');
@@ -111,10 +109,11 @@ export default function WithdrawPage() {
     } else {
       fee = (local * (selectedMethod.feeValue || 0)) / 100;
     }
+    // Round the net amount to the nearest integer as requested
     return { 
       localAmount: local, 
       fee: fee, 
-      net: Math.max(0, local - fee) 
+      net: Math.round(Math.max(0, local - fee))
     };
   }, [selectedMethod, amount]);
 
