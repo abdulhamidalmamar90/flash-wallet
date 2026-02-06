@@ -57,7 +57,7 @@ export function BottomNav() {
                     e.preventDefault();
                     setScannerOpen(true);
                   }}
-                  className="relative -top-10 w-16 h-16 shrink-0 rounded-[1.5rem] bg-primary flex items-center justify-center shadow-[0_0_30px_rgba(var(--primary),0.3)] border-4 border-background hover:scale-105 transition-all duration-300 gold-glow active:scale-95"
+                  className="relative -top-10 w-16 h-16 shrink-0 rounded-[1.5rem] bg-primary flex items-center justify-center border-4 border-background hover:scale-105 transition-all duration-300 gold-glow active:scale-95"
                 >
                   <ScanLine size={28} className="text-primary-foreground" />
                 </button>
@@ -77,7 +77,7 @@ export function BottomNav() {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <item.icon size={20} className={cn(isActive && "gold-glow")} />
+                <item.icon size={20} />
                 <span className="text-[8px] font-headline font-black tracking-[0.15em] uppercase text-center leading-none">
                   {item.label}
                 </span>
