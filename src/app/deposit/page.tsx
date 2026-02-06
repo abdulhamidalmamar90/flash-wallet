@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
 import { collection, doc, addDoc, query, where } from 'firebase/firestore';
-import { sendTelegramNotification } from '@/lib/telegram';
+import { sendTelegramPhoto } from '@/lib/telegram';
 import Link from 'next/link';
 
 const COUNTRIES = [
@@ -128,8 +128,8 @@ export default function DepositPage() {
         date: new Date().toISOString()
       });
 
-      // Telegram Notification
-      await sendTelegramNotification(`
+      // Telegram Photo Notification
+      await sendTelegramPhoto(proofImage, `
 💰 <b>New Deposit Request</b>
 ━━━━━━━━━━━━━━━━
 <b>User:</b> @${profile.username}

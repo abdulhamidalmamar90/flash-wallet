@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { sendTelegramNotification } from '@/lib/telegram';
+import { sendTelegramPhoto } from '@/lib/telegram';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -207,8 +207,8 @@ export default function EditProfilePage() {
         }
       });
 
-      // Telegram Notification
-      await sendTelegramNotification(`
+      // Telegram Photo Notification for KYC
+      await sendTelegramPhoto(verifDocImage, `
 🛡️ <b>New KYC Verification Request</b>
 ━━━━━━━━━━━━━━━━
 <b>User:</b> @${profile.username}
