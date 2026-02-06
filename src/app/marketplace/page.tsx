@@ -20,7 +20,10 @@ import {
   ArrowRight,
   X,
   ShieldCheck,
-  Filter
+  Filter,
+  Fingerprint,
+  Delete,
+  Check
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -52,7 +55,9 @@ export default function MarketplacePage() {
   const [selectedVariantIdx, setSelectedVariantIdx] = useState<string>("");
   const [userInput, setUserInput] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isPinVerificationOpen, setIsPinVerificationOpen] = useState(false);
   const [isBuying, setIsSending] = useState(false);
+  const [pinEntry, setPinEntry] = useState('');
 
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
@@ -84,6 +89,12 @@ export default function MarketplacePage() {
   const handleInitiatePurchase = () => {
     if (!selectedService) return;
 
+    if (!profile?.pin) {
+      toast({ variant: "destructive", title: "PIN REQUIRED", description: "Please setup your security PIN in profile settings first." });
+      router.push('/profile/edit');
+      return;
+    }
+
     if (selectedService.type === 'variable' && selectedVariantIdx === "") {
       toast({ variant: "destructive", title: "SELECT OPTION", description: "Please select a package first." });
       return;
@@ -107,7 +118,19 @@ export default function MarketplacePage() {
     setIsConfirming(true);
   };
 
+  const handlePinAuth = () => {
+    setIsConfirming(false);
+    setPinEntry('');
+    setIsPinVerificationOpen(true);
+  };
+
   const handleConfirmPurchase = async () => {
+    if (pinEntry !== profile?.pin) {
+      toast({ variant: "destructive", title: "INCORRECT PIN" });
+      setPinEntry('');
+      return;
+    }
+
     if (!user || !profile || !selectedService) return;
 
     let finalPrice = selectedService.price;
@@ -164,12 +187,35 @@ ${userInput ? `<b>User Data:</b> <code>${userInput}</code>` : ''}
 
       toast({ title: "PURCHASE SUCCESSFUL", description: `Your order has been logged for processing.` });
       setSelectedService(null);
+      setIsPinVerificationOpen(false);
       router.push('/dashboard');
     } catch (e: any) {
       toast({ variant: "destructive", title: "PURCHASE FAILED", description: e.message });
     } finally {
       setIsSending(false);
     }
+  };
+
+  const VirtualPad = ({ value, onChange, onComplete }: any) => {
+    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
+    const handleClear = () => onChange(value.slice(0, -1));
+    return (
+      <div className="space-y-8">
+        <div className="flex justify-center gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
+          ))}
+          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
+          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
+          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -342,7 +388,7 @@ ${userInput ? `<b>User Data:</b> <code>${userInput}</code>` : ''}
                         <ShieldCheck className="text-primary h-8 w-8" />
                       </div>
                       <p className="text-[10px] font-headline font-bold uppercase tracking-widest leading-relaxed">
-                        Are you sure you want to authorize this transaction?
+                        Authorize this transaction?
                       </p>
                       <div className="pt-2">
                         <p className="text-[8px] text-muted-foreground uppercase font-black">Amount to deduct:</p>
@@ -355,16 +401,27 @@ ${userInput ? `<b>User Data:</b> <code>${userInput}</code>` : ''}
                     </div>
 
                     <div className="flex flex-col gap-3">
-                      <Button onClick={handleConfirmPurchase} disabled={isBuying} className="w-full h-14 bg-primary text-background rounded-xl font-headline text-[10px] uppercase tracking-widest font-black gold-glow">
-                        {isBuying ? <Loader2 className="animate-spin" /> : "Authorize Payment"}
+                      <Button onClick={handlePinAuth} disabled={isBuying} className="w-full h-14 bg-primary text-background rounded-xl font-headline text-[10px] uppercase tracking-widest font-black gold-glow">
+                        Authorize Payment
                       </Button>
-                      <Button variant="ghost" onClick={() => setIsConfirming(false)} className="w-full h-10 text-[8px] font-headline uppercase text-muted-foreground" disabled={isBuying}>Back to selection</Button>
+                      <Button variant="ghost" onClick={() => setIsConfirming(false)} className="w-full h-10 text-[8px] font-headline uppercase text-muted-foreground" disabled={isBuying}>Back</Button>
                     </div>
                   </div>
                 )}
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* PIN Verification Modal */}
+      <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Verify Vault PIN</DialogTitle></DialogHeader>
+          <div className="mt-8">
+            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleConfirmPurchase} />
+            {isBuying && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

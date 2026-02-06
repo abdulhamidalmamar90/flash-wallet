@@ -52,7 +52,8 @@ import {
   Eye,
   EyeOff,
   Hash,
-  Filter
+  Filter,
+  Unlock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -354,6 +355,14 @@ export default function AdminPage() {
       await sendNotification(targetUserId, "Role Updated", `Your account authority has been changed to: ${newRole.toUpperCase()}`, 'system');
       toast({ title: "ROLE UPDATED" });
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleResetPin = async (targetUserId: string) => {
+    try {
+      await updateDoc(doc(db, 'users', targetUserId), { pin: null });
+      await sendNotification(targetUserId, "Security Reset", "Your account PIN has been reset by the administrator. Please set a new one.", 'system');
+      toast({ title: "PIN RESET SUCCESSFUL" });
+    } catch (e: any) { toast({ variant: "destructive", title: "RESET FAILED" }); }
   };
 
   // Service Management Handlers
@@ -1214,11 +1223,16 @@ export default function AdminPage() {
                       <SelectContent className="bg-card border-white/10"><SelectItem value="user" className="text-[9px] uppercase">User</SelectItem><SelectItem value="admin" className="text-[9px] uppercase text-primary font-bold">Admin</SelectItem></SelectContent>
                     </Select>
                   </div>
-                  {editingUserId === u.id ? (
-                    <div className="flex gap-2 animate-in slide-in-from-right-2"><Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-10 bg-background border-primary/20 rounded-xl text-xs" /><button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-10 h-10 bg-primary text-background rounded-xl flex items-center justify-center shrink-0"><Save size={16} /></button></div>
-                  ) : (
-                    <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-10 bg-white/5 border border-white/5 rounded-xl text-[9px] font-headline font-bold uppercase tracking-widest hover:bg-white/10 transition-colors">Modify Asset Balance</button>
-                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {editingUserId === u.id ? (
+                      <div className="flex gap-2 col-span-2 animate-in slide-in-from-right-2"><Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-10 bg-background border-primary/20 rounded-xl text-xs" /><button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-10 h-10 bg-primary text-background rounded-xl flex items-center justify-center shrink-0"><Save size={16} /></button></div>
+                    ) : (
+                      <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="h-10 bg-white/5 border border-white/5 rounded-xl text-[9px] font-headline font-bold uppercase tracking-widest hover:bg-white/10 transition-colors">Modify Assets</button>
+                    )}
+                    <button onClick={() => handleResetPin(u.id)} className="h-10 bg-red-500/10 border border-red-500/20 rounded-xl text-[9px] font-headline font-bold uppercase tracking-widest text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2">
+                      <Unlock size={12} /> Reset PIN
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

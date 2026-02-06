@@ -17,6 +17,7 @@
         "language": { "type": "string", "enum": ["en", "ar"] },
         "country": { "type": "string", "description": "User's residence country code (e.g., EG, SA)" },
         "phoneVerified": { "type": "boolean" },
+        "pin": { "type": "string", "description": "4-digit security PIN" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["username", "email", "customId", "balance", "role", "verified", "language"]

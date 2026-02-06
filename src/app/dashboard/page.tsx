@@ -25,7 +25,10 @@ import {
   Send,
   X,
   Camera,
-  ShoppingBag
+  ShoppingBag,
+  Delete,
+  Check,
+  Fingerprint
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -62,12 +65,14 @@ export default function Dashboard() {
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isPinVerificationOpen, setIsPinVerificationOpen] = useState(false);
   
   const [recipient, setRecipient] = useState(''); 
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [sendAmount, setSendAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [pinEntry, setPinEntry] = useState('');
   const [mounted, setMounted] = useState(false);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -190,7 +195,23 @@ export default function Dashboard() {
     }
   };
 
+  const handleInitiateTransfer = () => {
+    if (!profile?.pin) {
+      toast({ variant: "destructive", title: language === 'ar' ? "يرجى إعداد PIN أولاً" : "Please setup PIN first", description: language === 'ar' ? "اذهب إلى تعديل الحساب لتعيين رمز الأمان" : "Go to Edit Profile to set security PIN" });
+      router.push('/profile/edit');
+      return;
+    }
+    setPinEntry('');
+    setIsPinVerificationOpen(true);
+  };
+
   const handleSendMoney = async () => {
+    if (pinEntry !== profile?.pin) {
+      toast({ variant: "destructive", title: language === 'ar' ? "رمز PIN غير صحيح" : "Incorrect PIN" });
+      setPinEntry('');
+      return;
+    }
+
     if (!user || !recipient || !sendAmount || !profile || !db) return;
     const amountNum = parseFloat(sendAmount);
     if (amountNum <= 0 || (profile.balance || 0) < amountNum) return;
@@ -221,6 +242,7 @@ export default function Dashboard() {
       });
 
       toast({ title: "TRANSACTION SUCCESSFUL" });
+      setIsPinVerificationOpen(false);
       setIsSendModalOpen(false);
       setSendAmount('');
       setRecipient('');
@@ -239,6 +261,28 @@ export default function Dashboard() {
   const deleteNotification = async (id: string) => {
     if (!user || !db) return;
     await deleteDoc(doc(db, 'users', user.uid, 'notifications', id));
+  };
+
+  const VirtualPad = ({ value, onChange, onComplete }: any) => {
+    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
+    const handleClear = () => onChange(value.slice(0, -1));
+    return (
+      <div className="space-y-8">
+        <div className="flex justify-center gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
+          ))}
+          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
+          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
+          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
+        </div>
+      </div>
+    );
   };
 
   if (!mounted || authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
@@ -475,9 +519,20 @@ export default function Dashboard() {
                 />
               </div>
             </div>
-            <button onClick={handleSendMoney} disabled={isSending || !recipientName} className="w-full bg-primary text-primary-foreground font-headline font-bold py-5 rounded-2xl gold-glow active:scale-95 disabled:opacity-50 transition-all uppercase tracking-widest text-xs">
+            <button onClick={handleInitiateTransfer} disabled={isSending || !recipientName || !sendAmount} className="w-full bg-primary text-primary-foreground font-headline font-bold py-5 rounded-2xl gold-glow active:scale-95 disabled:opacity-50 transition-all uppercase tracking-widest text-xs">
               {isSending ? <Loader2 className="animate-spin mx-auto" /> : (language === 'ar' ? "تأكيد العملية" : "AUTHORIZE TRANSACTION")}
             </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PIN Verification Modal */}
+      <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {language === 'ar' ? "تأكيد PIN" : "Verify Vault PIN"}</DialogTitle></DialogHeader>
+          <div className="mt-8">
+            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleSendMoney} />
+            {isSending && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
           </div>
         </DialogContent>
       </Dialog>

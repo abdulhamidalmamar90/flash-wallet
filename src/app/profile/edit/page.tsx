@@ -22,7 +22,10 @@ import {
   UploadCloud,
   Clock,
   Crop as CropIcon,
-  X
+  X,
+  KeyRound,
+  Delete,
+  Fingerprint
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
@@ -63,7 +66,7 @@ const COUNTRIES = [
   { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
   { code: 'MA', nameEn: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', prefix: '+212' },
   { code: 'PS', nameEn: 'Palestine', nameAr: 'فلسطين', flag: '🇵🇸', prefix: '+970' },
-  { code: 'LB', nameEn: 'Lebanon', nameAr: 'البنود', flag: '🇱🇧', prefix: '+961' },
+  { code: 'LB', nameEn: 'Lebanon', nameAr: 'لبنان', flag: '🇱🇧', prefix: '+961' },
   { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
   { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
   { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
@@ -98,6 +101,11 @@ export default function EditProfilePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+
+  // PIN States
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinEntry, setPinEntry] = useState('');
+  const [submittingPin, setSubmittingPin] = useState(false);
 
   // Cropper States
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -172,7 +180,13 @@ export default function EditProfilePage() {
     kycRejected: language === 'ar' ? 'تم رفض التوثيق، يرجى المحاولة مرة أخرى' : 'Verification rejected, please retry',
     cropTitle: language === 'ar' ? 'ضبط الصورة' : 'Crop Image',
     applyCrop: language === 'ar' ? 'قص وحفظ' : 'Apply Crop',
-    cancel: language === 'ar' ? 'إلغاء' : 'Cancel'
+    cancel: language === 'ar' ? 'إلغاء' : 'Cancel',
+    pinTitle: language === 'ar' ? 'رمز الأمان (PIN)' : 'Security PIN',
+    pinSet: language === 'ar' ? 'تعيين الرمز السري' : 'Set 4-Digit PIN',
+    pinLocked: language === 'ar' ? 'تم تأمين الحساب بـ PIN' : 'Vault Locked with PIN',
+    pinDesc: language === 'ar' ? 'يستخدم الرمز لتأكيد السحب والتحويل' : 'Used to authorize transfers and withdrawals',
+    pinLockedDesc: language === 'ar' ? 'غير قابل للتعديل لأمانك. راسل الإدارة للتصفير.' : 'PIN is locked for your security. Contact admin to reset.',
+    authVault: language === 'ar' ? 'تأمين الخزنة' : 'Authorize Vault PIN'
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,6 +282,20 @@ export default function EditProfilePage() {
     }
   };
 
+  const handleSavePin = async () => {
+    if (pinEntry.length !== 4 || !user || !db) return;
+    setSubmittingPin(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
+      toast({ title: language === 'ar' ? "تم تأمين PIN بنجاح" : "PIN Secured Successfully" });
+      setIsPinModalOpen(false);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "PIN Error" });
+    } finally {
+      setSubmittingPin(false);
+    }
+  };
+
   const handleKycSubmit = async () => {
     if (!user || !db || !profile || !docImage || !docNumber || !kycCountry) return;
     setSubmittingKyc(true);
@@ -313,6 +341,34 @@ export default function EditProfilePage() {
     newOtp[index] = value;
     setOtpCode(newOtp);
     if (value && index < 5) otpInputs.current[index + 1]?.focus();
+  };
+
+  const VirtualPad = ({ value, onChange, onComplete }: any) => {
+    const handleAdd = (num: string) => {
+      if (value.length < 4) {
+        const newVal = value + num;
+        onChange(newVal);
+      }
+    };
+    const handleClear = () => onChange(value.slice(0, -1));
+
+    return (
+      <div className="space-y-8">
+        <div className="flex justify-center gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
+          ))}
+          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
+          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
+          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -408,6 +464,33 @@ export default function EditProfilePage() {
         </div>
         <Button type="submit" disabled={loading} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest gold-glow">{loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : t.saveBtn}</Button>
       </form>
+
+      {/* Security PIN Section */}
+      <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
+        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> {t.pinTitle}</h2>
+        <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
+          <div>
+            <p className="text-[10px] font-headline font-bold uppercase">{profile?.pin ? t.pinLocked : t.pinSet}</p>
+            <p className="text-[8px] text-muted-foreground uppercase mt-1">{profile?.pin ? t.pinLockedDesc : t.pinDesc}</p>
+          </div>
+          {!profile?.pin ? (
+            <button onClick={() => setIsPinModalOpen(true)} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-background transition-all"><Plus size={20} /></button>
+          ) : (
+            <div className="p-3 bg-green-500/10 text-green-500 rounded-xl"><ShieldCheck size={20} /></div>
+          )}
+        </div>
+      </div>
+
+      {/* PIN Setup Modal */}
+      <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {t.authVault}</DialogTitle></DialogHeader>
+          <div className="mt-8">
+            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleSavePin} />
+            {submittingPin && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* KYC Verification Section */}
       {!profile?.verified && (
@@ -556,7 +639,7 @@ export default function EditProfilePage() {
                 <input key={i} ref={el => { if(el) otpInputs.current[i] = el; }} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpInput(i, e.target.value)} className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-headline font-bold text-secondary focus:border-secondary transition-all outline-none rounded-lg" />
               ))}
             </div>
-            <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">{verifyingPhone ? <Loader2 className="animate-spin" /> : t.validateBtn}</Button>
+            <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">{verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.validateBtn}</Button>
           </div>
         </DialogContent>
       </Dialog>
