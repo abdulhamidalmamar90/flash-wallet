@@ -15,10 +15,23 @@
         "role": { "type": "string", "enum": ["user", "admin"] },
         "verified": { "type": "boolean" },
         "language": { "type": "string", "enum": ["en", "ar"] },
+        "country": { "type": "string", "description": "User's residence country code (e.g., EG, SA)" },
         "biometricsEnabled": { "type": "boolean", "description": "Whether biometric login is active" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["username", "email", "customId", "balance", "role", "verified", "language"]
+    },
+    "DepositMethod": {
+      "title": "Deposit Method",
+      "description": "Stored in /deposit_methods/{id}. Configured by admin per country.",
+      "type": "object",
+      "properties": {
+        "country": { "type": "string", "description": "Country code (e.g., EG, SA)" },
+        "name": { "type": "string", "description": "Method name (e.g., InstaPay, Vodafone Cash)" },
+        "details": { "type": "string", "description": "The account number or details to show to the user" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["country", "name", "details", "isActive"]
     },
     "Transaction": {
       "title": "Transaction",
@@ -86,6 +99,10 @@
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Individual user settings and balance"
+    },
+    "/deposit_methods/{methodId}": {
+      "schema": "DepositMethod",
+      "description": "Admin configured deposit options by country"
     },
     "/users/{userId}/transactions/{transactionId}": {
       "schema": "Transaction",

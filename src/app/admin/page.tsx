@@ -26,13 +26,14 @@ import {
   FileText,
   DollarSign,
   Trash2,
-  Wallet,
-  ExternalLink
+  Settings2,
+  Plus,
+  Database
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc, addDoc } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -47,6 +48,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const COUNTRIES = [
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'EG', name: 'Egypt' },
+  { code: 'AE', name: 'UAE' },
+  { code: 'KW', name: 'Kuwait' },
+  { code: 'QA', name: 'Qatar' },
+  { code: 'US', name: 'USA' },
+];
 
 export default function AdminPage() {
   const router = useRouter();
@@ -57,6 +68,11 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newBalance, setNewBalance] = useState<string>('');
+
+  // Deposit Method Config State
+  const [newMethodCountry, setNewMethodCountry] = useState('');
+  const [newMethodName, setNewMethodName] = useState('');
+  const [newMethodDetails, setNewMethodDetails] = useState('');
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -72,6 +88,9 @@ export default function AdminPage() {
 
   const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
   const { data: allUsers = [] } = useCollection(allUsersQuery);
+
+  const methodsQuery = useMemo(() => query(collection(db, 'deposit_methods')), [db]);
+  const { data: depositMethods = [] } = useCollection(methodsQuery);
 
   useEffect(() => {
     if (!authLoading && !profileLoading && profile && (profile as any).role !== 'admin') {
@@ -119,9 +138,7 @@ export default function AdminPage() {
       });
       await sendNotification(userId, "Withdrawal Rejected", `Your request for $${amount} was declined. Funds have been returned to your vault.`, 'transaction');
       toast({ title: "WITHDRAWAL REJECTED & REFUNDED" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "ERROR" });
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
 
   const handleApproveDeposit = async (id: string, userId: string, amount: number) => {
@@ -186,13 +203,30 @@ export default function AdminPage() {
   const handleDeleteUser = async (targetUserId: string) => {
     try {
       await deleteDoc(doc(db, 'users', targetUserId));
-      toast({ 
-        title: "USER PURGED", 
-        description: "The entity record has been permanently removed from the ledger." 
+      toast({ title: "USER PURGED" });
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleAddDepositMethod = async () => {
+    if (!newMethodCountry || !newMethodName || !newMethodDetails) return;
+    try {
+      await addDoc(collection(db, 'deposit_methods'), {
+        country: newMethodCountry,
+        name: newMethodName,
+        details: newMethodDetails,
+        isActive: true
       });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "PURGE FAILED", description: e.message });
-    }
+      toast({ title: "METHOD ADDED" });
+      setNewMethodName('');
+      setNewMethodDetails('');
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleDeleteMethod = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'deposit_methods', id));
+      toast({ title: "METHOD REMOVED" });
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
   const filteredUsers = allUsers.filter((u: any) => 
@@ -214,18 +248,21 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+        <TabsList className="grid w-full grid-cols-5 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
             <ArrowUpCircle className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Withdrawals</span><span className="sm:hidden">Out</span>
           </TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
             <ArrowDownCircle className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Deposits</span><span className="sm:hidden">In</span>
           </TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <ShieldCheck className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Verifications</span><span className="sm:hidden">KYC</span>
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <ShieldCheck className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">KYC</span><span className="sm:hidden">KYC</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[10px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
             <Users className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Ledger</span><span className="sm:hidden">Users</span>
+          </TabsTrigger>
+          <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
+            <Settings2 className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Infra</span><span className="sm:hidden">Infra</span>
           </TabsTrigger>
         </TabsList>
 
@@ -263,9 +300,6 @@ export default function AdminPage() {
                     <button onClick={() => handleRejectWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
                   </div>
                 )}
-                {req.status !== 'pending' && (
-                  <Badge className={cn("w-full h-10 flex items-center justify-center uppercase tracking-widest text-[9px]", req.status === 'approved' ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-500")}>{req.status}</Badge>
-                )}
               </div>
             ))}
           </div>
@@ -279,7 +313,7 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><DollarSign className="h-6 w-6 text-secondary" /></div>
-                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.method || 'Manual'} Deposit</p></div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.method} Deposit</p></div>
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-secondary">${req.amount}</p></div>
                 </div>
@@ -302,37 +336,40 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="verifications" className="space-y-6">
+        <TabsContent value="config" className="space-y-6">
+          <div className="glass-card p-6 rounded-[2rem] border-primary/10 space-y-6">
+            <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Database size={14} /> Deposit Infrastructure</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
+                <Select onValueChange={setNewMethodCountry}>
+                  <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT" /></SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest">Service Name</Label>
+                <Input placeholder="E.G. INSTAPAY" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodName} onChange={(e) => setNewMethodName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest">Payment Data</Label>
+                <Input placeholder="ACCOUNT / WALLET #" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodDetails} onChange={(e) => setNewMethodDetails(e.target.value)} />
+              </div>
+            </div>
+            <button onClick={handleAddDepositMethod} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy New Method</button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {verifications.length === 0 ? <p className="col-span-full text-center text-[10px] text-muted-foreground uppercase py-10">Verification queue is clear</p> : verifications.map((req: any) => (
-              <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden">
-                <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-cyan-500/40" : req.status === 'approved' ? "bg-secondary/40" : "bg-red-500/40")} />
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><FileCheck className="h-6 w-6 text-secondary" /></div>
-                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">Identity Submission</p></div>
+            {depositMethods.map((m: any) => (
+              <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-headline font-bold text-xs">{m.country}</div>
+                  <div>
+                    <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
+                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest">{m.details}</p>
                   </div>
-                  <Badge className={cn("text-[8px] uppercase tracking-widest", req.status === 'pending' ? "bg-orange-500/20" : "bg-primary/20")}>{req.status}</Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
-                  <div className="flex flex-col gap-1"><p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><Globe className="w-2 h-2" /> Country</p><p className="text-[9px] font-headline font-bold text-white truncate">{req.details?.country || 'N/A'}</p></div>
-                  <div className="flex flex-col gap-1"><p className="text-[7px] text-muted-foreground uppercase font-black flex items-center gap-1"><FileText className="w-2 h-2" /> Doc Type</p><p className="text-[9px] font-headline font-bold text-white uppercase">{req.details?.docType || 'ID'}</p></div>
-                  <div className="col-span-2 flex flex-col gap-1 pt-1 border-t border-white/5"><p className="text-[7px] text-muted-foreground uppercase font-black">Document Number</p><p className="text-[9px] font-headline font-bold text-primary tracking-widest">{req.details?.docNumber || 'NOT PROVIDED'}</p></div>
-                </div>
-                {req.documentUrl && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button className="w-full h-12 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" /><span className="text-[9px] font-headline font-bold tracking-widest uppercase">Inspect Credentials</span></button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><DialogHeader><DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase text-center mb-4">Official Document Preview</DialogTitle></DialogHeader><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.documentUrl} alt="KYC Document" className="w-full h-full object-contain" /></div></DialogContent>
-                  </Dialog>
-                )}
-                {req.status === 'pending' && (
-                  <div className="flex gap-4 pt-2">
-                    <button onClick={() => handleApproveVerification(req.id, req.userId)} className="flex-1 h-12 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Verify</span></button>
-                    <button onClick={() => updateDoc(doc(db, 'verifications', req.id), { status: 'rejected' })} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Decline</span></button>
-                  </div>
-                )}
+                <button onClick={() => handleDeleteMethod(m.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
               </div>
             ))}
           </div>
@@ -346,50 +383,20 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
                     <div className={cn("w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border-2 transition-all duration-500 overflow-hidden", u.verified ? "border-green-500 cyan-glow" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="h-6 w-6 text-primary/40" />}</div>
-                    <div>
-                      <p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p>
-                      <p className="text-[8px] text-muted-foreground uppercase">{u.email}</p>
-                    </div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p><p className="text-[8px] text-muted-foreground uppercase">{u.email}</p></div>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
                     <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="text-red-500/40 hover:text-red-500 transition-colors p-1.5 bg-red-500/5 rounded-lg border border-red-500/10 hover:border-red-500/40">
-                          <Trash2 size={16} />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="glass-card border-red-500/20 rounded-[2rem]">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-xs font-headline font-bold uppercase tracking-widest text-red-500">Confirm Asset Purge</AlertDialogTitle>
-                          <AlertDialogDescription className="text-[10px] text-muted-foreground uppercase leading-relaxed">
-                            This action will permanently remove @{u.username} from the FLASH database. This entity will be erased from the ledger, allowing for a fresh initialization if required.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-white/5 border-white/10 text-[9px] font-headline uppercase tracking-widest rounded-xl">Abort</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="bg-red-500 text-white text-[9px] font-headline uppercase tracking-widest rounded-xl"
-                          >
-                            Authorize Purge
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-500/40 hover:text-red-500 transition-colors p-1.5 bg-red-500/5 rounded-lg border border-red-500/10 hover:border-red-500/40"><Trash2 size={14} /></button>
                   </div>
                 </div>
                 {editingUserId === u.id ? (
                   <div className="flex gap-2 animate-in slide-in-from-right-2">
                     <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-12 bg-background border-primary/20 rounded-xl" />
-                    <button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
-                      <Save size={20} />
-                    </button>
+                    <button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center"><Save size={20} /></button>
                   </div>
                 ) : (
-                  <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-12 bg-white/5 border border-white/5 rounded-xl text-[10px] font-headline font-bold uppercase tracking-widest hover:bg-primary/10 transition-all">
-                    Modify Asset Balance
-                  </button>
+                  <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-12 bg-white/5 border border-white/5 rounded-xl text-[10px] font-headline font-bold uppercase tracking-widest">Modify Asset Balance</button>
                 )}
               </div>
             ))}
