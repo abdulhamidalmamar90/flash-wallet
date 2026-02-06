@@ -32,7 +32,8 @@ import {
   UserCheck,
   WalletCards,
   MapPin,
-  MessageSquare
+  MessageSquare,
+  Shield
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -257,6 +258,16 @@ export default function AdminPage() {
       toast({ title: "BALANCE UPDATED" });
       setEditingUserId(null);
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleUpdateRole = async (targetUserId: string, newRole: string) => {
+    try {
+      await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
+      await sendNotification(targetUserId, "Role Updated", `Your account authority has been changed to: ${newRole.toUpperCase()}`, 'system');
+      toast({ title: "ROLE UPDATED SUCCESSFULLY" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "FAILED TO UPDATE ROLE" });
+    }
   };
 
   const handleDeleteUser = async (targetUserId: string) => {
@@ -515,7 +526,15 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
                     <div className={cn("w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border-2 transition-all duration-500 overflow-hidden", u.verified ? "border-green-500 cyan-glow" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="h-6 w-6 text-primary/40" />}</div>
-                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p><p className="text-[8px] text-muted-foreground uppercase">{u.email}</p></div>
+                    <div>
+                      <p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p>
+                      <p className="text-[8px] text-muted-foreground uppercase">{u.email}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Badge variant="outline" className={cn("text-[6px] tracking-tighter uppercase font-black", u.role === 'admin' ? "border-primary text-primary" : "border-muted-foreground text-muted-foreground")}>
+                          {u.role === 'admin' ? 'Superuser' : 'Client'}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
                     <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p>
@@ -536,14 +555,33 @@ export default function AdminPage() {
                     </AlertDialog>
                   </div>
                 </div>
-                {editingUserId === u.id ? (
-                  <div className="flex gap-2 animate-in slide-in-from-right-2">
-                    <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-12 bg-background border-primary/20 rounded-xl" />
-                    <button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center"><Save size={20} /></button>
+
+                <div className="space-y-3 pt-2 border-t border-white/5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Shield size={12} className="text-primary/60" />
+                      <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Access Authority:</Label>
+                    </div>
+                    <Select defaultValue={u.role || 'user'} onValueChange={(val) => handleUpdateRole(u.id, val)}>
+                      <SelectTrigger className="h-8 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase w-[100px] font-headline">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-white/10">
+                        <SelectItem value="user" className="text-[9px] uppercase">User</SelectItem>
+                        <SelectItem value="admin" className="text-[9px] uppercase text-primary font-bold">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                ) : (
-                  <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-12 bg-white/5 border border-white/5 rounded-xl text-[10px] font-headline font-bold uppercase tracking-widest">Modify Asset Balance</button>
-                )}
+
+                  {editingUserId === u.id ? (
+                    <div className="flex gap-2 animate-in slide-in-from-right-2">
+                      <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-10 bg-background border-primary/20 rounded-xl text-xs" />
+                      <button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-10 h-10 bg-primary text-background rounded-xl flex items-center justify-center shrink-0"><Save size={16} /></button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-10 bg-white/5 border border-white/5 rounded-xl text-[9px] font-headline font-bold uppercase tracking-widest hover:bg-white/10 transition-colors">Modify Asset Balance</button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
