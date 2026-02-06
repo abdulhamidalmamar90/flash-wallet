@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,6 @@ import {
   Check, 
   X, 
   Building2, 
-  Bitcoin, 
   Loader2, 
   Users, 
   Search, 
@@ -35,7 +34,10 @@ import {
   Shield,
   Type,
   AlignLeft,
-  ListFilter
+  ListFilter,
+  Image as ImageIcon,
+  Percent,
+  Coins
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -47,7 +49,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
 
 export const COUNTRIES = [
@@ -74,18 +75,6 @@ export const COUNTRIES = [
   { code: 'US', name: 'USA' },
   { code: 'GB', name: 'UK' },
   { code: 'CA', name: 'Canada' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'TR', name: 'Turkey' },
-  { code: 'CN', name: 'China' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'KR', name: 'South Korea' },
-  { code: 'IN', name: 'India' },
-  { code: 'RU', name: 'Russia' },
-  { code: 'BR', name: 'Brazil' },
-  { code: 'AU', name: 'Australia' },
 ];
 
 export default function AdminPage() {
@@ -93,6 +82,7 @@ export default function AdminPage() {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
+  const iconInputRef = useRef<HTMLInputElement>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -112,7 +102,11 @@ export default function AdminPage() {
   // Withdrawal Method Dynamic Config State
   const [newWithdrawCountry, setNewWithdrawCountry] = useState('');
   const [newWithdrawName, setNewWithdrawName] = useState('');
-  const [newWithdrawFee, setNewWithdrawFee] = useState('0');
+  const [newWithdrawIcon, setNewWithdrawIcon] = useState<string | null>(null);
+  const [newWithdrawCurrency, setNewWithdrawCurrency] = useState('');
+  const [newWithdrawRate, setNewWithdrawRate] = useState('1');
+  const [newWithdrawFeeType, setNewWithdrawFeeType] = useState<'fixed' | 'percentage'>('fixed');
+  const [newWithdrawFeeValue, setNewWithdrawFeeValue] = useState('0');
   const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' | 'select', options?: string }>>([]);
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
@@ -154,34 +148,33 @@ export default function AdminPage() {
     });
   };
 
-  const handleApproveWithdrawal = async (id: string, userId: string, amount: number) => {
+  const handleApproveWithdrawal = async (req: any) => {
     try {
-      const ref = doc(db, 'withdrawals', id);
+      const ref = doc(db, 'withdrawals', req.id);
       await updateDoc(ref, { status: 'approved' });
-      await sendNotification(userId, "Withdrawal Confirmed", `Your request for $${amount} has been processed.`, 'transaction');
+      await sendNotification(req.userId, "Withdrawal Confirmed", `Your request for ${req.netAmount} ${req.currencyCode} has been processed.`, 'transaction');
       toast({ title: "WITHDRAWAL APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
 
-  const handleRejectWithdrawal = async (id: string, userId: string, amount: number, fee: number = 0) => {
+  const handleRejectWithdrawal = async (req: any) => {
     try {
       await runTransaction(db, async (transaction) => {
-        const withdrawalRef = doc(db, 'withdrawals', id);
-        const userRef = doc(db, 'users', userId);
-        const txRef = doc(collection(db, 'users', userId, 'transactions'));
-        const totalRefund = amount + fee;
-
+        const withdrawalRef = doc(db, 'withdrawals', req.id);
+        const userRef = doc(db, 'users', req.userId);
+        const txRef = doc(collection(db, 'users', req.userId, 'transactions'));
+        
         transaction.update(withdrawalRef, { status: 'rejected' });
-        transaction.update(userRef, { balance: increment(totalRefund) });
+        transaction.update(userRef, { balance: increment(req.amountUsd) });
         transaction.set(txRef, {
           type: 'receive',
-          amount: totalRefund,
+          amount: req.amountUsd,
           status: 'completed',
           sender: 'SYSTEM REFUND',
           date: new Date().toISOString()
         });
       });
-      await sendNotification(userId, "Withdrawal Rejected", `Your request was declined. $${amount + fee} have been returned to your vault.`, 'transaction');
+      await sendNotification(req.userId, "Withdrawal Rejected", `Your request was declined. $${req.amountUsd} have been returned to your vault.`, 'transaction');
       toast({ title: "WITHDRAWAL REJECTED & REFUNDED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
@@ -265,13 +258,6 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
-  const handleDeleteUser = async (targetUserId: string) => {
-    try {
-      await deleteDoc(doc(db, 'users', targetUserId));
-      toast({ title: "USER PURGED" });
-    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
-  };
-
   const handleAddDepositMethod = async () => {
     if (!newMethodCountry || !newMethodName || !newMethodDetails) return;
     try {
@@ -288,23 +274,39 @@ export default function AdminPage() {
   };
 
   const handleAddWithdrawMethod = async () => {
-    if (!newWithdrawCountry || !newWithdrawName || withdrawFields.length === 0) {
-      toast({ variant: "destructive", title: "MISSING FIELDS", description: "Define at least one form field." });
+    if (!newWithdrawCountry || !newWithdrawName || !newWithdrawCurrency || withdrawFields.length === 0) {
+      toast({ variant: "destructive", title: "MISSING FIELDS", description: "Method name, Currency, and at least one form field are required." });
       return;
     }
     try {
       await addDoc(collection(db, 'withdrawal_methods'), {
         country: newWithdrawCountry,
         name: newWithdrawName,
-        fee: parseFloat(newWithdrawFee) || 0,
+        iconUrl: newWithdrawIcon,
+        currencyCode: newWithdrawCurrency.toUpperCase(),
+        exchangeRate: parseFloat(newWithdrawRate) || 1,
+        feeType: newWithdrawFeeType,
+        feeValue: parseFloat(newWithdrawFeeValue) || 0,
         fields: withdrawFields,
         isActive: true
       });
       toast({ title: "WITHDRAW METHOD ADDED" });
       setNewWithdrawName('');
-      setNewWithdrawFee('0');
+      setNewWithdrawIcon(null);
+      setNewWithdrawCurrency('');
+      setNewWithdrawRate('1');
+      setNewWithdrawFeeValue('0');
       setWithdrawFields([]);
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setNewWithdrawIcon(reader.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const addField = () => {
@@ -349,12 +351,12 @@ export default function AdminPage() {
 
       <Tabs defaultValue="withdrawals" className="w-full">
         <TabsList className="grid w-full grid-cols-6 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><ArrowUpCircle className="h-3 w-3 sm:mr-2" /> Withdrawals</TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><ArrowDownCircle className="h-3 w-3 sm:mr-2" /> Deposits</TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><ShieldCheck className="h-3 w-3 sm:mr-2" /> KYC</TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><Users className="h-3 w-3 sm:mr-2" /> Ledger</TabsTrigger>
-          <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><Settings2 className="h-3 w-3 sm:mr-2" /> Dep-Cfg</TabsTrigger>
-          <TabsTrigger value="withdraw_config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><WalletCards className="h-3 w-3 sm:mr-2" /> Wit-Cfg</TabsTrigger>
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><ArrowUpCircle className="h-3 w-3 sm:mr-2" /> Withdrawals</TabsTrigger>
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><ArrowDownCircle className="h-3 w-3 sm:mr-2" /> Deposits</TabsTrigger>
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><ShieldCheck className="h-3 w-3 sm:mr-2" /> KYC</TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><Users className="h-3 w-3 sm:mr-2" /> Ledger</TabsTrigger>
+          <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><Settings2 className="h-3 w-3 sm:mr-2" /> Dep-Cfg</TabsTrigger>
+          <TabsTrigger value="withdraw_config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><WalletCards className="h-3 w-3 sm:mr-2" /> Wit-Cfg</TabsTrigger>
         </TabsList>
 
         <TabsContent value="withdrawals" className="space-y-6">
@@ -368,13 +370,13 @@ export default function AdminPage() {
                     <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.methodName}</p></div>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-headline font-black text-primary">${req.amount}</p>
-                    {req.fee > 0 && <p className="text-[7px] text-muted-foreground uppercase">Fee: +${req.fee}</p>}
+                    <p className="text-lg font-headline font-black text-primary">${req.amountUsd}</p>
+                    <p className="text-[7px] text-muted-foreground uppercase">Net: {req.netAmount} {req.currencyCode}</p>
                   </div>
                 </div>
                 
                 <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
-                  <p className="text-[7px] text-muted-foreground uppercase font-black">User Details</p>
+                  <p className="text-[7px] text-muted-foreground uppercase font-black">User Intel</p>
                   {req.details && Object.entries(req.details).map(([label, value]: [string, any]) => (
                     <div key={label} className="flex justify-between items-start">
                       <span className="text-[8px] text-muted-foreground uppercase">{label}:</span>
@@ -385,8 +387,8 @@ export default function AdminPage() {
 
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
-                    <button onClick={() => handleApproveWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
-                    <button onClick={() => handleRejectWithdrawal(req.id, req.userId, req.amount, req.fee)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                    <button onClick={() => handleApproveWithdrawal(req)} className="flex-1 h-12 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
+                    <button onClick={() => handleRejectWithdrawal(req)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
                   </div>
                 )}
               </div>
@@ -405,10 +407,6 @@ export default function AdminPage() {
                     <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.method} Deposit</p></div>
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-secondary">${req.amount}</p></div>
-                </div>
-
-                <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase">Sender:</span><span className="text-[9px] font-headline text-white flex items-center gap-1"><UserCheck size={10} className="text-secondary" /> {req.senderName || 'N/A'}</span></div>
                 </div>
 
                 {req.proofUrl && (
@@ -447,48 +445,72 @@ export default function AdminPage() {
             </div>
             <button onClick={handleAddDepositMethod} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy New Method</button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {depositMethods.map((m: any) => (
-              <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
-                <div className="flex items-center gap-4 flex-1 mr-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-headline font-bold text-xs">{m.country}</div>
-                  <div className="min-w-0"><p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest whitespace-pre-line line-clamp-2">{m.details}</p></div>
-                </div>
-                <button onClick={() => handleDeleteMethod(m.id, 'deposit')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-              </div>
-            ))}
-          </div>
         </TabsContent>
 
         <TabsContent value="withdraw_config" className="space-y-6">
-          <div className="glass-card p-6 rounded-[2rem] border-secondary/10 space-y-6">
-            <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-secondary"><WalletCards size={14} /> Withdrawal Gateways</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-4">
+          <div className="glass-card p-6 rounded-[2rem] border-secondary/10 space-y-8">
+            <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-secondary"><WalletCards size={14} /> Global Gateway Architect</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
+                  <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Target Country</Label>
                   <Select onValueChange={setNewWithdrawCountry}>
-                    <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT" /></SelectTrigger>
+                    <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT REGION" /></SelectTrigger>
                     <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest">Method Name</Label>
-                  <Input placeholder="E.G. USDT (TRC20)" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawName} onChange={(e) => setNewWithdrawName(e.target.value)} />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Method Name</Label>
+                    <Input placeholder="EX: BARAKA BANK" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawName} onChange={(e) => setNewWithdrawName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Method Icon</Label>
+                    <div onClick={() => iconInputRef.current?.click()} className="h-12 bg-background/50 border-dashed border border-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-secondary/5 transition-all overflow-hidden">
+                      {newWithdrawIcon ? <img src={newWithdrawIcon} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-muted-foreground" />}
+                      <input type="file" ref={iconInputRef} className="hidden" accept="image/*" onChange={handleIconUpload} />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest">Fixed Fee (USD)</Label>
-                  <Input type="number" placeholder="2.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawFee} onChange={(e) => setNewWithdrawFee(e.target.value)} />
+
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Currency Code</Label>
+                    <Input placeholder="USD / SYP" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawCurrency} onChange={(e) => setNewWithdrawCurrency(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Ex. Rate (1 USD = ?)</Label>
+                    <Input type="number" placeholder="1.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawRate} onChange={(e) => setNewWithdrawRate(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Commission Type</Label>
+                    <Select value={newWithdrawFeeType} onValueChange={(val: any) => setNewWithdrawFeeType(val)}>
+                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-card border-white/10">
+                        <SelectItem value="fixed" className="text-[10px] uppercase">Fixed Amount</SelectItem>
+                        <SelectItem value="percentage" className="text-[10px] uppercase">Percentage %</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Fee Value</Label>
+                    <Input type="number" placeholder="0.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawFeeValue} onChange={(e) => setNewWithdrawFeeValue(e.target.value)} />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4 md:col-span-2">
-                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest">Form Structure (Inputs)</Label><button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button></div>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">P2P Form Structure</Label><button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button></div>
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
                   {withdrawFields.map((field, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 p-3 bg-white/5 border border-white/5 rounded-xl">
+                    <div key={idx} className="flex flex-col gap-2 p-4 bg-white/5 border border-white/5 rounded-2xl">
                       <div className="flex gap-2 items-center">
-                        <Input placeholder="FIELD LABEL" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateField(idx, 'label', e.target.value)} />
+                        <Input placeholder="INPUT LABEL" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateField(idx, 'label', e.target.value)} />
                         <Select value={field.type} onValueChange={(val: any) => updateField(idx, 'type', val)}>
                           <SelectTrigger className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] w-[120px]"><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-card border-white/10">
@@ -499,20 +521,27 @@ export default function AdminPage() {
                         </Select>
                         <button onClick={() => removeField(idx)} className="p-2 text-red-500/40 hover:text-red-500"><Trash2 size={14} /></button>
                       </div>
-                      {field.type === 'select' && <Input placeholder="OPTIONS (COMMA SEPARATED: BEP20, TRC20)" className="h-9 bg-background/30 border-white/5 rounded-lg text-[8px] uppercase" value={field.options || ''} onChange={(e) => updateField(idx, 'options', e.target.value)} />}
+                      {field.type === 'select' && <Input placeholder="OPTIONS (COMMA SEPARATED)" className="h-9 bg-background/30 border-white/5 rounded-lg text-[8px] uppercase" value={field.options || ''} onChange={(e) => updateField(idx, 'options', e.target.value)} />}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-            <button onClick={handleAddWithdrawMethod} className="w-full h-12 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy Gateway</button>
+            <button onClick={handleAddWithdrawMethod} className="w-full h-14 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all cyan-glow"><Plus size={16} /> Deploy Secure Gateway</button>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {withdrawalMethods.map((m: any) => (
               <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
                 <div className="flex items-center gap-4 flex-1 mr-4">
-                  <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center text-secondary font-headline font-bold text-xs">{m.country}</div>
-                  <div className="min-w-0"><p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p><p className="text-[8px] text-primary/60 uppercase">Fee: ${m.fee || 0}</p></div>
+                  <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center border border-white/5 overflow-hidden">
+                    {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <div className="text-secondary font-headline font-bold text-xs">{m.country}</div>}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
+                    <p className="text-[8px] text-primary/60 uppercase">1 USD = {m.exchangeRate} {m.currencyCode}</p>
+                    <p className="text-[7px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percentage' ? '%' : ' ' + m.currencyCode}</p>
+                  </div>
                 </div>
                 <button onClick={() => handleDeleteMethod(m.id, 'withdraw')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
               </div>

@@ -52,26 +52,20 @@
     },
     "WithdrawalMethod": {
       "title": "Withdrawal Method",
-      "description": "Stored in /withdrawal_methods/{id}. Configured by admin per country for user selection.",
+      "description": "Stored in /withdrawal_methods/{id}. Advanced financial config for withdrawals.",
       "type": "object",
       "properties": {
-        "country": { "type": "string", "description": "Country code (e.g., EG, SA, GL, CR)" },
-        "name": { "type": "string", "description": "Method name (e.g., Bank Transfer, USDT)" },
-        "fee": { "type": "number", "description": "Fixed fee for withdrawal" },
-        "fields": { 
-          "type": "array", 
-          "items": {
-            "type": "object",
-            "properties": {
-              "label": { "type": "string" },
-              "type": { "type": "string", "enum": ["text", "textarea", "select"] },
-              "options": { "type": "string", "description": "Comma separated options for select" }
-            }
-          }
-        },
+        "country": { "type": "string" },
+        "name": { "type": "string" },
+        "iconUrl": { "type": "string" },
+        "currencyCode": { "type": "string", "description": "e.g., USD, SYP, SAR" },
+        "exchangeRate": { "type": "number", "description": "Multiplication factor from USD" },
+        "feeType": { "type": "string", "enum": ["fixed", "percentage"] },
+        "feeValue": { "type": "number" },
+        "fields": { "type": "array" },
         "isActive": { "type": "boolean" }
       },
-      "required": ["country", "name", "isActive"]
+      "required": ["country", "name", "currencyCode", "exchangeRate", "feeType", "feeValue", "isActive"]
     },
     "Transaction": {
       "title": "Transaction",
@@ -109,13 +103,16 @@
         "userId": { "type": "string" },
         "username": { "type": "string" },
         "methodName": { "type": "string" },
-        "amount": { "type": "number" },
-        "fee": { "type": "number" },
+        "amountUsd": { "type": "number" },
+        "localAmount": { "type": "number" },
+        "currencyCode": { "type": "string" },
+        "feeAmount": { "type": "number" },
+        "netAmount": { "type": "number" },
         "details": { "type": "object" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "date": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "username", "amount", "status", "date"]
+      "required": ["userId", "username", "amountUsd", "status", "date"]
     },
     "DepositRequest": {
       "title": "Deposit Request",

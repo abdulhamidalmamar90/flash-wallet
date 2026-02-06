@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Loader2, Landmark, Check, Info, AlertCircle, ShieldCheck, Coins, Wallet } from 'lucide-react';
+import { ChevronLeft, Loader2, Landmark, Check, Info, Coins, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -77,14 +77,15 @@ export default function WithdrawPage() {
     return allMethods.filter((m: any) => m.country === selectedCountry || m.country === 'GL');
   }, [allMethods, selectedCountry]);
 
-  // Logic to handle Crypto jump
   useEffect(() => {
     if (selectedCountry === 'CR' && step === 2) {
-      // Define a synthetic USDT method for Crypto region
       setSelectedMethod({
         name: 'USDT',
         country: 'CR',
-        fee: 2.0,
+        currencyCode: 'USD',
+        exchangeRate: 1,
+        feeType: 'fixed',
+        feeValue: 2.0,
         fields: [
           { 
             label: language === 'ar' ? 'نوع الشبكة' : 'Network Type', 
@@ -98,16 +99,30 @@ export default function WithdrawPage() {
     }
   }, [selectedCountry, step, language]);
 
-  const methodFee = selectedMethod?.fee || 0;
-  const amountVal = parseFloat(amount || '0');
-  const netAmount = Math.max(0, amountVal - methodFee);
+  // Financial Calculations
+  const calculations = useMemo(() => {
+    if (!selectedMethod || !amount) return { localAmount: 0, fee: 0, net: 0 };
+    const usd = parseFloat(amount || '0');
+    const local = usd * (selectedMethod.exchangeRate || 1);
+    let fee = 0;
+    if (selectedMethod.feeType === 'fixed') {
+      fee = selectedMethod.feeValue || 0;
+    } else {
+      fee = (local * (selectedMethod.feeValue || 0)) / 100;
+    }
+    return { 
+      localAmount: local, 
+      fee: fee, 
+      net: Math.max(0, local - fee) 
+    };
+  }, [selectedMethod, amount]);
 
   const t = {
     header: language === 'ar' ? 'سحب رصيد' : 'Withdraw Funds',
     selectCountry: language === 'ar' ? 'اختر الدولة' : 'Select Country',
     selectMethod: language === 'ar' ? 'اختر وسيلة السحب' : 'Select Gateway',
     noMethods: language === 'ar' ? 'لا تتوفر وسائل سحب حالياً' : 'No gateways available',
-    amountLabel: language === 'ar' ? 'المبلغ المراد سحبه' : 'Withdrawal Amount',
+    amountLabel: language === 'ar' ? 'المبلغ المطلوب سحبه ($)' : 'Withdrawal Amount (USD)',
     submitBtn: language === 'ar' ? 'تأكيد السحب' : 'AUTHORIZE WITHDRAWAL',
     nextBtn: language === 'ar' ? 'استمرار' : 'CONTINUE',
     success: language === 'ar' ? 'تم تقديم الطلب بنجاح' : 'Withdrawal request submitted',
@@ -117,7 +132,7 @@ export default function WithdrawPage() {
     fee: language === 'ar' ? 'العمولة' : 'Commission Fee',
     willReceive: language === 'ar' ? 'المبلغ الذي سيصلك' : 'You will receive',
     cryptoNotice: language === 'ar' ? 'سيصلك المبلغ الذي أدخلته مخصوماً منه 2 دولار (عمولة الشبكة)' : 'You will receive the amount you entered minus $2.00 (Network Fee)',
-    minNotice: language === 'ar' ? 'يجب أن يكون المبلغ أكبر من 2 دولار' : 'Amount must be greater than $2.00',
+    localValue: language === 'ar' ? 'القيمة بالعملة المحلية' : 'Local Currency Value',
   };
 
   const handleInputChange = (label: string, value: string) => {
@@ -125,28 +140,19 @@ export default function WithdrawPage() {
   };
 
   const handleBack = () => {
-    if (step === 1) {
-      router.back();
-    } else if (step === 3 && selectedCountry === 'CR') {
-      // Specifically handle returning from Crypto Step 3 to Step 1
+    if (step === 1) router.back();
+    else if (step === 3 && selectedCountry === 'CR') {
       setSelectedMethod(null);
       setStep(1);
-    } else {
-      setStep(step - 1);
-    }
+    } else setStep(step - 1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !amount || !profile || !selectedMethod) return;
 
-    const amountNum = parseFloat(amount);
-    if (amountNum <= methodFee) {
-      toast({ variant: "destructive", title: t.minNotice });
-      return;
-    }
-
-    if (amountNum > (profile.balance || 0)) {
+    const amountUsd = parseFloat(amount);
+    if (amountUsd > (profile.balance || 0)) {
       toast({ variant: "destructive", title: t.insufficient });
       return;
     }
@@ -162,7 +168,7 @@ export default function WithdrawPage() {
       let requestId = "";
       await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', user.uid);
-        transaction.update(userRef, { balance: increment(-amountNum) });
+        transaction.update(userRef, { balance: increment(-amountUsd) });
         
         const requestRef = doc(collection(db, 'withdrawals'));
         requestId = requestRef.id;
@@ -170,8 +176,11 @@ export default function WithdrawPage() {
           userId: user.uid,
           username: profile.username,
           methodName: selectedMethod.name,
-          amount: netAmount, 
-          fee: methodFee,
+          amountUsd: amountUsd,
+          localAmount: calculations.localAmount,
+          currencyCode: selectedMethod.currencyCode,
+          feeAmount: calculations.fee,
+          netAmount: calculations.net,
           details: formData,
           status: 'pending',
           date: new Date().toISOString()
@@ -180,7 +189,7 @@ export default function WithdrawPage() {
         const txRef = doc(collection(db, 'users', user.uid, 'transactions'));
         transaction.set(txRef, {
           type: 'withdraw',
-          amount: amountNum,
+          amount: amountUsd,
           status: 'pending',
           date: new Date().toISOString()
         });
@@ -191,10 +200,10 @@ export default function WithdrawPage() {
 💸 <b>New Withdrawal Request (${selectedMethod.name})</b>
 ━━━━━━━━━━━━━━━━
 <b>User:</b> @${profile.username}
-<b>ID:</b> <code>${profile.customId}</code>
-<b>Entered Amount:</b> $${amount}
-<b>Net to Send:</b> $${netAmount}
-<b>Fee:</b> $${methodFee}
+<b>USD Amount:</b> $${amount}
+<b>Local Total:</b> ${calculations.localAmount} ${selectedMethod.currencyCode}
+<b>Fee Applied:</b> ${calculations.fee} ${selectedMethod.currencyCode}
+<b>NET TO PAY:</b> <code>${calculations.net} ${selectedMethod.currencyCode}</code>
 <b>Details:</b>
 ${detailsText}
       `, {
@@ -249,12 +258,14 @@ ${detailsText}
               ) : filteredMethods.map((m: any) => (
                 <button key={m.id} onClick={() => { setSelectedMethod(m); setStep(3); }} className="glass-card p-6 rounded-3xl flex items-center justify-between border-white/5 hover:border-primary/40 transition-all group">
                   <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110"><Landmark size={24} /></div>
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 overflow-hidden border border-white/5">
+                      {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <Landmark size={24} />}
+                    </div>
                     <div className="text-left">
                       <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
                       <div className="flex gap-1 mt-1">
-                        <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.country === 'GL' ? 'GLOBAL' : m.country}</Badge>
-                        {m.fee > 0 && <Badge className="text-[6px] bg-primary/10 text-primary border-primary/20">Fee: ${m.fee}</Badge>}
+                        <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.currencyCode}</Badge>
+                        <Badge className="text-[6px] bg-primary/10 text-primary border-primary/20">Rate: {m.exchangeRate}</Badge>
                       </div>
                     </div>
                   </div>
@@ -272,7 +283,7 @@ ${detailsText}
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   {isCrypto ? <Coins className="h-5 w-5 text-primary" /> : <Landmark className="h-5 w-5 text-primary" />}
-                  <span className="text-[12px] font-headline font-bold uppercase text-primary">{selectedMethod.name} Withdrawal</span>
+                  <span className="text-[12px] font-headline font-bold uppercase text-primary">{selectedMethod.name}</span>
                 </div>
                 <span className="text-[8px] text-muted-foreground uppercase">{t.balance}: ${profile?.balance?.toLocaleString()}</span>
               </div>
@@ -288,8 +299,13 @@ ${detailsText}
               <Input type="number" placeholder="0.00" className="text-3xl font-headline font-bold h-20 text-center bg-background/50 border-white/10 rounded-xl text-primary focus:border-primary/50" value={amount} onChange={(e) => setAmount(e.target.value)} required />
               
               <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
-                <div><p className="text-[8px] text-muted-foreground uppercase">{t.fee}</p><p className="text-sm font-headline font-bold text-white">${methodFee}</p></div>
-                <div className="text-right"><p className="text-[8px] text-muted-foreground uppercase">{t.willReceive}</p><p className="text-sm font-headline font-bold text-primary">${netAmount.toLocaleString()}</p></div>
+                <div><p className="text-[8px] text-muted-foreground uppercase">{t.localValue}</p><p className="text-sm font-headline font-bold text-white">{calculations.localAmount.toLocaleString()} {selectedMethod.currencyCode}</p></div>
+                <div className="text-right"><p className="text-[8px] text-muted-foreground uppercase">{t.fee}</p><p className="text-sm font-headline font-bold text-red-500">-{calculations.fee.toLocaleString()} {selectedMethod.currencyCode}</p></div>
+              </div>
+
+              <div className="p-4 bg-primary/10 rounded-2xl border border-primary/30 flex justify-between items-center">
+                <p className="text-[10px] font-headline font-bold uppercase text-primary">{t.willReceive}</p>
+                <p className="text-2xl font-headline font-black text-primary">{calculations.net.toLocaleString()} {selectedMethod.currencyCode}</p>
               </div>
             </div>
 
@@ -316,7 +332,7 @@ ${detailsText}
               ))}
             </div>
 
-            <Button type="submit" disabled={loading || !amount || parseFloat(amount) <= 2} className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary text-background font-black tracking-widest">
+            <Button type="submit" disabled={loading || !amount || calculations.net <= 0} className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary text-background font-black tracking-widest">
               {loading ? <Loader2 className="animate-spin" /> : t.submitBtn}
             </Button>
           </form>
