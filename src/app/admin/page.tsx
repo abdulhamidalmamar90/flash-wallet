@@ -1191,7 +1191,7 @@ export default function AdminPage() {
                     {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <div className="text-secondary font-headline font-bold text-xs">{m.country}</div>}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p clothings-p-8>
+                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
                     <p className="text-[8px] text-primary/60 uppercase">1 USD = {m.exchangeRate} {m.currencyCode}</p>
                     <p className="text-[7px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percentage' ? '%' : ' ' + m.currencyCode}</p>
                   </div>
