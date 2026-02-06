@@ -57,6 +57,7 @@ const COUNTRIES = [
   { code: 'YE', name: 'Yemen', ar: 'اليمن' },
   { code: 'BH', name: 'Bahrain', ar: 'البحرين' },
   { code: 'TN', name: 'Tunisia', ar: 'تونس' },
+  { code: 'TN', name: 'Tunisia', ar: 'تونس' },
   { code: 'SD', name: 'Sudan', ar: 'السودان' },
   // Global Countries
   { code: 'US', name: 'USA', ar: 'أمريكا' },

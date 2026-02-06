@@ -82,12 +82,10 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider);
       const googleEmail = result.user.email?.toLowerCase();
 
-      // Check if user exists in Firestore by email
       const q = query(collection(db, 'users'), where('email', '==', googleEmail));
       const snap = await getDocs(q);
       
       if (snap.empty) {
-        // No Firestore profile for this email
         await signOut(auth);
         toast({
           variant: "destructive",
@@ -95,7 +93,6 @@ export default function LoginPage() {
           description: t.noAccountFound
         });
       } else {
-        // User exists, move to dashboard
         router.push('/dashboard');
       }
     } catch (error: any) {
@@ -143,7 +140,7 @@ export default function LoginPage() {
                   autoCorrect="off"
                   spellCheck="false"
                   placeholder={t.email} 
-                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
+                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
@@ -158,7 +155,7 @@ export default function LoginPage() {
                   autoCorrect="off"
                   spellCheck="false"
                   placeholder={t.password} 
-                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline uppercase tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
+                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[11px] font-headline tracking-widest text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
