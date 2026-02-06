@@ -40,7 +40,12 @@ import {
   Coins,
   Edit2,
   Copy,
-  Calendar
+  Calendar,
+  Gamepad2,
+  Gift,
+  LayoutGrid,
+  ShoppingBag,
+  Ticket
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -106,6 +111,23 @@ const COUNTRY_CURRENCIES: Record<string, string> = {
   CA: 'CAD',
 };
 
+const SERVICE_CATEGORIES = [
+  { id: 'Games', label: 'Games', icon: Gamepad2 },
+  { id: 'Cards', label: 'Cards', icon: Gift },
+  { id: 'Software', label: 'Software', icon: ShoppingBag },
+  { id: 'Social', label: 'Social', icon: Users },
+];
+
+const SERVICE_COLORS = [
+  { id: 'text-orange-400', label: 'Orange' },
+  { id: 'text-blue-400', label: 'Blue' },
+  { id: 'text-green-400', label: 'Green' },
+  { id: 'text-pink-400', label: 'Pink' },
+  { id: 'text-purple-400', label: 'Purple' },
+  { id: 'text-cyan-400', label: 'Cyan' },
+  { id: 'text-primary', label: 'Gold' },
+];
+
 export default function AdminPage() {
   const router = useRouter();
   const db = useFirestore();
@@ -144,6 +166,13 @@ export default function AdminPage() {
   const [newWithdrawFeeValue, setNewWithdrawFeeValue] = useState('0');
   const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' | 'select', options?: string }>>([]);
 
+  // Marketplace Services Config State
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServicePrice, setNewServicePrice] = useState('');
+  const [newServiceCategory, setNewServiceCategory] = useState('Games');
+  const [newServiceColor, setNewServiceColor] = useState('text-orange-400');
+
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
@@ -164,6 +193,12 @@ export default function AdminPage() {
 
   const withdrawMethodsQuery = useMemo(() => query(collection(db, 'withdrawal_methods')), [db]);
   const { data: withdrawalMethods = [] } = useCollection(withdrawMethodsQuery);
+
+  const marketplaceServicesQuery = useMemo(() => query(collection(db, 'marketplace_services')), [db]);
+  const { data: marketplaceServices = [] } = useCollection(marketplaceServicesQuery);
+
+  const serviceRequestsQuery = useMemo(() => query(collection(db, 'service_requests'), orderBy('date', 'desc')), [db]);
+  const { data: serviceRequests = [] } = useCollection(serviceRequestsQuery);
 
   useEffect(() => {
     if (!authLoading && !profileLoading && profile && (profile as any).role !== 'admin') {
@@ -290,6 +325,63 @@ export default function AdminPage() {
       await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
       await sendNotification(targetUserId, "Role Updated", `Your account authority has been changed to: ${newRole.toUpperCase()}`, 'system');
       toast({ title: "ROLE UPDATED" });
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  // Service Management Handlers
+  const resetServiceForm = () => {
+    setEditingServiceId(null);
+    setNewServiceName('');
+    setNewServicePrice('');
+    setNewServiceCategory('Games');
+    setNewServiceColor('text-orange-400');
+  };
+
+  const handleAddService = async () => {
+    if (!newServiceName || !newServicePrice) {
+      toast({ variant: "destructive", title: "MISSING FIELDS" });
+      return;
+    }
+    try {
+      const data = {
+        name: newServiceName,
+        price: parseFloat(newServicePrice),
+        category: newServiceCategory,
+        color: newServiceColor,
+        isActive: true
+      };
+      
+      if (editingServiceId) {
+        await updateDoc(doc(db, 'marketplace_services', editingServiceId), data);
+        toast({ title: "SERVICE UPDATED" });
+      } else {
+        await addDoc(collection(db, 'marketplace_services'), data);
+        toast({ title: "SERVICE ADDED" });
+      }
+      resetServiceForm();
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleEditService = (service: any) => {
+    setEditingServiceId(service.id);
+    setNewServiceName(service.name);
+    setNewServicePrice(service.price.toString());
+    setNewServiceCategory(service.category);
+    setNewServiceColor(service.color);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteService = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'marketplace_services', id));
+      toast({ title: "SERVICE REMOVED" });
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleUpdateServiceRequestStatus = async (id: string, status: string) => {
+    try {
+      await updateDoc(doc(db, 'service_requests', id), { status });
+      toast({ title: `REQUEST ${status.toUpperCase()}` });
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
@@ -472,14 +564,104 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><ArrowUpCircle className="h-3 w-3 sm:mr-2" /> Withdrawals</TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><ArrowDownCircle className="h-3 w-3 sm:mr-2" /> Deposits</TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><ShieldCheck className="h-3 w-3 sm:mr-2" /> KYC</TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><Users className="h-3 w-3 sm:mr-2" /> Ledger</TabsTrigger>
-          <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><Settings2 className="h-3 w-3 sm:mr-2" /> Dep-Cfg</TabsTrigger>
-          <TabsTrigger value="withdraw_config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background px-1"><WalletCards className="h-3 w-3 sm:mr-2" /> Wit-Cfg</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraws</TabsTrigger>
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ArrowDownCircle className="h-3 w-3 mr-1" /> Deposits</TabsTrigger>
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ShieldCheck className="h-3 w-3 mr-1" /> KYC</TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><Users className="h-3 w-3 mr-1" /> Ledger</TabsTrigger>
+          <TabsTrigger value="service_requests" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ShoppingBag className="h-3 w-3 mr-1" /> Srv Req</TabsTrigger>
+          <TabsTrigger value="services_config" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><Ticket className="h-3 w-3 mr-1" /> Srv Cfg</TabsTrigger>
+          <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><Settings2 className="h-3 w-3 mr-1" /> Dep-Cfg</TabsTrigger>
+          <TabsTrigger value="withdraw_config" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><WalletCards className="h-3 w-3 mr-1" /> Wit-Cfg</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="service_requests" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {serviceRequests.length === 0 ? <p className="col-span-full text-center text-[10px] text-muted-foreground uppercase py-10">No service requests logged</p> : serviceRequests.map((req: any) => (
+              <div key={req.id} className="glass-card p-6 rounded-[2rem] space-y-5 border-white/5 relative overflow-hidden group hover:border-primary/20 transition-all">
+                <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-yellow-500/40" : req.status === 'completed' ? "bg-green-500/40" : "bg-red-500/40")} />
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><ShoppingBag className="h-6 w-6 text-primary" /></div>
+                    <div>
+                      <p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{req.username}</p>
+                      <p className="text-[7px] text-muted-foreground uppercase">{req.serviceName}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-headline font-black text-primary">${req.price}</p>
+                    <p className="text-[7px] text-muted-foreground uppercase">{req.status}</p>
+                  </div>
+                </div>
+                {req.status === 'pending' && (
+                  <div className="flex gap-4 pt-2">
+                    <button onClick={() => handleUpdateServiceRequestStatus(req.id, 'completed')} className="flex-1 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[9px] font-headline font-bold uppercase">Mark Completed</span></button>
+                    <button onClick={() => handleUpdateServiceRequestStatus(req.id, 'rejected')} className="flex-1 h-10 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[9px] font-headline font-bold uppercase">Reject</span></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="services_config" className="space-y-6">
+          <div className="glass-card p-6 rounded-[2rem] border-primary/10 space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Ticket size={14} /> {editingServiceId ? "Modify Service" : "Register New Service"}</h3>
+              {editingServiceId && (
+                <button onClick={resetServiceForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel</button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest">Service Name</Label>
+                  <Input placeholder="E.G. PUBG MOBILE 60 UC" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest">Price (USD)</Label>
+                  <Input type="number" placeholder="9.99" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest">Category</Label>
+                  <Select value={newServiceCategory} onValueChange={setNewServiceCategory}>
+                    <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-card border-white/10">{SERVICE_CATEGORIES.map(c => (<SelectItem key={c.id} value={c.id} className="text-[10px] uppercase">{c.label}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest">Display Color</Label>
+                  <Select value={newServiceColor} onValueChange={setNewServiceColor}>
+                    <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-card border-white/10">{SERVICE_COLORS.map(c => (<SelectItem key={c.id} value={c.id} className={cn("text-[10px] uppercase", c.id)}>{c.label}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <button onClick={handleAddService} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> {editingServiceId ? "Update Product" : "Deploy Product"}</button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {marketplaceServices.map((s: any) => (
+              <div key={s.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
+                <div className="flex items-center gap-4">
+                  <div className={cn("w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/5", s.color)}><ShoppingBag size={20} /></div>
+                  <div>
+                    <p className="text-[10px] font-headline font-bold uppercase">{s.name}</p>
+                    <p className="text-[8px] text-muted-foreground uppercase">{s.category} - ${s.price}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleEditService(s)} className="p-2 text-primary/40 hover:text-primary transition-colors"><Edit2 size={16} /></button>
+                  <button onClick={() => handleDeleteService(s.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
 
         <TabsContent value="withdrawals" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

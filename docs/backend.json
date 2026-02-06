@@ -21,6 +21,33 @@
       },
       "required": ["username", "email", "customId", "balance", "role", "verified", "language"]
     },
+    "MarketplaceService": {
+      "title": "Marketplace Service",
+      "description": "Stored in /marketplace_services/{id}. Items available for purchase.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["Games", "Cards", "Software", "Social"] },
+        "color": { "type": "string", "description": "Tailwind color class" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["name", "price", "category", "isActive"]
+    },
+    "ServiceRequest": {
+      "title": "Service Request",
+      "description": "Stored in /service_requests/{id}. Logs user purchases for admin processing.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "price": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "username", "serviceName", "price", "status", "date"]
+    },
     "VerificationRequest": {
       "title": "Verification Request",
       "description": "Stored in /verifications/{id}. Identity documents for KYC.",
@@ -145,6 +172,14 @@
     "/verifications/{verificationId}": {
       "schema": "VerificationRequest",
       "description": "Identity documents queue"
+    },
+    "/marketplace_services/{serviceId}": {
+      "schema": "MarketplaceService",
+      "description": "Products available in the marketplace"
+    },
+    "/service_requests/{requestId}": {
+      "schema": "ServiceRequest",
+      "description": "Log of marketplace purchases"
     },
     "/deposit_methods/{methodId}": {
       "schema": "DepositMethod",
