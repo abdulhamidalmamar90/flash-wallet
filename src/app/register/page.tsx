@@ -237,6 +237,9 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Mail size={18} /></div>
             <input 
               type="email" 
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               placeholder={t.email} 
               className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
               value={email}
@@ -289,8 +292,11 @@ export default function RegisterPage() {
             <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Lock size={18} /></div>
             <input 
               type={showPassword ? "text" : "password"} 
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
               placeholder={t.password} 
-              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
+              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-[13px] font-body text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required 
