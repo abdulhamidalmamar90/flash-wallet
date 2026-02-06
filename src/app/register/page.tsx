@@ -20,6 +20,11 @@ const COUNTRIES = [
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
   { code: 'KW', nameEn: 'Kuwait', nameAr: 'الكويت', flag: '🇰🇼', prefix: '+965' },
   { code: 'QA', nameEn: 'Qatar', nameAr: 'قطر', flag: '🇶🇦', prefix: '+974' },
+  { code: 'JO', nameEn: 'Jordan', nameAr: 'الأردن', flag: '🇯🇴', prefix: '+962' },
+  { code: 'IQ', nameEn: 'Iraq', nameAr: 'العراق', flag: '🇮🇶', prefix: '+964' },
+  { code: 'LY', nameEn: 'Libya', nameAr: 'ليبيا', flag: '🇱🇾', prefix: '+218' },
+  { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
+  { code: 'MA', nameEn: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', prefix: '+212' },
   { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
 ];
 

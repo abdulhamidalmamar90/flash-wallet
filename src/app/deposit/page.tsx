@@ -22,6 +22,11 @@ const COUNTRIES = [
   { code: 'AE', name: 'UAE', ar: 'الإمارات' },
   { code: 'KW', name: 'Kuwait', ar: 'الكويت' },
   { code: 'QA', name: 'Qatar', ar: 'قطر' },
+  { code: 'JO', name: 'Jordan', ar: 'الأردن' },
+  { code: 'IQ', name: 'Iraq', ar: 'العراق' },
+  { code: 'LY', name: 'Libya', ar: 'ليبيا' },
+  { code: 'DZ', name: 'Algeria', ar: 'الجزائر' },
+  { code: 'MA', name: 'Morocco', ar: 'المغرب' },
   { code: 'US', name: 'USA', ar: 'أمريكا' },
 ];
 
@@ -48,7 +53,6 @@ export default function DepositPage() {
   useEffect(() => {
     if (profile?.country && !selectedCountry) {
       setSelectedCountry(profile.country);
-      setStep(1); // User can still change country from dropdown
     }
   }, [profile?.country, selectedCountry]);
 
@@ -130,6 +134,11 @@ export default function DepositPage() {
                 </SelectContent>
               </Select>
             </div>
+            {selectedCountry && (
+               <Button onClick={() => setStep(2)} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest">
+                  {t.nextBtn}
+               </Button>
+            )}
           </div>
         );
       case 2:
@@ -215,6 +224,7 @@ export default function DepositPage() {
                   className={cn("h-12 bg-background/50 border-white/10 rounded-xl text-[10px] font-headline uppercase", language === 'ar' ? "pr-10" : "pl-10")}
                   value={senderName}
                   onChange={(e) => setSenderName(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -244,7 +254,7 @@ export default function DepositPage() {
 
             <Button 
               type="submit" 
-              disabled={loading || !proofImage}
+              disabled={loading || !proofImage || !senderName}
               className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary hover:bg-primary/90 text-background font-black tracking-widest"
             >
               {loading ? <Loader2 className="animate-spin" /> : t.submitBtn}

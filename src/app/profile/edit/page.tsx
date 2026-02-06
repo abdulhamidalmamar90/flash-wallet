@@ -44,6 +44,11 @@ const COUNTRIES = [
   { code: 'AE', name: 'UAE', ar: 'الإمارات' },
   { code: 'KW', name: 'Kuwait', ar: 'الكويت' },
   { code: 'QA', name: 'Qatar', ar: 'قطر' },
+  { code: 'JO', name: 'Jordan', ar: 'الأردن' },
+  { code: 'IQ', name: 'Iraq', ar: 'العراق' },
+  { code: 'LY', name: 'Libya', ar: 'ليبيا' },
+  { code: 'DZ', name: 'Algeria', ar: 'الجزائر' },
+  { code: 'MA', name: 'Morocco', ar: 'المغرب' },
   { code: 'US', name: 'USA', ar: 'أمريكا' },
 ];
 
