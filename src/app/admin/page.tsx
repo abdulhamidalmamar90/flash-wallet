@@ -78,6 +78,32 @@ export const COUNTRIES = [
   { code: 'CA', name: 'Canada' },
 ];
 
+const COUNTRY_CURRENCIES: Record<string, string> = {
+  GL: 'USD',
+  CR: 'USD',
+  SA: 'SAR',
+  EG: 'EGP',
+  AE: 'AED',
+  KW: 'KWD',
+  QA: 'QAR',
+  JO: 'JOD',
+  IQ: 'IQD',
+  LY: 'LYD',
+  DZ: 'DZD',
+  MA: 'MAD',
+  PS: 'USD',
+  LB: 'LBP',
+  SY: 'SYP',
+  OM: 'OMR',
+  YE: 'YER',
+  BH: 'BHD',
+  TN: 'TND',
+  SD: 'SDG',
+  US: 'USD',
+  GB: 'GBP',
+  CA: 'CAD',
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const db = useFirestore();
@@ -287,6 +313,12 @@ export default function AdminPage() {
     setWithdrawFields([]);
   };
 
+  const handleCountryChange = (val: string) => {
+    setNewWithdrawCountry(val);
+    const localCurrency = COUNTRY_CURRENCIES[val] || 'USD';
+    setNewWithdrawCurrency(localCurrency);
+  };
+
   const handleEditWithdrawalMethod = (method: any) => {
     setEditingWithdrawId(method.id);
     setNewWithdrawCountry(method.country);
@@ -297,7 +329,6 @@ export default function AdminPage() {
     setNewWithdrawFeeType(method.feeType);
     setNewWithdrawFeeValue(method.feeValue.toString());
     setWithdrawFields(method.fields || []);
-    // Optional: Scroll to top of the config tab
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -492,7 +523,7 @@ export default function AdminPage() {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Target Country</Label>
-                  <Select value={newWithdrawCountry} onValueChange={setNewWithdrawCountry}>
+                  <Select value={newWithdrawCountry} onValueChange={handleCountryChange}>
                     <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT REGION" /></SelectTrigger>
                     <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
                   </Select>
@@ -515,7 +546,17 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                    <div className="space-y-2">
                     <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Currency Code</Label>
-                    <Input placeholder="USD / SYP" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawCurrency} onChange={(e) => setNewWithdrawCurrency(e.target.value)} />
+                    <Select value={newWithdrawCurrency} onValueChange={setNewWithdrawCurrency}>
+                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="CURRENCY" /></SelectTrigger>
+                      <SelectContent className="bg-card border-white/10">
+                        <SelectItem value="USD" className="text-[10px] uppercase">USD - Dollar</SelectItem>
+                        {newWithdrawCountry && COUNTRY_CURRENCIES[newWithdrawCountry] && COUNTRY_CURRENCIES[newWithdrawCountry] !== 'USD' && (
+                          <SelectItem value={COUNTRY_CURRENCIES[newWithdrawCountry]} className="text-[10px] uppercase">
+                            {COUNTRY_CURRENCIES[newWithdrawCountry]} - Local
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Ex. Rate (1 USD = ?)</Label>
