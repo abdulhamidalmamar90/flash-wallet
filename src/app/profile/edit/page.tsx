@@ -16,19 +16,21 @@ import {
   Globe,
   CheckCircle2,
   Mail,
+  ChevronDown,
+  Smartphone
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
-import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, useAuth } from '@/firebase';
 import { doc, updateDoc, collection, addDoc, query, where, limit } from 'firebase/firestore';
-import { updatePassword } from 'firebase/auth';
+import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { sendTelegramPhoto } from '@/lib/telegram';
-import { Capacitor } from '@capacitor/core';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -39,43 +41,32 @@ const AVATARS = [
 ];
 
 const COUNTRIES = [
-  { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
-  { code: 'EG', name: 'Egypt', ar: 'مصر' },
-  { code: 'AE', name: 'UAE', ar: 'الإمارات' },
-  { code: 'KW', name: 'Kuwait', ar: 'الكويت' },
-  { code: 'QA', name: 'Qatar', ar: 'قطر' },
-  { code: 'JO', name: 'Jordan', ar: 'الأردن' },
-  { code: 'IQ', name: 'Iraq', ar: 'العراق' },
-  { code: 'LY', name: 'Libya', ar: 'ليبيا' },
-  { code: 'DZ', name: 'Algeria', ar: 'الجزائر' },
-  { code: 'MA', name: 'Morocco', ar: 'المغرب' },
-  { code: 'PS', name: 'Palestine', ar: 'فلسطين' },
-  { code: 'LB', name: 'Lebanon', ar: 'لبنان' },
-  { code: 'SY', name: 'Syria', ar: 'سوريا' },
-  { code: 'OM', name: 'Oman', ar: 'عمان' },
-  { code: 'YE', name: 'Yemen', ar: 'اليمن' },
-  { code: 'BH', name: 'Bahrain', ar: 'البحرين' },
-  { code: 'TN', name: 'Tunisia', ar: 'تونس' },
-  { code: 'SD', name: 'Sudan', ar: 'السودان' },
-  { code: 'US', name: 'USA', ar: 'أمريكا' },
-  { code: 'GB', name: 'UK', ar: 'بريطانيا' },
-  { code: 'CA', name: 'Canada', ar: 'كندا' },
-  { code: 'DE', name: 'Germany', ar: 'ألمانيا' },
-  { code: 'FR', name: 'France', ar: 'فرنسا' },
-  { code: 'IT', name: 'Italy', ar: 'إيطاليا' },
-  { code: 'ES', name: 'Spain', ar: 'إسبانيا' },
-  { code: 'TR', name: 'Turkey', ar: 'تركيا' },
-  { code: 'CN', name: 'China', ar: 'الصين' },
-  { code: 'JP', name: 'Japan', ar: 'اليابان' },
-  { code: 'KR', name: 'South Korea', ar: 'كوريا الجنوبية' },
-  { code: 'IN', name: 'India', ar: 'الهند' },
-  { code: 'RU', name: 'Russia', ar: 'روسيا' },
-  { code: 'BR', name: 'Brazil', ar: 'البرازيل' },
-  { code: 'AU', name: 'Australia', ar: 'أستراليا' },
+  { code: 'SA', nameEn: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', prefix: '+966' },
+  { code: 'EG', nameEn: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', prefix: '+20' },
+  { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
+  { code: 'KW', nameEn: 'Kuwait', nameAr: 'الكويت', flag: '🇰🇼', prefix: '+965' },
+  { code: 'QA', nameEn: 'Qatar', nameAr: 'قطر', flag: '🇶🇦', prefix: '+974' },
+  { code: 'JO', nameEn: 'Jordan', nameAr: 'الأردن', flag: '🇯🇴', prefix: '+962' },
+  { code: 'IQ', nameEn: 'Iraq', nameAr: 'العراق', flag: '🇮🇶', prefix: '+964' },
+  { code: 'LY', nameEn: 'Libya', nameAr: 'ليبيا', flag: '🇱🇾', prefix: '+218' },
+  { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
+  { code: 'MA', nameEn: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', prefix: '+212' },
+  { code: 'PS', nameEn: 'Palestine', nameAr: 'فلسطين', flag: '🇵🇸', prefix: '+970' },
+  { code: 'LB', nameEn: 'Lebanon', nameAr: 'لبنان', flag: '🇱🇧', prefix: '+961' },
+  { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
+  { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
+  { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
+  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
+  { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
+  { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
+  { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
+  { code: 'GB', nameEn: 'UK', nameAr: 'بريطانيا', flag: '🇬🇧', prefix: '+44' },
+  { code: 'CA', nameEn: 'Canada', nameAr: 'كندا', flag: '🇨🇦', prefix: '+1' },
 ];
 
 export default function EditProfilePage() {
   const router = useRouter();
+  const auth = useAuth();
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
@@ -95,39 +86,50 @@ export default function EditProfilePage() {
   const pendingRequest = verifRequests?.find(r => r.status === 'pending');
 
   const [phone, setPhone] = useState('');
-  const [country, setCountry] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
-  const [verifCountry, setVerifCountry] = useState('');
-  const [verifDocType, setVerifDocType] = useState('id_card');
-  const [verifDocNumber, setVerifDocNumber] = useState('');
-  const [verifDocImage, setVerifDocImage] = useState<string | null>(null);
-  const [verifLoading, setVerifLoading] = useState(false);
+  // Phone Verification States
+  const [isOtpOpen, setIsOtpOpen] = useState(false);
+  const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const otpInputs = useRef<HTMLInputElement[]>([]);
 
   useEffect(() => {
     if (profile) {
-      setPhone(profile.phone || '');
-      setCountry(profile.country || '');
+      // Try to parse the stored phone to split prefix and number
+      const fullPhone = profile.phone || '';
+      const countryMatch = COUNTRIES.find(c => fullPhone.startsWith(c.prefix));
+      if (countryMatch) {
+        setSelectedCountry(countryMatch);
+        setPhone(fullPhone.replace(countryMatch.prefix, ''));
+      } else {
+        setPhone(fullPhone);
+      }
       setSelectedAvatar(profile.avatarUrl || AVATARS[0]);
+      setIsPhoneVerified(profile.phoneVerified || false);
     }
   }, [profile]);
 
   const t = {
     header: language === 'ar' ? 'تعديل الحساب' : 'Edit Profile',
-    emailLabel: language === 'ar' ? 'البريد الإلكتروني (لا يمكن تعديله)' : 'Email Address (Read-only)',
+    emailLabel: language === 'ar' ? 'البريد الإلكتروني' : 'Email Address',
     phoneLabel: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
     countryLabel: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
     passLabel: language === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
-    passPlaceholder: language === 'ar' ? 'اتركه فارغاً إذا لا تريد التغيير' : 'Leave blank to keep current',
+    passPlaceholder: language === 'ar' ? 'اتركه فارغاً للحفاظ على الحالية' : 'Leave blank to keep current',
     saveBtn: language === 'ar' ? 'حفظ التغييرات' : 'Save Changes',
     saving: language === 'ar' ? 'جاري الحفظ...' : 'Saving...',
     success: language === 'ar' ? 'تم تحديث البيانات بنجاح' : 'Profile updated successfully',
     avatarHeader: language === 'ar' ? 'اختر صورتك الرمزية' : 'Choose Your Avatar',
     uploadLabel: language === 'ar' ? 'رفع صورة' : 'Upload Image',
-    imageTooLarge: language === 'ar' ? 'حجم الصورة كبير جداً (الأقصى 1 ميجا)' : 'Image size too large (Max 1MB)',
+    imageTooLarge: language === 'ar' ? 'حجم الصورة كبير جداً' : 'Image too large',
     verifHeader: language === 'ar' ? 'توثيق الهوية (KYC)' : 'Identity Verification (KYC)',
     docTypeLabel: language === 'ar' ? 'نوع الوثيقة' : 'Document Type',
     docNumberLabel: language === 'ar' ? 'رقم الوثيقة' : 'Document Number',
@@ -135,10 +137,61 @@ export default function EditProfilePage() {
     submitVerif: language === 'ar' ? 'إرسال طلب التوثيق' : 'Submit Verification',
     idCard: language === 'ar' ? 'بطاقة هوية' : 'ID Card',
     passport: language === 'ar' ? 'جواز سفر' : 'Passport',
-    verifPending: language === 'ar' ? 'طلبك قيد المراجعة' : 'Request Pending Review',
-    verifPendingDesc: language === 'ar' ? 'سيتم مراجعة وثائقك من قبل فريقنا قريباً' : 'Our team will review your docs soon',
+    verifPending: language === 'ar' ? 'قيد المراجعة' : 'Pending Review',
+    verifPendingDesc: language === 'ar' ? 'سيتم مراجعة وثائقك قريباً' : 'Review in progress',
     verifiedStatus: language === 'ar' ? 'حساب موثق' : 'Account Verified',
-    verifiedDesc: language === 'ar' ? 'هويتك مؤكدة وتتمتع بكامل ميزات الفلاش' : 'Identity confirmed. Full access granted.',
+    verifiedDesc: language === 'ar' ? 'هويتك مؤكدة بالكامل' : 'Identity fully confirmed',
+    verifyBtn: language === 'ar' ? 'تحقق' : 'Verify',
+    otpTitle: language === 'ar' ? 'رمز التحقق' : 'Verification Code',
+    otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
+    validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
+  };
+
+  const setupRecaptcha = () => {
+    if (!(window as any).recaptchaVerifier) {
+      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+      });
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!phone) return;
+    setVerifyingPhone(true);
+    setupRecaptcha();
+    const appVerifier = (window as any).recaptchaVerifier;
+    const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
+
+    try {
+      const result = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
+      setConfirmationResult(result);
+      setIsOtpOpen(true);
+      toast({ title: language === 'ar' ? "تم إرسال الكود" : "OTP Sent" });
+    } catch (error: any) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setVerifyingPhone(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!confirmationResult) return;
+    setVerifyingPhone(true);
+    const code = otpCode.join('');
+    try {
+      await confirmationResult.confirm(code);
+      setIsPhoneVerified(true);
+      setIsOtpOpen(false);
+      toast({ title: language === 'ar' ? "تم التحقق بنجاح" : "Phone Verified" });
+      if (user && db) {
+        await updateDoc(doc(db, 'users', user.uid), { phoneVerified: true });
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Invalid Code", description: "The OTP entered is incorrect." });
+    } finally {
+      setVerifyingPhone(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
@@ -161,9 +214,10 @@ export default function EditProfilePage() {
 
     try {
       await updateDoc(doc(db, 'users', user.uid), {
-        phone: phone.trim(),
-        country: country,
+        phone: `${selectedCountry.prefix}${phone.trim()}`,
+        country: selectedCountry.code,
         avatarUrl: selectedAvatar,
+        phoneVerified: isPhoneVerified
       });
 
       if (newPassword.trim()) {
@@ -179,55 +233,17 @@ export default function EditProfilePage() {
     }
   };
 
-  const handleRequestVerification = async () => {
-    if (!user || !db || !profile || !verifDocImage || !verifDocNumber || !verifCountry) {
-      toast({ variant: "destructive", title: "Error", description: "Please fill all fields" });
-      return;
-    }
-
-    setVerifLoading(true);
-    try {
-      const docRef = await addDoc(collection(db, 'verifications'), {
-        userId: user.uid,
-        username: profile.username,
-        status: 'pending',
-        date: new Date().toISOString(),
-        documentUrl: verifDocImage,
-        details: {
-          country: verifCountry,
-          docType: verifDocType,
-          docNumber: verifDocNumber
-        }
-      });
-
-      await sendTelegramPhoto(verifDocImage, `
-🛡️ <b>New KYC Verification Request</b>
-━━━━━━━━━━━━━━━━
-<b>User:</b> @${profile.username}
-<b>ID:</b> <code>${profile.customId}</code>
-<b>Country:</b> ${verifCountry}
-<b>Doc Type:</b> ${verifDocType.toUpperCase()}
-<b>Doc Number:</b> <code>${verifDocNumber}</code>
-<b>Date:</b> ${new Date().toLocaleString()}
-      `, {
-        inline_keyboard: [
-          [
-            { text: "✅ Approve", callback_data: `app_ver_${docRef.id}` },
-            { text: "❌ Reject", callback_data: `rej_ver_${docRef.id}` }
-          ]
-        ]
-      });
-
-      toast({ title: "Request Sent", description: t.verifPendingDesc });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
-    } finally {
-      setVerifLoading(false);
-    }
+  const handleOtpInput = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    if (value.length > 1) value = value[value.length - 1];
+    const newOtp = [...otpCode];
+    newOtp[index] = value;
+    setOtpCode(newOtp);
+    if (value && index < 5) otpInputs.current[index + 1]?.focus();
   };
 
   return (
-    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
+    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32" onClick={() => setIsCountryOpen(false)}>
       <header className="flex items-center gap-4">
         <button onClick={() => router.back()} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
           <ChevronLeft className={cn("h-5 w-5", language === 'ar' && "rotate-180")} />
@@ -235,13 +251,15 @@ export default function EditProfilePage() {
         <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
       </header>
 
+      <div id="recaptcha-container"></div>
+
       <div className="flex flex-col items-center gap-4 py-6">
         <div className="relative group">
           <div className={cn(
             "w-32 h-32 rounded-full overflow-hidden border-4 transition-all duration-500 bg-white/5 flex items-center justify-center",
             profile?.verified 
               ? "border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" 
-              : "border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+              : "border-red-500"
           )}>
             {selectedAvatar ? (
               <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" />
@@ -258,7 +276,6 @@ export default function EditProfilePage() {
           </button>
           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setSelectedAvatar)} />
         </div>
-        
         <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors">{t.avatarHeader}</button>
 
         {isAvatarOpen && (
@@ -282,34 +299,57 @@ export default function EditProfilePage() {
 
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
-            <div className="relative group">
-              <Phone className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
-              <Input 
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck="false"
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                className={cn("h-12 bg-white/5 border-white/10 rounded-xl font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} 
-                placeholder="+201234567890" 
-              />
+            <div className="flex gap-2 relative z-50" dir="ltr">
+              <div className="relative">
+                <button 
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }}
+                  className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2 text-white/70 hover:bg-white/10 transition-all min-w-[90px]"
+                >
+                  <span>{selectedCountry.flag}</span>
+                  <span className="text-xs">{selectedCountry.prefix}</span>
+                  <ChevronDown size={14} className={cn(isCountryOpen && "rotate-180 transition-transform")} />
+                </button>
+                {isCountryOpen && (
+                  <div className="absolute top-14 left-0 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-48 z-[110]">
+                    {COUNTRIES.map(c => (
+                      <button 
+                        key={c.code}
+                        type="button"
+                        onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }}
+                        className="w-full flex items-center justify-between p-3 hover:bg-white/5 border-b border-white/5 last:border-0"
+                      >
+                        <span className="text-xs">{language === 'ar' ? c.nameAr : c.nameEn}</span>
+                        <span className="text-xs text-white/40">{c.prefix}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative flex-1 flex gap-2">
+                <Input 
+                  type="tel" 
+                  value={phone} 
+                  onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} 
+                  className="h-12 bg-white/5 border-white/10 rounded-xl font-body flex-1" 
+                  placeholder="123456789" 
+                />
+                {!isPhoneVerified ? (
+                  <Button 
+                    type="button"
+                    onClick={handleSendOtp} 
+                    disabled={verifyingPhone || !phone}
+                    className="h-12 bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary hover:text-background text-[10px] font-headline font-bold uppercase"
+                  >
+                    {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.verifyBtn}
+                  </Button>
+                ) : (
+                  <div className="h-12 flex items-center gap-2 text-green-500 font-headline font-bold text-[9px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20">
+                    <Check size={14} /> Verified
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.countryLabel}</Label>
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-body text-[12px]">
-                <SelectValue placeholder="SELECT COUNTRY" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-white/10">
-                {COUNTRIES.map(c => (
-                  <SelectItem key={c.code} value={c.code} className="font-body text-[12px] uppercase">
-                    {language === 'ar' ? c.ar : c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">
@@ -318,9 +358,6 @@ export default function EditProfilePage() {
               <Lock className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
               <Input 
                 type="password" 
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck="false"
                 value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)} 
                 className={cn("h-12 bg-white/5 border-white/10 rounded-xl font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} 
@@ -330,78 +367,47 @@ export default function EditProfilePage() {
           </div>
         </div>
 
-        <Button type="submit" disabled={loading} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest">
-          {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <><Check className="h-5 w-5 mr-2" /> {t.saveBtn}</>}
+        <Button type="submit" disabled={loading} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest gold-glow">
+          {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : t.saveBtn}
         </Button>
       </form>
 
-      <section className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
-        <div className="flex items-center gap-3 mb-2">
-          <ShieldCheck className="text-primary" size={20} />
-          <h2 className="text-[12px] font-headline font-bold tracking-widest uppercase">{t.verifHeader}</h2>
-        </div>
-
-        {profile?.verified ? (
-          <div className="flex items-center gap-4 p-5 bg-green-500/10 border border-green-500/20 rounded-2xl animate-in zoom-in-95">
-            <CheckCircle2 className="text-green-500" size={32} />
-            <div>
-              <p className="text-sm font-headline font-bold text-green-500 uppercase">{t.verifiedStatus}</p>
-              <p className="text-[9px] text-green-500/60 uppercase tracking-widest font-black mt-1">{t.verifiedDesc}</p>
+      {/* Verification OTP Modal */}
+      <Dialog open={isOtpOpen} onOpenChange={setIsOtpOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-secondary">
+              {t.otpTitle}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-8 mt-4">
+            <div className="w-16 h-16 bg-secondary/10 border border-secondary/20 rounded-2xl flex items-center justify-center mx-auto text-secondary">
+              <Smartphone size={32} />
             </div>
-          </div>
-        ) : pendingRequest ? (
-          <div className="flex items-center gap-4 p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl animate-in fade-in">
-            <Loader2 className="text-orange-500 animate-spin" size={32} />
-            <div>
-              <p className="text-sm font-headline font-bold text-orange-500 uppercase">{t.verifPending}</p>
-              <p className="text-[9px] text-orange-500/60 uppercase tracking-widest font-black mt-1">{t.verifPendingDesc}</p>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">{t.otpDesc}</p>
+            <div className="flex gap-2 justify-center" dir="ltr">
+              {otpCode.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => { if(el) otpInputs.current[i] = el; }}
+                  type="text"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpInput(i, e.target.value)}
+                  className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-headline font-bold text-secondary focus:border-secondary transition-all outline-none rounded-lg"
+                />
+              ))}
             </div>
-          </div>
-        ) : (
-          <div className="space-y-6 animate-in slide-in-from-top-2">
-            <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.countryLabel}</Label>
-              <Select onValueChange={setVerifCountry}>
-                <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl font-body text-[12px]"><SelectValue placeholder="SELECT COUNTRY" /></SelectTrigger>
-                <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="font-body text-[12px] uppercase">{language === 'ar' ? c.ar : c.name}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docTypeLabel}</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button type="button" onClick={() => setVerifDocType('id_card')} className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'id_card' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}><FileText size={18} /><span className="text-[9px] font-headline font-bold uppercase">{t.idCard}</span></button>
-                <button type="button" onClick={() => setVerifDocType('passport')} className={cn("flex flex-col items-center gap-2 p-3 rounded-xl border transition-all", verifDocType === 'passport' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}><Globe size={18} /><span className="text-[9px] font-headline font-bold uppercase">{t.passport}</span></button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docNumberLabel}</Label>
-              <Input 
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck="false"
-                value={verifDocNumber} 
-                onChange={(e) => setVerifDocNumber(e.target.value)} 
-                placeholder="EX: A123456789" 
-                className="h-12 bg-white/5 border-white/10 rounded-xl font-body text-[12px] uppercase" 
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.docImageLabel}</Label>
-              <div onClick={() => docInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all group relative overflow-hidden">
-                {verifDocImage ? (<img src={verifDocImage} className="w-full h-full object-cover" />) : (<><Camera className="text-white/20 group-hover:text-primary transition-colors" size={32} /><span className="text-[8px] font-headline font-bold uppercase text-white/20">{t.uploadLabel}</span></>)}
-                <input type="file" ref={docInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setVerifDocImage)} />
-              </div>
-            </div>
-
-            <Button onClick={handleRequestVerification} disabled={verifLoading || !verifDocImage || !verifDocNumber || !verifCountry} className="w-full h-14 font-headline text-md rounded-xl bg-secondary text-background font-black tracking-widest">
-              {verifLoading ? <Loader2 className="animate-spin" /> : t.submitVerif}
+            <Button 
+              onClick={handleVerifyOtp} 
+              disabled={verifyingPhone || otpCode.join('').length < 6}
+              className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow"
+            >
+              {verifyingPhone ? <Loader2 className="animate-spin" /> : t.validateBtn}
             </Button>
           </div>
-        )}
-      </section>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
