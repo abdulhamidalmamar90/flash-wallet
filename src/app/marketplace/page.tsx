@@ -19,7 +19,8 @@ import {
   Coins,
   ArrowRight,
   X,
-  ShieldCheck
+  ShieldCheck,
+  Filter
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -31,10 +32,10 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
 const CATEGORY_ICONS: Record<string, any> = {
-  Games: Gamepad2,
-  Cards: Gift,
-  Software: ShoppingBag,
-  Social: Users,
+  GAMES: Gamepad2,
+  CARDS: Gift,
+  SOFTWARE: ShoppingBag,
+  SOCIAL: Users,
 };
 
 export default function MarketplacePage() {
@@ -43,6 +44,7 @@ export default function MarketplacePage() {
   const db = useFirestore();
   const { toast } = useToast();
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
   
   // Checkout Modal State
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -58,7 +60,18 @@ export default function MarketplacePage() {
   const servicesQuery = useMemo(() => query(collection(db, 'marketplace_services'), where('isActive', '==', true)), [db]);
   const { data: services = [], loading: servicesLoading } = useCollection(servicesQuery);
 
-  const filtered = services.filter((s: any) => s.name?.toLowerCase().includes(search.toLowerCase()));
+  const categories = useMemo(() => {
+    const cats = new Set(services.map((s: any) => s.category?.toUpperCase() || 'UNCATEGORIZED'));
+    return Array.from(cats).sort();
+  }, [services]);
+
+  const filtered = useMemo(() => {
+    return services.filter((s: any) => {
+      const matchesSearch = s.name?.toLowerCase().includes(search.toLowerCase());
+      const matchesCategory = selectedCategory === 'ALL' || (s.category?.toUpperCase() || 'UNCATEGORIZED') === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [services, search, selectedCategory]);
 
   const handleOpenBuyModal = (service: any) => {
     setSelectedService(service);
@@ -158,9 +171,39 @@ export default function MarketplacePage() {
         </div>
       </header>
 
-      <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-        <Input placeholder="SEARCH PROTOCOLS..." className="pl-12 h-14 bg-background/50 border-white/10 rounded-2xl font-headline text-[10px] tracking-widest uppercase" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="space-y-4">
+        <div className="relative group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Input placeholder="SEARCH PROTOCOLS..." className="pl-12 h-14 bg-background/50 border-white/10 rounded-2xl font-headline text-[10px] tracking-widest uppercase" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+          <button 
+            onClick={() => setSelectedCategory('ALL')}
+            className={cn(
+              "px-4 py-2 rounded-full border text-[8px] font-headline font-bold uppercase transition-all shrink-0",
+              selectedCategory === 'ALL' 
+                ? "bg-primary border-primary text-background gold-glow" 
+                : "bg-white/5 border-white/10 text-muted-foreground hover:border-primary/40"
+            )}
+          >
+            All Assets
+          </button>
+          {categories.map(cat => (
+            <button 
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={cn(
+                "px-4 py-2 rounded-full border text-[8px] font-headline font-bold uppercase transition-all shrink-0",
+                selectedCategory === cat 
+                  ? "bg-primary border-primary text-background gold-glow" 
+                  : "bg-white/5 border-white/10 text-muted-foreground hover:border-primary/40"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       <section className="grid grid-cols-2 gap-4">
@@ -172,7 +215,8 @@ export default function MarketplacePage() {
             <p className="text-[10px] font-headline font-bold text-muted-foreground uppercase tracking-widest">No assets found</p>
           </div>
         ) : filtered.map((service: any) => {
-          const Icon = CATEGORY_ICONS[service.category] || ShoppingBag;
+          const catKey = (service.category || '').toUpperCase();
+          const Icon = CATEGORY_ICONS[catKey] || ShoppingBag;
           const displayPrice = service.type === 'variable' 
             ? `From $${Math.min(...service.variants.map((v: any) => v.price))}`
             : `$${service.price}`;

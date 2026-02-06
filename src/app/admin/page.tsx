@@ -51,7 +51,8 @@ import {
   Keyboard,
   Eye,
   EyeOff,
-  Hash
+  Hash,
+  Filter
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -119,13 +120,6 @@ const COUNTRY_CURRENCIES: Record<string, string> = {
   CA: 'CAD',
 };
 
-const SERVICE_CATEGORIES = [
-  { id: 'Games', label: 'Games', icon: Gamepad2 },
-  { id: 'Cards', label: 'Cards', icon: Gift },
-  { id: 'Software', label: 'Software', icon: ShoppingBag },
-  { id: 'Social', label: 'Social', icon: Users },
-];
-
 const SERVICE_COLORS = [
   { id: 'text-orange-400', label: 'Orange' },
   { id: 'text-blue-400', label: 'Blue' },
@@ -186,7 +180,7 @@ export default function AdminPage() {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
-  const [newServiceCategory, setNewServiceCategory] = useState('Games');
+  const [newServiceCategory, setNewServiceCategory] = useState('');
   const [newServiceColor, setNewServiceColor] = useState('text-orange-400');
   const [newServiceImage, setNewServiceImage] = useState<string | null>(null);
   const [newServiceType, setNewServiceType] = useState<'fixed' | 'variable'>('fixed');
@@ -194,6 +188,7 @@ export default function AdminPage() {
   const [requiresUserInput, setRequiresUserInput] = useState(false);
   const [userInputLabel, setUserInputLabel] = useState('');
   const [isServiceActive, setIsServiceActive] = useState(true);
+  const [configCategoryFilter, setConfigCategoryFilter] = useState('ALL');
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -221,6 +216,17 @@ export default function AdminPage() {
 
   const serviceRequestsQuery = useMemo(() => query(collection(db, 'service_requests'), orderBy('date', 'desc')), [db]);
   const { data: serviceRequests = [] } = useCollection(serviceRequestsQuery);
+
+  // Derived categories for filtering
+  const existingCategories = useMemo(() => {
+    const categories = new Set(marketplaceServices.map((s: any) => s.category?.toUpperCase() || 'UNCATEGORIZED'));
+    return Array.from(categories).sort();
+  }, [marketplaceServices]);
+
+  const filteredMarketplaceServices = useMemo(() => {
+    if (configCategoryFilter === 'ALL') return marketplaceServices;
+    return marketplaceServices.filter((s: any) => (s.category?.toUpperCase() || 'UNCATEGORIZED') === configCategoryFilter);
+  }, [marketplaceServices, configCategoryFilter]);
 
   useEffect(() => {
     if (!authLoading && !profileLoading && profile && (profile as any).role !== 'admin') {
@@ -418,7 +424,7 @@ export default function AdminPage() {
     setEditingServiceId(null);
     setNewServiceName('');
     setNewServicePrice('');
-    setNewServiceCategory('Games');
+    setNewServiceCategory('');
     setNewServiceColor('text-orange-400');
     setNewServiceImage(null);
     setNewServiceType('fixed');
@@ -460,7 +466,7 @@ export default function AdminPage() {
       const data: any = {
         name: newServiceName,
         imageUrl: newServiceImage,
-        category: newServiceCategory,
+        category: newServiceCategory || 'UNCATEGORIZED',
         color: newServiceColor,
         type: newServiceType,
         requiresInput: requiresUserInput,
@@ -490,7 +496,7 @@ export default function AdminPage() {
     setNewServiceName(service.name);
     setNewServiceImage(service.imageUrl || null);
     setNewServiceType(service.type || 'fixed');
-    setNewServiceCategory(service.category);
+    setNewServiceCategory(service.category || '');
     setNewServiceColor(service.color);
     setRequiresUserInput(service.requiresInput || false);
     setUserInputLabel(service.inputLabel || '');
@@ -768,11 +774,8 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest">Category</Label>
-                    <Select value={newServiceCategory} onValueChange={newServiceCategory}>
-                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-card border-white/10">{SERVICE_CATEGORIES.map(c => (<SelectItem key={c.id} value={c.id} className="text-[10px] uppercase">{c.label}</SelectItem>))}</SelectContent>
-                    </Select>
+                    <Label className="text-[8px] uppercase tracking-widest">Category (Write Manually)</Label>
+                    <Input placeholder="E.G. GAMES" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServiceCategory} onChange={(e) => setNewServiceCategory(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[8px] uppercase tracking-widest">Product Image</Label>
@@ -849,28 +852,44 @@ export default function AdminPage() {
             <button onClick={handleAddService} className="w-full h-14 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all gold-glow"><Ticket size={16} /> {editingServiceId ? "Update Global Product" : "Deploy Global Product"}</button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {marketplaceServices.map((s: any) => (
-              <div key={s.id} className={cn("glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group transition-all", !s.isActive && "opacity-50 grayscale")}>
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 overflow-hidden">
-                    {s.imageUrl ? <img src={s.imageUrl} className="w-full h-full object-cover" /> : <div className={cn("text-xl", s.color)}><ShoppingBag /></div>}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-headline font-bold uppercase">{s.name}</p>
-                      {!s.isActive && <Badge variant="destructive" className="text-[6px] h-3 px-1">OOS</Badge>}
-                    </div>
-                    <p className="text-[8px] text-muted-foreground uppercase">{s.category} - {s.type === 'variable' ? `${s.variants?.length} Options` : `$${s.price}`}</p>
-                    {s.requiresInput && <Badge variant="secondary" className="text-[6px] h-4 mt-1">DATA REQUIRED</Badge>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => handleEditService(s)} className="p-2 text-primary/40 hover:text-primary transition-colors"><Edit2 size={16} /></button>
-                  <button onClick={() => handleDeleteService(s.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
-                </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">Manage Inventory</h3>
+              <div className="flex items-center gap-2">
+                <Filter size={12} className="text-primary" />
+                <Select value={configCategoryFilter} onValueChange={setConfigCategoryFilter}>
+                  <SelectTrigger className="h-10 bg-card border-white/10 rounded-xl text-[9px] uppercase w-[150px]"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-card border-white/10">
+                    <SelectItem value="ALL" className="text-[9px] uppercase">Show All</SelectItem>
+                    {existingCategories.map(cat => (<SelectItem key={cat} value={cat} className="text-[9px] uppercase">{cat}</SelectItem>))}
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredMarketplaceServices.map((s: any) => (
+                <div key={s.id} className={cn("glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group transition-all", !s.isActive && "opacity-50 grayscale")}>
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 overflow-hidden">
+                      {s.imageUrl ? <img src={s.imageUrl} className="w-full h-full object-cover" /> : <div className={cn("text-xl", s.color)}><ShoppingBag /></div>}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-headline font-bold uppercase">{s.name}</p>
+                        {!s.isActive && <Badge variant="destructive" className="text-[6px] h-3 px-1">OOS</Badge>}
+                      </div>
+                      <p className="text-[8px] text-muted-foreground uppercase">{s.category} - {s.type === 'variable' ? `${s.variants?.length} Options` : `$${s.price}`}</p>
+                      {s.requiresInput && <Badge variant="secondary" className="text-[6px] h-4 mt-1">DATA REQUIRED</Badge>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleEditService(s)} className="p-2 text-primary/40 hover:text-primary transition-colors"><Edit2 size={16} /></button>
+                    <button onClick={() => handleDeleteService(s.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
