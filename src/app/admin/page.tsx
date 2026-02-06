@@ -31,7 +31,8 @@ import {
   Database,
   UserCheck,
   WalletCards,
-  MapPin
+  MapPin,
+  MessageSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -41,9 +42,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button';
 
 const COUNTRIES = [
   { code: 'SA', name: 'Saudi Arabia' },
@@ -90,6 +92,12 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newBalance, setNewBalance] = useState<string>('');
+
+  // Rejection Dialog State
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [activeKycRequest, setActiveKycRequest] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
   // Deposit Method Config State
   const [newMethodCountry, setNewMethodCountry] = useState('');
@@ -190,6 +198,40 @@ export default function AdminPage() {
       await sendNotification(userId, "Deposit Approved", `Success! $${amount} has been credited to your vault.`, 'transaction');
       toast({ title: "DEPOSIT APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
+  };
+
+  const handleApproveKyc = async (req: any) => {
+    try {
+      await updateDoc(doc(db, 'verifications', req.id), { status: 'approved' });
+      await updateDoc(doc(db, 'users', req.userId), { verified: true });
+      await sendNotification(req.userId, "Identity Verified", `Congratulations @${req.username}, your identity has been successfully verified. Your account is now high-authority.`, 'verification');
+      toast({ title: "KYC APPROVED" });
+    } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
+  };
+
+  const handleRejectKyc = async () => {
+    if (!activeKycRequest || !rejectionReason.trim()) return;
+    setIsSubmittingRejection(true);
+    try {
+      await updateDoc(doc(db, 'verifications', activeKycRequest.id), { 
+        status: 'rejected',
+        reason: rejectionReason.trim()
+      });
+      await sendNotification(
+        activeKycRequest.userId, 
+        "Identity Verification Rejected", 
+        `Your verification request was declined. Reason: ${rejectionReason}`, 
+        'verification'
+      );
+      toast({ title: "KYC REJECTED" });
+      setIsRejectModalOpen(false);
+      setRejectionReason('');
+      setActiveKycRequest(null);
+    } catch (e: any) { 
+      toast({ variant: "destructive", title: "ERROR" }); 
+    } finally {
+      setIsSubmittingRejection(false);
+    }
   };
 
   const handleUpdateBalance = async (targetUserId: string, currentBalance: number) => {
@@ -534,15 +576,8 @@ export default function AdminPage() {
                 )}
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
-                    <button onClick={async () => {
-                      await updateDoc(doc(db, 'verifications', req.id), { status: 'approved' });
-                      await updateDoc(doc(db, 'users', req.userId), { verified: true });
-                      toast({ title: "KYC APPROVED" });
-                    }} className="flex-1 h-12 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-green-500 hover:text-white transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
-                    <button onClick={async () => {
-                      await updateDoc(doc(db, 'verifications', req.id), { status: 'rejected' });
-                      toast({ title: "KYC REJECTED" });
-                    }} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px) font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                    <button onClick={() => handleApproveKyc(req)} className="flex-1 h-12 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-green-500 hover:text-white transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
+                    <button onClick={() => { setActiveKycRequest(req); setIsRejectModalOpen(true); }} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
                   </div>
                 )}
               </div>
@@ -550,6 +585,36 @@ export default function AdminPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* KYC Rejection Reason Modal */}
+      <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-6 rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
+              <ShieldAlert className="text-red-500 h-4 w-4" /> Reject Identity Request
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 mt-4">
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2">
+                <MessageSquare size={12} /> Specify Reason for Declining
+              </Label>
+              <Textarea 
+                placeholder="EX: DOCUMENT EXPIRED OR BLURRY IMAGE..." 
+                className="min-h-[120px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3 focus:border-red-500/50" 
+                value={rejectionReason} 
+                onChange={(e) => setRejectionReason(e.target.value)} 
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase">Abort</Button>
+              <Button onClick={handleRejectKyc} disabled={!rejectionReason.trim() || isSubmittingRejection} className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-headline uppercase">
+                {isSubmittingRejection ? <Loader2 className="animate-spin" /> : "Confirm Rejection"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

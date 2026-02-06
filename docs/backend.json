@@ -33,6 +33,7 @@
         "documentNumber": { "type": "string" },
         "documentUrl": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "reason": { "type": "string", "description": "Reason for rejection if applicable" },
         "date": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "username", "country", "documentType", "documentNumber", "documentUrl", "status", "date"]
