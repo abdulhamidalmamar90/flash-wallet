@@ -39,7 +39,8 @@ import {
   Percent,
   Coins,
   Edit2,
-  Copy
+  Copy,
+  Calendar
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -528,6 +529,18 @@ export default function AdminPage() {
                     <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.method} Deposit</p></div>
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-secondary">${req.amount}</p></div>
+                </div>
+
+                <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
+                  <p className="text-[7px] text-muted-foreground uppercase font-black">Deposit Intelligence</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><UserIcon size={10} /> Sender:</span>
+                    <span className="text-[9px] font-headline text-white">{req.senderName || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><Calendar size={10} /> Date:</span>
+                    <span className="text-[9px] font-headline text-white">{new Date(req.date).toLocaleString()}</span>
+                  </div>
                 </div>
 
                 {req.proofUrl && (
