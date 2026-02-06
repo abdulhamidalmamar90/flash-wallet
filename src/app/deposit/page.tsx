@@ -18,6 +18,7 @@ import { sendTelegramPhoto } from '@/lib/telegram';
 
 const COUNTRIES = [
   { code: 'GL', name: 'Global / Worldwide', ar: 'عالمي / دولي' },
+  { code: 'CR', name: 'Crypto / Digital Assets', ar: 'عملات رقمية' },
   { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
   { code: 'EG', name: 'Egypt', ar: 'مصر' },
   { code: 'AE', name: 'UAE', ar: 'الإمارات' },
@@ -82,7 +83,7 @@ export default function DepositPage() {
     proofLabel: language === 'ar' ? 'صورة إثبات الدفع' : 'Payment Evidence',
     senderLabel: language === 'ar' ? 'اسم المرسل' : 'Sender Name',
     instructions: language === 'ar' ? 'قم بالتحويل للبيانات المذكورة وارفاق صورة الوصل للمراجعة.' : 'Transfer to the credentials above and attach the receipt for review.',
-    submitBtn: language === 'ar' ? 'إرسال طلب الإيداع' : 'SUBMIT DEPOSIT REQUEST',
+    submitBtn: language === 'ar' ? 'إرسال طلب الإيداع' : 'إرسال طلب الإيداع',
     nextBtn: language === 'ar' ? 'استمرار' : 'CONTINUE',
     success: language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Deposit request submitted!',
     error: language === 'ar' ? 'حدث خطأ ما' : 'An error occurred',
@@ -115,7 +116,6 @@ export default function DepositPage() {
         date: new Date().toISOString()
       });
 
-      // Telegram Notification with Buttons
       await sendTelegramPhoto(proofImage, `
 💰 <b>New Deposit Request</b>
 ━━━━━━━━━━━━━━━━

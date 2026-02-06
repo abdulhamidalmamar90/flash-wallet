@@ -15,9 +15,11 @@ import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
 import { collection, doc, addDoc, query, where, increment, runTransaction } from 'firebase/firestore';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { useStore } from '@/app/lib/store';
+import { Textarea } from '@/components/ui/textarea';
 
 const COUNTRIES = [
   { code: 'GL', name: 'Global / Worldwide', ar: 'عالمي / دولي' },
+  { code: 'CR', name: 'Crypto / Digital Assets', ar: 'عملات رقمية' },
   { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
   { code: 'EG', name: 'Egypt', ar: 'مصر' },
   { code: 'AE', name: 'UAE', ar: 'الإمارات' },
@@ -64,7 +66,6 @@ export default function WithdrawPage() {
     }
   }, [profile?.country, selectedCountry]);
 
-  // Fetch methods for the selected country OR Global (GL)
   const methodsQuery = useMemo(() => {
     if (!db || !selectedCountry) return null;
     return query(collection(db, 'withdrawal_methods'), where('isActive', '==', true));
@@ -104,7 +105,6 @@ export default function WithdrawPage() {
       return;
     }
 
-    // Check if all fields are filled
     const allFilled = selectedMethod.fields.every((f: any) => formData[f.label]?.trim());
     if (!allFilled) {
       toast({ variant: "destructive", title: t.fillRequired });
@@ -139,7 +139,6 @@ export default function WithdrawPage() {
         });
       });
 
-      // Telegram Notification
       const detailsText = Object.entries(formData).map(([k, v]) => `- ${k}: <code>${v}</code>`).join('\n');
       await sendTelegramNotification(`
 💸 <b>New Withdrawal Request</b>
@@ -206,7 +205,7 @@ ${detailsText}
                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><Landmark size={24} /></div>
                     <div className="text-left">
                       <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
-                      <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.country === 'GL' ? 'GLOBAL' : m.country}</Badge>
+                      <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.country === 'GL' ? 'GLOBAL' : m.country === 'CR' ? 'CRYPTO' : m.country}</Badge>
                     </div>
                   </div>
                   <div className="p-2 rounded-full bg-white/5 group-hover:bg-primary transition-all"><Check size={14} className="group-hover:text-background" /></div>
@@ -237,6 +236,19 @@ ${detailsText}
                       onChange={(e) => handleInputChange(field.label, e.target.value)} 
                       required
                     />
+                  ) : field.type === 'select' ? (
+                    <Select value={formData[field.label] || ''} onValueChange={(val) => handleInputChange(field.label, val)}>
+                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-xs uppercase">
+                        <SelectValue placeholder={`CHOOSE ${field.label.toUpperCase()}`} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-white/10">
+                        {field.options?.split(',').map((opt: string) => (
+                          <SelectItem key={opt.trim()} value={opt.trim()} className="text-[10px] uppercase">
+                            {opt.trim()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <Input 
                       placeholder={`ENTER ${field.label.toUpperCase()}`} 

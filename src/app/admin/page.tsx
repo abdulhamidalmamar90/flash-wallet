@@ -35,7 +35,8 @@ import {
   MessageSquare,
   Shield,
   Type,
-  AlignLeft
+  AlignLeft,
+  ListFilter
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -50,8 +51,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
 
-const COUNTRIES = [
+export const COUNTRIES = [
   { code: 'GL', name: 'Global / Worldwide' },
+  { code: 'CR', name: 'Crypto / Digital Assets' },
   { code: 'SA', name: 'Saudi Arabia' },
   { code: 'EG', name: 'Egypt' },
   { code: 'AE', name: 'UAE' },
@@ -111,7 +113,7 @@ export default function AdminPage() {
   // Withdrawal Method Dynamic Config State
   const [newWithdrawCountry, setNewWithdrawCountry] = useState('');
   const [newWithdrawName, setNewWithdrawName] = useState('');
-  const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' }>>([]);
+  const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' | 'select', options?: string }>>([]);
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -321,7 +323,7 @@ export default function AdminPage() {
     setWithdrawFields(withdrawFields.filter((_, i) => i !== index));
   };
 
-  const updateField = (index: number, key: 'label' | 'type', value: string) => {
+  const updateField = (index: number, key: string, value: string) => {
     const updated = [...withdrawFields];
     (updated[index] as any)[key] = value;
     setWithdrawFields(updated);
@@ -512,20 +514,31 @@ export default function AdminPage() {
                   <Label className="text-[8px] uppercase tracking-widest">Form Structure (Inputs)</Label>
                   <button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button>
                 </div>
-                <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                   {withdrawFields.map((field, idx) => (
-                    <div key={idx} className="flex gap-2 items-center animate-in slide-in-from-right-2">
-                      <Input placeholder="FIELD LABEL" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateField(idx, 'label', e.target.value)} />
-                      <Select value={field.type} onValueChange={(val: any) => updateField(idx, 'type', val)}>
-                        <SelectTrigger className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] w-[120px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-white/10">
-                          <SelectItem value="text" className="text-[9px] uppercase"><Type size={10} className="inline mr-2" /> Text</SelectItem>
-                          <SelectItem value="textarea" className="text-[9px] uppercase"><AlignLeft size={10} className="inline mr-2" /> Area</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <button onClick={() => removeField(idx)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    <div key={idx} className="flex flex-col gap-2 p-3 bg-white/5 border border-white/5 rounded-xl animate-in slide-in-from-right-2">
+                      <div className="flex gap-2 items-center">
+                        <Input placeholder="FIELD LABEL" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateField(idx, 'label', e.target.value)} />
+                        <Select value={field.type} onValueChange={(val: any) => updateField(idx, 'type', val)}>
+                          <SelectTrigger className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card border-white/10">
+                            <SelectItem value="text" className="text-[9px] uppercase"><Type size={10} className="inline mr-2" /> Text</SelectItem>
+                            <SelectItem value="textarea" className="text-[9px] uppercase"><AlignLeft size={10} className="inline mr-2" /> Area</SelectItem>
+                            <SelectItem value="select" className="text-[9px] uppercase"><ListFilter size={10} className="inline mr-2" /> Select</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <button onClick={() => removeField(idx)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                      </div>
+                      {field.type === 'select' && (
+                        <Input 
+                          placeholder="OPTIONS (COMMA SEPARATED: BEP20, TRC20, TRX)" 
+                          className="h-9 bg-background/30 border-white/5 rounded-lg text-[8px] uppercase" 
+                          value={field.options || ''} 
+                          onChange={(e) => updateField(idx, 'options', e.target.value)} 
+                        />
+                      )}
                     </div>
                   ))}
                   {withdrawFields.length === 0 && <p className="text-[8px] text-muted-foreground text-center py-4 uppercase font-black">Add fields to generate form</p>}

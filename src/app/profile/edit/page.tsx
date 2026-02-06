@@ -34,6 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sendTelegramPhoto } from '@/lib/telegram';
+import { Textarea } from '@/components/ui/textarea';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -45,6 +46,7 @@ const AVATARS = [
 
 const COUNTRIES = [
   { code: 'GL', nameEn: 'Global / Worldwide', nameAr: 'عالمي / دولي', flag: '🌐', prefix: '' },
+  { code: 'CR', nameEn: 'Crypto / Digital Assets', nameAr: 'عملات رقمية', flag: '🪙', prefix: '' },
   { code: 'SA', nameEn: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameEn: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
@@ -56,7 +58,7 @@ const COUNTRIES = [
   { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
   { code: 'MA', nameEn: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', prefix: '+212' },
   { code: 'PS', nameEn: 'Palestine', nameAr: 'فلسطين', flag: '🇵🇸', prefix: '+970' },
-  { code: 'LB', nameEn: 'Lebanon', nameAr: 'لبنان', flag: '🇱🇧', prefix: '+961' },
+  { code: 'LB', nameEn: 'Lebanon', nameAr: 'البنود', flag: '🇱🇧', prefix: '+961' },
   { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
   { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
   { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
@@ -85,7 +87,7 @@ export default function EditProfilePage() {
   // Profile States
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[1]);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[2]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
@@ -106,7 +108,6 @@ export default function EditProfilePage() {
   const [docImage, setDocImage] = useState<string | null>(null);
   const [submittingKyc, setSubmittingKyc] = useState(false);
 
-  // Fetch current KYC status
   const kycQuery = useMemo(() => {
     if (!user || !db) return null;
     return query(collection(db, 'verifications'), where('userId', '==', user.uid), limit(1));
