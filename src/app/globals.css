@@ -116,17 +116,3 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-
-/* Theme Toggle Custom Styles */
-.theme-switch {
-  --toggle-size: 24px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.theme-switch input {
-  display: none;
-}

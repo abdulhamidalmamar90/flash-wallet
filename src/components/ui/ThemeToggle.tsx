@@ -24,7 +24,8 @@ export function ThemeToggle() {
             : (theme === 'dark' ? 'DARK PROTOCOL' : 'LIGHT PROTOCOL')}
         </span>
       </div>
-      <div className="w-10 h-6 bg-muted rounded-full relative p-1 transition-colors group-hover:bg-primary/20">
+      {/* Forced LTR direction for the toggle track to prevent RTL flip issues */}
+      <div className="w-10 h-6 bg-muted rounded-full relative p-1 transition-colors group-hover:bg-primary/20 flex items-center" dir="ltr">
         <div className={cn(
           "w-4 h-4 rounded-full transition-all duration-300 shadow-sm",
           theme === 'dark' ? "bg-secondary translate-x-4" : "bg-primary translate-x-0"
