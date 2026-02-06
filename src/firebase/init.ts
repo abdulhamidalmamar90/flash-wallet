@@ -23,5 +23,8 @@ export function initializeFirebase() {
   const auth = getAuth(app);
   const firestore = getFirestore(app);
   
+  // Set persistence and other auth configurations if needed
+  auth.useDeviceLanguage();
+  
   return { app, auth, firestore };
 }

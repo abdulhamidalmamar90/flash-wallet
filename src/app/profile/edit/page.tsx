@@ -53,7 +53,7 @@ const COUNTRIES = [
   { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
   { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
   { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
-  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
+  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '973' },
   { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
   { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
   { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
@@ -123,22 +123,29 @@ export default function EditProfilePage() {
     otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
     validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
     verified: language === 'ar' ? 'موثق' : 'Verified',
-    hostnameError: language === 'ar' ? 'خطأ في النطاق المصرح به' : 'Authorized Hostname Error',
-    hostnameDesc: language === 'ar' ? 'يرجى إضافة نطاق الاستضافة إلى Authorized Domains في Firebase Console.' : 'Please add your current hostname to Authorized Domains in Firebase Console.'
+    hostnameError: language === 'ar' ? 'خطأ في التحقق (reCAPTCHA)' : 'Verification Error (reCAPTCHA)',
+    hostnameDesc: language === 'ar' ? 'يرجى التأكد من إضافة النطاق الحالي إلى Authorized Domains في إعدادات Firebase Authentication.' : 'Please ensure current domain is added to Authorized Domains in Firebase Auth settings.'
   };
 
   const setupRecaptcha = () => {
-    if (!recaptchaVerifier.current && auth) {
+    if (!auth) return;
+    
+    // Clean up old verifier if it exists
+    if (recaptchaVerifier.current) {
       try {
-        recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: (response: any) => {
-            console.log("reCAPTCHA solved");
-          }
-        });
-      } catch (e) {
-        console.error("reCAPTCHA Init Error", e);
-      }
+        recaptchaVerifier.current.clear();
+      } catch (e) {}
+    }
+
+    try {
+      recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {
+          console.log("reCAPTCHA verified");
+        }
+      });
+    } catch (e) {
+      console.error("reCAPTCHA Init Error", e);
     }
   };
 
@@ -155,7 +162,8 @@ export default function EditProfilePage() {
       toast({ title: language === 'ar' ? "تم إرسال الكود" : "OTP Sent" });
     } catch (error: any) {
       console.error("OTP Error", error);
-      if (error.code === 'auth/captcha-check-failed' || error.message.includes('Hostname')) {
+      // Handle cryptic error -39 or hostname errors
+      if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential' || error.message.includes('39')) {
         toast({ 
           variant: "destructive", 
           title: t.hostnameError, 
@@ -235,6 +243,7 @@ export default function EditProfilePage() {
         <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
       </header>
 
+      {/* Crucial container for invisible reCAPTCHA */}
       <div id="recaptcha-container"></div>
 
       <div className="flex flex-col items-center gap-4 py-6">
