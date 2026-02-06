@@ -16,10 +16,26 @@
         "verified": { "type": "boolean" },
         "language": { "type": "string", "enum": ["en", "ar"] },
         "country": { "type": "string", "description": "User's residence country code (e.g., EG, SA)" },
-        "biometricsEnabled": { "type": "boolean", "description": "Whether biometric login is active" },
+        "phoneVerified": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["username", "email", "customId", "balance", "role", "verified", "language"]
+    },
+    "VerificationRequest": {
+      "title": "Verification Request",
+      "description": "Stored in /verifications/{id}. Identity documents for KYC.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "country": { "type": "string" },
+        "documentType": { "type": "string", "enum": ["ID Card", "Passport", "Driver License"] },
+        "documentNumber": { "type": "string" },
+        "documentUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "username", "country", "documentType", "documentNumber", "documentUrl", "status", "date"]
     },
     "DepositMethod": {
       "title": "Deposit Method",
@@ -112,6 +128,10 @@
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Individual user settings and balance"
+    },
+    "/verifications/{verificationId}": {
+      "schema": "VerificationRequest",
+      "description": "Identity documents queue"
     },
     "/deposit_methods/{methodId}": {
       "schema": "DepositMethod",
