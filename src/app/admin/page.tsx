@@ -111,6 +111,7 @@ export default function AdminPage() {
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const iconInputRef = useRef<HTMLInputElement>(null);
+  const methodIconInputRef = useRef<HTMLInputElement>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -126,6 +127,7 @@ export default function AdminPage() {
   const [editingDepositId, setEditingDepositId] = useState<string | null>(null);
   const [newMethodCountry, setNewMethodCountry] = useState('');
   const [newMethodName, setNewMethodName] = useState('');
+  const [newMethodIcon, setNewMethodIcon] = useState<string | null>(null);
   const [newMethodCurrency, setNewMethodCurrency] = useState('');
   const [newMethodRate, setNewMethodRate] = useState('1');
   const [depositFields, setDepositFields] = useState<Array<{ label: string, value: string }>>([]);
@@ -299,6 +301,7 @@ export default function AdminPage() {
       const data = {
         country: newMethodCountry,
         name: newMethodName,
+        iconUrl: newMethodIcon,
         currencyCode: newMethodCurrency,
         exchangeRate: parseFloat(newMethodRate) || 1,
         fields: depositFields,
@@ -320,6 +323,7 @@ export default function AdminPage() {
     setEditingDepositId(null);
     setNewMethodCountry('');
     setNewMethodName('');
+    setNewMethodIcon(null);
     setNewMethodCurrency('');
     setNewMethodRate('1');
     setDepositFields([]);
@@ -343,6 +347,7 @@ export default function AdminPage() {
     setEditingDepositId(method.id);
     setNewMethodCountry(method.country);
     setNewMethodName(method.name);
+    setNewMethodIcon(method.iconUrl || null);
     setNewMethodCurrency(method.currencyCode || COUNTRY_CURRENCIES[method.country] || 'USD');
     setNewMethodRate(method.exchangeRate?.toString() || '1');
     setDepositFields(method.fields || []);
@@ -413,11 +418,14 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
-  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'withdraw' | 'deposit') => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setNewWithdrawIcon(reader.result as string);
+      reader.onloadend = () => {
+        if (type === 'withdraw') setNewWithdrawIcon(reader.result as string);
+        else setNewMethodIcon(reader.result as string);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -582,6 +590,14 @@ export default function AdminPage() {
                     <Input type="number" placeholder="1.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodRate} onChange={(e) => setNewMethodRate(e.target.value)} />
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Method Icon</Label>
+                  <div onClick={() => methodIconInputRef.current?.click()} className="h-12 bg-background/50 border-dashed border border-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-primary/5 transition-all overflow-hidden">
+                    {newMethodIcon ? <img src={newMethodIcon} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-muted-foreground" />}
+                    <input type="file" ref={methodIconInputRef} className="hidden" accept="image/*" onChange={(e) => handleIconUpload(e, 'deposit')} />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -606,7 +622,9 @@ export default function AdminPage() {
             {depositMethods.map((m: any) => (
               <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
                 <div className="flex items-center gap-4 flex-1 mr-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-white/5"><div className="text-primary font-headline font-bold text-xs">{m.country}</div></div>
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-white/5 overflow-hidden">
+                    {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <div className="text-primary font-headline font-bold text-xs">{m.country}</div>}
+                  </div>
                   <div className="min-w-0">
                     <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
                     <p className="text-[8px] text-muted-foreground uppercase">{m.currencyCode} - Rate: {m.exchangeRate}</p>
@@ -651,7 +669,7 @@ export default function AdminPage() {
                     <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Method Icon</Label>
                     <div onClick={() => iconInputRef.current?.click()} className="h-12 bg-background/50 border-dashed border border-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-secondary/5 transition-all overflow-hidden">
                       {newWithdrawIcon ? <img src={newWithdrawIcon} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-muted-foreground" />}
-                      <input type="file" ref={iconInputRef} className="hidden" accept="image/*" onChange={handleIconUpload} />
+                      <input type="file" ref={iconInputRef} className="hidden" accept="image/*" onChange={(e) => handleIconUpload(e, 'withdraw')} />
                     </div>
                   </div>
                 </div>

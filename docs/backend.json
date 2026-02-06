@@ -45,6 +45,7 @@
       "properties": {
         "country": { "type": "string" },
         "name": { "type": "string" },
+        "iconUrl": { "type": "string" },
         "currencyCode": { "type": "string" },
         "exchangeRate": { "type": "number" },
         "fields": { "type": "array", "description": "Dynamic payment details (e.g. IBAN, Account Name)" },

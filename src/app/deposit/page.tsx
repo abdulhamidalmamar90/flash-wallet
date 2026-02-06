@@ -221,8 +221,8 @@ export default function DepositPage() {
                   className="glass-card p-6 rounded-3xl flex items-center justify-between border-white/5 hover:border-primary/40 hover:bg-primary/5 transition-all group"
                 >
                   <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                      <Landmark size={24} />
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform overflow-hidden border border-white/5">
+                      {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <Landmark size={24} />}
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
@@ -244,7 +244,10 @@ export default function DepositPage() {
           <div className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4 duration-300">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-primary">{selectedMethod.name}</span>
+                <div className="flex items-center gap-3">
+                  {selectedMethod.iconUrl && <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/10"><img src={selectedMethod.iconUrl} className="w-full h-full object-cover" /></div>}
+                  <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-primary">{selectedMethod.name}</span>
+                </div>
                 <span className="text-[8px] text-muted-foreground uppercase">{t.details}</span>
               </div>
               
