@@ -30,7 +30,8 @@ import {
   Plus,
   Database,
   UserCheck,
-  WalletCards
+  WalletCards,
+  MapPin
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -515,6 +516,14 @@ export default function AdminPage() {
                   <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><FileCheck className="h-6 w-6 text-green-500" /></div>
                   <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">Identity Verification</p></div>
                 </div>
+
+                <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
+                  <p className="text-[7px] text-muted-foreground uppercase font-black">Submission Intelligence</p>
+                  <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><Globe size={10} /> Country:</span><span className="text-[9px] font-headline text-white">{req.country || 'N/A'}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><FileText size={10} /> Doc Type:</span><span className="text-[9px] font-headline text-white">{req.documentType || 'N/A'}</span></div>
+                  <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><Search size={10} /> Doc Number:</span><span className="text-[9px] font-headline text-primary">{req.documentNumber || 'N/A'}</span></div>
+                </div>
+
                 {req.documentUrl && (
                   <Dialog>
                     <DialogTrigger asChild>
@@ -533,7 +542,7 @@ export default function AdminPage() {
                     <button onClick={async () => {
                       await updateDoc(doc(db, 'verifications', req.id), { status: 'rejected' });
                       toast({ title: "KYC REJECTED" });
-                    }} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                    }} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px) font-headline font-bold tracking-widest uppercase">Reject</span></button>
                   </div>
                 )}
               </div>

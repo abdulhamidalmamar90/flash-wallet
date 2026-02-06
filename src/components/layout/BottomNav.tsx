@@ -23,8 +23,8 @@ export function BottomNav() {
   
   const { data: profile } = useDoc(userDocRef);
 
-  // Robust check to hide on specific pages, handling trailing slashes
-  const hiddenPaths = ['/', '/register', '/onboarding', '/splash', '/otp', '/profile/edit'];
+  // Added '/admin' to hiddenPaths to hide bottom navigation on admin dashboard
+  const hiddenPaths = ['/', '/register', '/onboarding', '/splash', '/otp', '/profile/edit', '/admin'];
   const isHiddenPage = hiddenPaths.some(path => {
     const normalizedPath = pathname?.replace(/\/$/, '') || '/';
     const normalizedTarget = path.replace(/\/$/, '') || '/';
