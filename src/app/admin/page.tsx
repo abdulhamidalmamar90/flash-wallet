@@ -546,7 +546,14 @@ export default function AdminPage() {
                 {req.proofUrl && (
                   <Dialog>
                     <DialogTrigger asChild><button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-secondary group-hover:scale-110" /><span className="text-[8px] font-headline font-bold uppercase">View Proof</span></button></DialogTrigger>
-                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.proofUrl} alt="Deposit Proof" className="w-full h-full object-contain" /></div></DialogContent>
+                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]">
+                      <DialogHeader>
+                        <DialogTitle className="sr-only">Deposit Proof Evidence</DialogTitle>
+                      </DialogHeader>
+                      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black">
+                        <img src={req.proofUrl} alt="Deposit Proof" className="w-full h-full object-contain" />
+                      </div>
+                    </DialogContent>
                   </Dialog>
                 )}
                 {req.status === 'pending' && (
@@ -823,7 +830,14 @@ export default function AdminPage() {
                 {req.documentUrl && (
                   <Dialog>
                     <DialogTrigger asChild><button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-primary group-hover:scale-110" /><span className="text-[8px] font-headline font-bold uppercase">View Document</span></button></DialogTrigger>
-                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.documentUrl} alt="KYC Proof" className="w-full h-full object-contain" /></div></DialogContent>
+                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]">
+                      <DialogHeader>
+                        <DialogTitle className="sr-only">KYC Document Evidence</DialogTitle>
+                      </DialogHeader>
+                      <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black">
+                        <img src={req.documentUrl} alt="KYC Proof" className="w-full h-full object-contain" />
+                      </div>
+                    </DialogContent>
                   </Dialog>
                 )}
                 {req.status === 'pending' && (
