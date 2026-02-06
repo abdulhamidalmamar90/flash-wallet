@@ -12,7 +12,7 @@
         "avatarUrl": { "type": "string", "description": "URL or Data URI of the user avatar" },
         "customId": { "type": "string", "description": "Format: [A-Z][0-9]{12}" },
         "balance": { "type": "number" },
-        "role": { "type": "string", "enum": ["user", "admin"] },
+        "role": { "type": "string", "enum": ["user", "admin", "agent"] },
         "verified": { "type": "boolean" },
         "language": { "type": "string", "enum": ["en", "ar"] },
         "country": { "type": "string", "description": "User's residence country code (e.g., EG, SA)" },

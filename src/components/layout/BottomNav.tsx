@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowDownToLine, User, ScanLine, LayoutGrid, ShieldAlert } from 'lucide-react';
+import { Home, ArrowDownToLine, User, ScanLine, LayoutGrid, ShieldAlert, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/app/lib/store';
 import { useMemo } from 'react';
@@ -23,8 +23,8 @@ export function BottomNav() {
   
   const { data: profile } = useDoc(userDocRef);
 
-  // Added '/admin' to hiddenPaths to hide bottom navigation on admin dashboard
-  const hiddenPaths = ['/', '/register', '/onboarding', '/splash', '/otp', '/profile/edit', '/admin'];
+  // Added '/admin' and '/agent' to hiddenPaths to hide bottom navigation
+  const hiddenPaths = ['/', '/register', '/onboarding', '/splash', '/otp', '/profile/edit', '/admin', '/agent'];
   const isHiddenPage = hiddenPaths.some(path => {
     const normalizedPath = pathname?.replace(/\/$/, '') || '/';
     const normalizedTarget = path.replace(/\/$/, '') || '/';
@@ -39,9 +39,21 @@ export function BottomNav() {
     { label: 'center', icon: ScanLine, href: '#' },
     { label: language === 'ar' ? 'سحب' : 'WITHDRAW', icon: ArrowDownToLine, href: '/withdraw' },
     { 
-      label: profile?.role === 'admin' ? (language === 'ar' ? 'الإدارة' : 'ADMIN') : (language === 'ar' ? 'حسابي' : 'PROFILE'), 
-      icon: profile?.role === 'admin' ? ShieldAlert : User, 
-      href: profile?.role === 'admin' ? '/admin' : '/profile/edit' 
+      label: profile?.role === 'admin' 
+        ? (language === 'ar' ? 'الإدارة' : 'ADMIN') 
+        : profile?.role === 'agent'
+          ? (language === 'ar' ? 'الوكالة' : 'AGENT')
+          : (language === 'ar' ? 'حسابي' : 'PROFILE'), 
+      icon: profile?.role === 'admin' 
+        ? ShieldAlert 
+        : profile?.role === 'agent'
+          ? Briefcase
+          : User, 
+      href: profile?.role === 'admin' 
+        ? '/admin' 
+        : profile?.role === 'agent'
+          ? '/agent'
+          : '/profile/edit' 
     },
   ];
 

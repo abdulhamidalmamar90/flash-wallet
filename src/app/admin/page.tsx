@@ -53,7 +53,8 @@ import {
   EyeOff,
   Hash,
   Filter,
-  Unlock
+  Unlock,
+  Briefcase
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -1220,7 +1221,11 @@ export default function AdminPage() {
                     <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Access Authority:</Label>
                     <Select defaultValue={u.role || 'user'} onValueChange={(val) => handleUpdateRole(u.id, val)}>
                       <SelectTrigger className="h-8 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase w-[100px] font-headline"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-card border-white/10"><SelectItem value="user" className="text-[9px] uppercase">User</SelectItem><SelectItem value="admin" className="text-[9px] uppercase text-primary font-bold">Admin</SelectItem></SelectContent>
+                      <SelectContent className="bg-card border-white/10">
+                        <SelectItem value="user" className="text-[9px] uppercase">User</SelectItem>
+                        <SelectItem value="agent" className="text-[9px] uppercase text-secondary font-bold flex items-center gap-1"><Briefcase size={10} /> Agent</SelectItem>
+                        <SelectItem value="admin" className="text-[9px] uppercase text-primary font-bold">Admin</SelectItem>
+                      </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-2">

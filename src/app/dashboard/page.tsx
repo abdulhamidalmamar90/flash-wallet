@@ -28,7 +28,8 @@ import {
   ShoppingBag,
   Delete,
   Check,
-  Fingerprint
+  Fingerprint,
+  Briefcase
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -434,6 +435,12 @@ export default function Dashboard() {
                 <Link href="/admin" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 border-primary/40 hover:bg-primary/10 transition-all">
                   <ShieldAlert size={18} className="text-primary" />
                   <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">{language === 'ar' ? 'لوحة التحكم (أدمن)' : 'Admin Command'}</span>
+                </Link>
+              )}
+              {profile?.role === 'agent' && (
+                <Link href="/agent" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 border-secondary/40 hover:bg-secondary/10 transition-all">
+                  <Briefcase size={18} className="text-secondary" />
+                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary">{language === 'ar' ? 'لوحة الوكالة' : 'Agent Command'}</span>
                 </Link>
               )}
               <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-white/5 transition-all">
