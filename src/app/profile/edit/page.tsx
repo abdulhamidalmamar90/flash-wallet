@@ -14,7 +14,9 @@ import {
   Mail,
   ChevronDown,
   Smartphone,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -41,7 +43,7 @@ const COUNTRIES = [
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
   { code: 'KW', nameEn: 'Kuwait', nameAr: 'الكويت', flag: '🇰🇼', prefix: '+965' },
   { code: 'QA', nameEn: 'Qatar', nameAr: 'قطر', flag: '🇶🇦', prefix: '+974' },
-  { code: 'JO', nameEn: 'Jordan', nameAr: 'الأردن', flag: '🇯🇴', prefix: '+962' },
+  { code: 'JO', nameEn: 'Jordan', nameAr: 'الأردن', flag: 'جيد', prefix: '+962' },
   { code: 'IQ', nameEn: 'Iraq', nameAr: 'العراق', flag: '🇮🇶', prefix: '+964' },
   { code: 'LY', nameEn: 'Libya', nameAr: 'ليبيا', flag: '🇱🇾', prefix: '+218' },
   { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
@@ -120,6 +122,8 @@ export default function EditProfilePage() {
     otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
     validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
     verified: language === 'ar' ? 'موثق' : 'Verified',
+    identityVerified: language === 'ar' ? 'هوية موثقة' : 'Identity Verified',
+    awaitingVerification: language === 'ar' ? 'في انتظار التوثيق' : 'Awaiting Verification'
   };
 
   const handleSendOtp = async () => {
@@ -127,7 +131,7 @@ export default function EditProfilePage() {
     setVerifyingPhone(true);
     
     try {
-      const verifier = new RecaptchaVerifier(auth, 'recaptcha-verifier-hidden', {
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible'
       });
       
@@ -214,8 +218,8 @@ export default function EditProfilePage() {
         <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
       </header>
 
-      {/* Hidden ReCAPTCHA Anchor */}
-      <div id="recaptcha-verifier-hidden" className="hidden"></div>
+      {/* Hidden ReCAPTCHA Container */}
+      <div id="recaptcha-container"></div>
 
       <div className="flex flex-col items-center gap-4 py-6">
         <div className="relative group">
@@ -247,7 +251,17 @@ export default function EditProfilePage() {
             }
           }} />
         </div>
-        <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors">{t.avatarHeader}</button>
+
+        <div className="text-center space-y-1">
+          <div className={cn(
+            "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-headline font-bold uppercase tracking-widest",
+            profile?.verified ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+          )}>
+            {profile?.verified ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+            {profile?.verified ? t.identityVerified : t.awaitingVerification}
+          </div>
+          <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[8px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors block mx-auto mt-2">{t.avatarHeader}</button>
+        </div>
 
         {isAvatarOpen && (
           <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
