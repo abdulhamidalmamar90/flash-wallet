@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { sendTelegramNotification } from '@/lib/telegram';
 
 const CATEGORY_ICONS: Record<string, any> = {
   GAMES: Gamepad2,
@@ -147,6 +148,19 @@ export default function MarketplacePage() {
           date: new Date().toISOString()
         });
       });
+
+      // Send Telegram Notification to Admin
+      const telegramMessage = `
+🛒 <b>New Marketplace Order</b>
+━━━━━━━━━━━━━━━━
+<b>User:</b> @${profile.username}
+<b>Service:</b> ${selectedService.name}
+${variantLabel ? `<b>Package:</b> ${variantLabel}` : ''}
+${userInput ? `<b>User Data:</b> <code>${userInput}</code>` : ''}
+<b>Price:</b> $${finalPrice}
+<b>Date:</b> ${new Date().toLocaleString()}
+      `;
+      await sendTelegramNotification(telegramMessage);
 
       toast({ title: "PURCHASE SUCCESSFUL", description: `Your order has been logged for processing.` });
       setSelectedService(null);
