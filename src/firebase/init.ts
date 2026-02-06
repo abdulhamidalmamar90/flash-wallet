@@ -1,16 +1,27 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
 /**
- * Initializes Firebase for both client and server environments without including React hooks.
- * This is crucial for Next.js Route Handlers and Server Actions.
+ * Initializes Firebase for both client and server environments.
+ * Uses experimentalForceLongPolling to address connection issues in restrictive environments.
  */
 export function initializeFirebase() {
-  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  let app;
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+    // Initialize Firestore with long polling to bypass potential connection blocks
+    // This is critical for preventing "Could not reach Cloud Firestore backend" errors.
+    initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    });
+  } else {
+    app = getApp();
+  }
+  
   const auth = getAuth(app);
   const firestore = getFirestore(app);
-
+  
   return { app, auth, firestore };
 }

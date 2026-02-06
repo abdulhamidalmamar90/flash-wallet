@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
+import { Capacitor } from '@capacitor/core';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +36,6 @@ export default function LoginPage() {
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
 
-  // Handle Redirect Result for Mobile/WebView environments
   useEffect(() => {
     if (!auth || !db) return;
 
@@ -120,16 +120,12 @@ export default function LoginPage() {
     setLoading(true);
     const provider = new GoogleAuthProvider();
     
-    // Detect if we are in a WebView/Mobile environment
-    const isWebView = typeof window !== 'undefined' && 
-      ((window as any).Capacitor?.isNativePlatform || /WV|WebView|Android/i.test(navigator.userAgent));
+    const isWebView = Capacitor.isNativePlatform() || /WV|WebView|Android/i.test(navigator.userAgent);
 
     try {
       if (isWebView) {
-        // Use Redirect for WebViews to bypass popup block
         await signInWithRedirect(auth, provider);
       } else {
-        // Use Popup for standard browsers
         const result = await signInWithPopup(auth, provider);
         const googleEmail = result.user.email?.toLowerCase();
 

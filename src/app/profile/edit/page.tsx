@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -10,7 +11,6 @@ import {
   Camera, 
   Check, 
   Loader2,
-  Fingerprint,
   ShieldCheck,
   FileText,
   Globe,
@@ -26,9 +26,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { sendTelegramPhoto } from '@/lib/telegram';
+import { Capacitor } from '@capacitor/core';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -79,7 +79,7 @@ export default function EditProfilePage() {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const { language } = useStore();
+  const language = useStore().language;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
   
@@ -98,7 +98,6 @@ export default function EditProfilePage() {
   const [country, setCountry] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
-  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
@@ -113,7 +112,6 @@ export default function EditProfilePage() {
       setPhone(profile.phone || '');
       setCountry(profile.country || '');
       setSelectedAvatar(profile.avatarUrl || AVATARS[0]);
-      setBiometricsEnabled(profile.biometricsEnabled || false);
     }
   }, [profile]);
 
@@ -124,8 +122,6 @@ export default function EditProfilePage() {
     countryLabel: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
     passLabel: language === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
     passPlaceholder: language === 'ar' ? 'اتركه فارغاً إذا لا تريد التغيير' : 'Leave blank to keep current',
-    biometricLabel: language === 'ar' ? 'تفعيل الدخول بالبصمة' : 'Enable Fingerprint Login',
-    biometricDesc: language === 'ar' ? 'استخدم البصمة للوصول السريع لمحفظتك' : 'Use biometrics for fast vault access',
     saveBtn: language === 'ar' ? 'حفظ التغييرات' : 'Save Changes',
     saving: language === 'ar' ? 'جاري الحفظ...' : 'Saving...',
     success: language === 'ar' ? 'تم تحديث البيانات بنجاح' : 'Profile updated successfully',
@@ -168,7 +164,6 @@ export default function EditProfilePage() {
         phone: phone.trim(),
         country: country,
         avatarUrl: selectedAvatar,
-        biometricsEnabled,
       });
 
       if (newPassword.trim()) {
@@ -205,7 +200,6 @@ export default function EditProfilePage() {
         }
       });
 
-      // Telegram Photo Notification for KYC with Buttons
       await sendTelegramPhoto(verifDocImage, `
 🛡️ <b>New KYC Verification Request</b>
 ━━━━━━━━━━━━━━━━
@@ -282,7 +276,7 @@ export default function EditProfilePage() {
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.emailLabel}</Label>
             <div className="relative group">
               <Mail className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} />
-              <Input value={profile?.email || ''} disabled className={cn("h-12 bg-white/5 border-white/5 rounded-xl opacity-60 font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
+              <input value={profile?.email || ''} readOnly className={cn("w-full h-12 bg-white/5 border border-white/5 rounded-xl opacity-60 font-body outline-none", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
             </div>
           </div>
 
@@ -333,17 +327,6 @@ export default function EditProfilePage() {
                 placeholder={t.passPlaceholder} 
               />
             </div>
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Fingerprint className="text-primary h-6 w-6" /></div>
-              <div className={cn(language === 'ar' ? "text-right" : "text-left")}>
-                <p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">{t.biometricLabel}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black mt-0.5">{t.biometricDesc}</p>
-              </div>
-            </div>
-            <Switch checked={biometricsEnabled} onCheckedChange={setBiometricsEnabled} />
           </div>
         </div>
 
