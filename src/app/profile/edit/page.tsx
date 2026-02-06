@@ -15,7 +15,8 @@ import {
   Mail,
   ChevronDown,
   Smartphone,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -93,7 +94,6 @@ export default function EditProfilePage() {
   useEffect(() => {
     if (profile) {
       setUsername(profile.username || '');
-      // Try to parse phone
       const fullPhone = profile.phone || '';
       const countryMatch = COUNTRIES.find(c => fullPhone.startsWith(c.prefix));
       if (countryMatch) {
@@ -122,32 +122,48 @@ export default function EditProfilePage() {
     otpTitle: language === 'ar' ? 'رمز التحقق' : 'Verification Code',
     otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
     validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
-    verified: language === 'ar' ? 'موثق' : 'Verified'
+    verified: language === 'ar' ? 'موثق' : 'Verified',
+    hostnameError: language === 'ar' ? 'خطأ في النطاق المصرح به' : 'Authorized Hostname Error',
+    hostnameDesc: language === 'ar' ? 'يرجى إضافة نطاق الاستضافة إلى Authorized Domains في Firebase Console.' : 'Please add your current hostname to Authorized Domains in Firebase Console.'
   };
 
   const setupRecaptcha = () => {
     if (!recaptchaVerifier.current && auth) {
-      recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-      });
+      try {
+        recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: (response: any) => {
+            console.log("reCAPTCHA solved");
+          }
+        });
+      } catch (e) {
+        console.error("reCAPTCHA Init Error", e);
+      }
     }
   };
 
   const handleSendOtp = async () => {
     if (!phone || !auth) return;
     setVerifyingPhone(true);
-    setupRecaptcha();
     
-    const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
-
     try {
+      setupRecaptcha();
+      const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
       const result = await signInWithPhoneNumber(auth, fullPhone, recaptchaVerifier.current!);
       setConfirmationResult(result);
       setIsOtpOpen(true);
       toast({ title: language === 'ar' ? "تم إرسال الكود" : "OTP Sent" });
     } catch (error: any) {
-      console.error(error);
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      console.error("OTP Error", error);
+      if (error.code === 'auth/captcha-check-failed' || error.message.includes('Hostname')) {
+        toast({ 
+          variant: "destructive", 
+          title: t.hostnameError, 
+          description: t.hostnameDesc 
+        });
+      } else {
+        toast({ variant: "destructive", title: "Error", description: error.message });
+      }
     } finally {
       setVerifyingPhone(false);
     }
@@ -227,7 +243,7 @@ export default function EditProfilePage() {
             "w-32 h-32 rounded-full overflow-hidden border-4 transition-all duration-500 bg-white/5 flex items-center justify-center",
             profile?.verified 
               ? "border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" 
-              : "border-red-500"
+              : "border-red-500 shadow-xl"
           )}>
             {selectedAvatar ? (
               <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" />
@@ -361,7 +377,7 @@ export default function EditProfilePage() {
 
       {/* Verification OTP Modal */}
       <Dialog open={isOtpOpen} onOpenChange={setIsOtpOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem]">
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader>
             <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-secondary">
               {t.otpTitle}
