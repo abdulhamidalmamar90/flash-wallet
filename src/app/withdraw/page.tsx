@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Loader2, Wallet, Check, Info, Landmark, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Loader2, Landmark, Check, Info, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -67,15 +67,18 @@ export default function WithdrawPage() {
   }, [profile?.country, selectedCountry]);
 
   const methodsQuery = useMemo(() => {
-    if (!db || !selectedCountry) return null;
+    if (!db) return null;
     return query(collection(db, 'withdrawal_methods'), where('isActive', '==', true));
-  }, [db, selectedCountry]);
+  }, [db]);
   
   const { data: allMethods = [], loading: methodsLoading } = useCollection(methodsQuery);
 
   const filteredMethods = useMemo(() => {
-    return allMethods.filter((m: any) => m.country === selectedCountry || m.country === 'GL');
+    return allMethods.filter((m: any) => m.country === selectedCountry || m.country === 'GL' || m.country === 'CR');
   }, [allMethods, selectedCountry]);
+
+  const methodFee = selectedMethod?.fee || 0;
+  const totalDeduction = parseFloat(amount || '0') + methodFee;
 
   const t = {
     header: language === 'ar' ? 'سحب رصيد' : 'Withdraw Funds',
@@ -88,7 +91,9 @@ export default function WithdrawPage() {
     success: language === 'ar' ? 'تم تقديم الطلب بنجاح' : 'Withdrawal request submitted',
     balance: language === 'ar' ? 'الرصيد المتاح' : 'Available Balance',
     insufficient: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
-    fillRequired: language === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields'
+    fillRequired: language === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields',
+    fee: language === 'ar' ? 'العمولة' : 'Commission Fee',
+    total: language === 'ar' ? 'إجمالي الخصم' : 'Total Deduction'
   };
 
   const handleInputChange = (label: string, value: string) => {
@@ -100,12 +105,12 @@ export default function WithdrawPage() {
     if (!user || !amount || !profile || !selectedMethod) return;
 
     const amountNum = parseFloat(amount);
-    if (amountNum > (profile.balance || 0)) {
+    if (totalDeduction > (profile.balance || 0)) {
       toast({ variant: "destructive", title: t.insufficient });
       return;
     }
 
-    const allFilled = selectedMethod.fields.every((f: any) => formData[f.label]?.trim());
+    const allFilled = selectedMethod.fields?.every((f: any) => formData[f.label]?.trim());
     if (!allFilled) {
       toast({ variant: "destructive", title: t.fillRequired });
       return;
@@ -116,7 +121,7 @@ export default function WithdrawPage() {
       let requestId = "";
       await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', user.uid);
-        transaction.update(userRef, { balance: increment(-amountNum) });
+        transaction.update(userRef, { balance: increment(-totalDeduction) });
         
         const requestRef = doc(collection(db, 'withdrawals'));
         requestId = requestRef.id;
@@ -125,6 +130,7 @@ export default function WithdrawPage() {
           username: profile.username,
           methodName: selectedMethod.name,
           amount: amountNum,
+          fee: methodFee,
           details: formData,
           status: 'pending',
           date: new Date().toISOString()
@@ -133,7 +139,7 @@ export default function WithdrawPage() {
         const txRef = doc(collection(db, 'users', user.uid, 'transactions'));
         transaction.set(txRef, {
           type: 'withdraw',
-          amount: amountNum,
+          amount: totalDeduction,
           status: 'pending',
           date: new Date().toISOString()
         });
@@ -146,10 +152,11 @@ export default function WithdrawPage() {
 <b>User:</b> @${profile.username}
 <b>ID:</b> <code>${profile.customId}</code>
 <b>Amount:</b> $${amount}
+<b>Fee:</b> $${methodFee}
+<b>Total:</b> $${totalDeduction}
 <b>Method:</b> ${selectedMethod.name}
 <b>Details:</b>
 ${detailsText}
-<b>Date:</b> ${new Date().toLocaleString()}
       `, {
         inline_keyboard: [[
           { text: "✅ Approve", callback_data: `app_wit_${requestId}` },
@@ -202,10 +209,13 @@ ${detailsText}
               ) : filteredMethods.map((m: any) => (
                 <button key={m.id} onClick={() => { setSelectedMethod(m); setStep(3); }} className="glass-card p-6 rounded-3xl flex items-center justify-between border-white/5 hover:border-primary/40 transition-all group">
                   <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><Landmark size={24} /></div>
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110"><Landmark size={24} /></div>
                     <div className="text-left">
                       <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
-                      <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.country === 'GL' ? 'GLOBAL' : m.country === 'CR' ? 'CRYPTO' : m.country}</Badge>
+                      <div className="flex gap-1 mt-1">
+                        <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.country === 'GL' ? 'GLOBAL' : m.country === 'CR' ? 'CRYPTO' : m.country}</Badge>
+                        {m.fee > 0 && <Badge className="text-[6px] bg-primary/10 text-primary border-primary/20">Fee: ${m.fee}</Badge>}
+                      </div>
                     </div>
                   </div>
                   <div className="p-2 rounded-full bg-white/5 group-hover:bg-primary transition-all"><Check size={14} className="group-hover:text-background" /></div>
@@ -218,9 +228,17 @@ ${detailsText}
         return (
           <form onSubmit={handleSubmit} className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4">
             <div className="space-y-4">
-              <div className="flex justify-between items-center"><span className="text-[10px] font-headline font-bold uppercase text-primary">{selectedMethod.name}</span><span className="text-[8px] text-muted-foreground uppercase">{t.balance}: ${profile?.balance}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-headline font-bold uppercase text-primary">{selectedMethod.name}</span>
+                <span className="text-[8px] text-muted-foreground uppercase">{t.balance}: ${profile?.balance?.toLocaleString()}</span>
+              </div>
               <Label className="text-[10px] tracking-widest font-headline uppercase block">{t.amountLabel}</Label>
               <Input type="number" placeholder="0.00" className="text-3xl font-headline font-bold h-20 text-center bg-background/50 border-white/10 rounded-xl text-primary" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+              
+              <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div><p className="text-[8px] text-muted-foreground uppercase">{t.fee}</p><p className="text-sm font-headline font-bold text-white">${methodFee}</p></div>
+                <div className="text-right"><p className="text-[8px] text-muted-foreground uppercase">{t.total}</p><p className="text-sm font-headline font-bold text-primary">${totalDeduction}</p></div>
+              </div>
             </div>
 
             <div className="space-y-6">
@@ -229,34 +247,18 @@ ${detailsText}
                 <div key={idx} className="space-y-2">
                   <Label className="text-[9px] uppercase font-bold tracking-tight text-white/60">{field.label}</Label>
                   {field.type === 'textarea' ? (
-                    <Textarea 
-                      placeholder={`ENTER ${field.label.toUpperCase()}`} 
-                      className="bg-background/50 border-white/10 rounded-xl text-xs pt-3 min-h-[100px]" 
-                      value={formData[field.label] || ''} 
-                      onChange={(e) => handleInputChange(field.label, e.target.value)} 
-                      required
-                    />
+                    <Textarea placeholder={`ENTER ${field.label.toUpperCase()}`} className="bg-background/50 border-white/10 rounded-xl text-xs pt-3 min-h-[100px]" value={formData[field.label] || ''} onChange={(e) => handleInputChange(field.label, e.target.value)} required />
                   ) : field.type === 'select' ? (
                     <Select value={formData[field.label] || ''} onValueChange={(val) => handleInputChange(field.label, val)}>
-                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-xs uppercase">
-                        <SelectValue placeholder={`CHOOSE ${field.label.toUpperCase()}`} />
-                      </SelectTrigger>
+                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-xs uppercase"><SelectValue placeholder={`CHOOSE ${field.label.toUpperCase()}`} /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">
                         {field.options?.split(',').map((opt: string) => (
-                          <SelectItem key={opt.trim()} value={opt.trim()} className="text-[10px] uppercase">
-                            {opt.trim()}
-                          </SelectItem>
+                          <SelectItem key={opt.trim()} value={opt.trim()} className="text-[10px] uppercase">{opt.trim()}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input 
-                      placeholder={`ENTER ${field.label.toUpperCase()}`} 
-                      className="h-12 bg-background/50 border-white/10 rounded-xl text-xs" 
-                      value={formData[field.label] || ''} 
-                      onChange={(e) => handleInputChange(field.label, e.target.value)} 
-                      required
-                    />
+                    <Input placeholder={`ENTER ${field.label.toUpperCase()}`} className="h-12 bg-background/50 border-white/10 rounded-xl text-xs" value={formData[field.label] || ''} onChange={(e) => handleInputChange(field.label, e.target.value)} required />
                   )}
                 </div>
               ))}

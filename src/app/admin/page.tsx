@@ -31,7 +31,6 @@ import {
   Database,
   UserCheck,
   WalletCards,
-  MapPin,
   MessageSquare,
   Shield,
   Type,
@@ -46,7 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
@@ -113,6 +112,7 @@ export default function AdminPage() {
   // Withdrawal Method Dynamic Config State
   const [newWithdrawCountry, setNewWithdrawCountry] = useState('');
   const [newWithdrawName, setNewWithdrawName] = useState('');
+  const [newWithdrawFee, setNewWithdrawFee] = useState('0');
   const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' | 'select', options?: string }>>([]);
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
@@ -163,24 +163,25 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
 
-  const handleRejectWithdrawal = async (id: string, userId: string, amount: number) => {
+  const handleRejectWithdrawal = async (id: string, userId: string, amount: number, fee: number = 0) => {
     try {
       await runTransaction(db, async (transaction) => {
         const withdrawalRef = doc(db, 'withdrawals', id);
         const userRef = doc(db, 'users', userId);
         const txRef = doc(collection(db, 'users', userId, 'transactions'));
+        const totalRefund = amount + fee;
 
         transaction.update(withdrawalRef, { status: 'rejected' });
-        transaction.update(userRef, { balance: increment(amount) });
+        transaction.update(userRef, { balance: increment(totalRefund) });
         transaction.set(txRef, {
           type: 'receive',
-          amount,
+          amount: totalRefund,
           status: 'completed',
           sender: 'SYSTEM REFUND',
           date: new Date().toISOString()
         });
       });
-      await sendNotification(userId, "Withdrawal Rejected", `Your request for $${amount} was declined. Funds have been returned to your vault.`, 'transaction');
+      await sendNotification(userId, "Withdrawal Rejected", `Your request was declined. $${amount + fee} have been returned to your vault.`, 'transaction');
       toast({ title: "WITHDRAWAL REJECTED & REFUNDED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
@@ -210,7 +211,7 @@ export default function AdminPage() {
     try {
       await updateDoc(doc(db, 'verifications', req.id), { status: 'approved' });
       await updateDoc(doc(db, 'users', req.userId), { verified: true });
-      await sendNotification(req.userId, "Identity Verified", `Congratulations @${req.username}, your identity has been successfully verified. Your account is now high-authority.`, 'verification');
+      await sendNotification(req.userId, "Identity Verified", `Congratulations @${req.username}, your identity has been successfully verified.`, 'verification');
       toast({ title: "KYC APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
@@ -223,21 +224,12 @@ export default function AdminPage() {
         status: 'rejected',
         reason: rejectionReason.trim()
       });
-      await sendNotification(
-        activeKycRequest.userId, 
-        "Identity Verification Rejected", 
-        `Your verification request was declined. Reason: ${rejectionReason}`, 
-        'verification'
-      );
+      await sendNotification(activeKycRequest.userId, "Identity Verification Rejected", `Your request was declined. Reason: ${rejectionReason}`, 'verification');
       toast({ title: "KYC REJECTED" });
       setIsRejectModalOpen(false);
       setRejectionReason('');
       setActiveKycRequest(null);
-    } catch (e: any) { 
-      toast({ variant: "destructive", title: "ERROR" }); 
-    } finally {
-      setIsSubmittingRejection(false);
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); } finally { setIsSubmittingRejection(false); }
   };
 
   const handleUpdateBalance = async (targetUserId: string, currentBalance: number) => {
@@ -269,10 +261,8 @@ export default function AdminPage() {
     try {
       await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
       await sendNotification(targetUserId, "Role Updated", `Your account authority has been changed to: ${newRole.toUpperCase()}`, 'system');
-      toast({ title: "ROLE UPDATED SUCCESSFULLY" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "FAILED TO UPDATE ROLE" });
-    }
+      toast({ title: "ROLE UPDATED" });
+    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
   const handleDeleteUser = async (targetUserId: string) => {
@@ -306,11 +296,13 @@ export default function AdminPage() {
       await addDoc(collection(db, 'withdrawal_methods'), {
         country: newWithdrawCountry,
         name: newWithdrawName,
+        fee: parseFloat(newWithdrawFee) || 0,
         fields: withdrawFields,
         isActive: true
       });
       toast({ title: "WITHDRAW METHOD ADDED" });
       setNewWithdrawName('');
+      setNewWithdrawFee('0');
       setWithdrawFields([]);
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
@@ -357,24 +349,12 @@ export default function AdminPage() {
 
       <Tabs defaultValue="withdrawals" className="w-full">
         <TabsList className="grid w-full grid-cols-6 h-14 bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <ArrowUpCircle className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Withdrawals</span><span className="sm:hidden">Out</span>
-          </TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <ArrowDownCircle className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Deposits</span><span className="sm:hidden">In</span>
-          </TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <ShieldCheck className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">KYC</span><span className="sm:hidden">KYC</span>
-          </TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <Users className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Ledger</span><span className="sm:hidden">Users</span>
-          </TabsTrigger>
-          <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <Settings2 className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Dep-Cfg</span><span className="sm:hidden">Dep-Cfg</span>
-          </TabsTrigger>
-          <TabsTrigger value="withdraw_config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase tracking-widest data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1">
-            <WalletCards className="h-3 w-3 sm:mr-2" /> <span className="hidden sm:inline">Wit-Cfg</span><span className="sm:hidden">Wit-Cfg</span>
-          </TabsTrigger>
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><ArrowUpCircle className="h-3 w-3 sm:mr-2" /> Withdrawals</TabsTrigger>
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><ArrowDownCircle className="h-3 w-3 sm:mr-2" /> Deposits</TabsTrigger>
+          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><ShieldCheck className="h-3 w-3 sm:mr-2" /> KYC</TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><Users className="h-3 w-3 sm:mr-2" /> Ledger</TabsTrigger>
+          <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><Settings2 className="h-3 w-3 sm:mr-2" /> Dep-Cfg</TabsTrigger>
+          <TabsTrigger value="withdraw_config" className="rounded-xl font-headline text-[7px] sm:text-[9px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background transition-all px-1"><WalletCards className="h-3 w-3 sm:mr-2" /> Wit-Cfg</TabsTrigger>
         </TabsList>
 
         <TabsContent value="withdrawals" className="space-y-6">
@@ -387,7 +367,10 @@ export default function AdminPage() {
                     <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><Building2 className="h-6 w-6 text-primary" /></div>
                     <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.methodName}</p></div>
                   </div>
-                  <div className="text-right"><p className="text-lg font-headline font-black text-primary">${req.amount}</p></div>
+                  <div className="text-right">
+                    <p className="text-lg font-headline font-black text-primary">${req.amount}</p>
+                    {req.fee > 0 && <p className="text-[7px] text-muted-foreground uppercase">Fee: +${req.fee}</p>}
+                  </div>
                 </div>
                 
                 <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
@@ -403,7 +386,7 @@ export default function AdminPage() {
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
                     <button onClick={() => handleApproveWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Approve</span></button>
-                    <button onClick={() => handleRejectWithdrawal(req.id, req.userId, req.amount)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
+                    <button onClick={() => handleRejectWithdrawal(req.id, req.userId, req.amount, req.fee)} className="flex-1 h-12 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[10px] font-headline font-bold tracking-widest uppercase">Reject</span></button>
                   </div>
                 )}
               </div>
@@ -430,10 +413,8 @@ export default function AdminPage() {
 
                 {req.proofUrl && (
                   <Dialog>
-                    <DialogTrigger asChild>
-                      <button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-secondary group-hover:scale-110 transition-transform" /><span className="text-[8px] font-headline font-bold tracking-widest uppercase">View Proof</span></button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><DialogHeader><DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase text-center mb-4">Payment Evidence</DialogTitle></DialogHeader><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.proofUrl} alt="Deposit Proof" className="w-full h-full object-contain" /></div></DialogContent>
+                    <DialogTrigger asChild><button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-secondary group-hover:scale-110" /><span className="text-[8px] font-headline font-bold uppercase">View Proof</span></button></DialogTrigger>
+                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.proofUrl} alt="Deposit Proof" className="w-full h-full object-contain" /></div></DialogContent>
                   </Dialog>
                 )}
                 {req.status === 'pending' && (
@@ -462,30 +443,18 @@ export default function AdminPage() {
                 <Label className="text-[8px] uppercase tracking-widest">Service Name</Label>
                 <Input placeholder="E.G. INSTAPAY" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodName} onChange={(e) => setNewMethodName(e.target.value)} />
               </div>
-              <div className="space-y-2 lg:col-span-1">
-                <Label className="text-[8px] uppercase tracking-widest">Payment Data (Multi-line)</Label>
-                <Textarea 
-                  placeholder="ACCOUNT / WALLET / IBAN DETAILS" 
-                  className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" 
-                  value={newMethodDetails} 
-                  onChange={(e) => setNewMethodDetails(e.target.value)} 
-                />
-              </div>
+              <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest">Payment Data</Label><Textarea placeholder="ACCOUNT DETAILS" className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={newMethodDetails} onChange={(e) => setNewMethodDetails(e.target.value)} /></div>
             </div>
             <button onClick={handleAddDepositMethod} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy New Method</button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {depositMethods.map((m: any) => (
               <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
                 <div className="flex items-center gap-4 flex-1 mr-4">
-                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-headline font-bold text-xs shrink-0">{m.country}</div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest whitespace-pre-line line-clamp-2">{m.details}</p>
-                  </div>
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary font-headline font-bold text-xs">{m.country}</div>
+                  <div className="min-w-0"><p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest whitespace-pre-line line-clamp-2">{m.details}</p></div>
                 </div>
-                <button onClick={() => handleDeleteMethod(m.id, 'deposit')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors shrink-0"><Trash2 size={16} /></button>
+                <button onClick={() => handleDeleteMethod(m.id, 'deposit')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
               </div>
             ))}
           </div>
@@ -494,7 +463,7 @@ export default function AdminPage() {
         <TabsContent value="withdraw_config" className="space-y-6">
           <div className="glass-card p-6 rounded-[2rem] border-secondary/10 space-y-6">
             <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-secondary"><WalletCards size={14} /> Withdrawal Gateways</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
@@ -505,64 +474,47 @@ export default function AdminPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[8px] uppercase tracking-widest">Method Name</Label>
-                  <Input placeholder="E.G. GLOBAL BANK WIRE" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawName} onChange={(e) => setNewWithdrawName(e.target.value)} />
+                  <Input placeholder="E.G. USDT (TRC20)" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawName} onChange={(e) => setNewWithdrawName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest">Fixed Fee (USD)</Label>
+                  <Input type="number" placeholder="2.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawFee} onChange={(e) => setNewWithdrawFee(e.target.value)} />
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Label className="text-[8px] uppercase tracking-widest">Form Structure (Inputs)</Label>
-                  <button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button>
-                </div>
+              <div className="space-y-4 md:col-span-2">
+                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest">Form Structure (Inputs)</Label><button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button></div>
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                   {withdrawFields.map((field, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 p-3 bg-white/5 border border-white/5 rounded-xl animate-in slide-in-from-right-2">
+                    <div key={idx} className="flex flex-col gap-2 p-3 bg-white/5 border border-white/5 rounded-xl">
                       <div className="flex gap-2 items-center">
                         <Input placeholder="FIELD LABEL" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateField(idx, 'label', e.target.value)} />
                         <Select value={field.type} onValueChange={(val: any) => updateField(idx, 'type', val)}>
-                          <SelectTrigger className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] w-[120px]">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] w-[120px]"><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-card border-white/10">
-                            <SelectItem value="text" className="text-[9px] uppercase"><Type size={10} className="inline mr-2" /> Text</SelectItem>
-                            <SelectItem value="textarea" className="text-[9px] uppercase"><AlignLeft size={10} className="inline mr-2" /> Area</SelectItem>
-                            <SelectItem value="select" className="text-[9px] uppercase"><ListFilter size={10} className="inline mr-2" /> Select</SelectItem>
+                            <SelectItem value="text" className="text-[9px] uppercase">Text</SelectItem>
+                            <SelectItem value="textarea" className="text-[9px] uppercase">Area</SelectItem>
+                            <SelectItem value="select" className="text-[9px] uppercase">Select</SelectItem>
                           </SelectContent>
                         </Select>
-                        <button onClick={() => removeField(idx)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                        <button onClick={() => removeField(idx)} className="p-2 text-red-500/40 hover:text-red-500"><Trash2 size={14} /></button>
                       </div>
-                      {field.type === 'select' && (
-                        <Input 
-                          placeholder="OPTIONS (COMMA SEPARATED: BEP20, TRC20, TRX)" 
-                          className="h-9 bg-background/30 border-white/5 rounded-lg text-[8px] uppercase" 
-                          value={field.options || ''} 
-                          onChange={(e) => updateField(idx, 'options', e.target.value)} 
-                        />
-                      )}
+                      {field.type === 'select' && <Input placeholder="OPTIONS (COMMA SEPARATED: BEP20, TRC20)" className="h-9 bg-background/30 border-white/5 rounded-lg text-[8px] uppercase" value={field.options || ''} onChange={(e) => updateField(idx, 'options', e.target.value)} />}
                     </div>
                   ))}
-                  {withdrawFields.length === 0 && <p className="text-[8px] text-muted-foreground text-center py-4 uppercase font-black">Add fields to generate form</p>}
                 </div>
               </div>
             </div>
-            <button onClick={handleAddWithdrawMethod} className="w-full h-12 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy Dynamic Method</button>
+            <button onClick={handleAddWithdrawMethod} className="w-full h-12 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy Gateway</button>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {withdrawalMethods.map((m: any) => (
               <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
                 <div className="flex items-center gap-4 flex-1 mr-4">
-                  <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center text-secondary font-headline font-bold text-xs shrink-0">{m.country}</div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
-                    <div className="flex gap-1 mt-1 overflow-x-auto">
-                      {m.fields?.map((f: any, i: number) => (
-                        <Badge key={i} variant="outline" className="text-[6px] tracking-tight uppercase border-white/10 text-muted-foreground whitespace-nowrap">{f.label}</Badge>
-                      ))}
-                    </div>
-                  </div>
+                  <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center text-secondary font-headline font-bold text-xs">{m.country}</div>
+                  <div className="min-w-0"><p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p><p className="text-[8px] text-primary/60 uppercase">Fee: ${m.fee || 0}</p></div>
                 </div>
-                <button onClick={() => handleDeleteMethod(m.id, 'withdraw')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors shrink-0"><Trash2 size={16} /></button>
+                <button onClick={() => handleDeleteMethod(m.id, 'withdraw')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
               </div>
             ))}
           </div>
@@ -576,58 +528,20 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
                     <div className={cn("w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center border-2 transition-all duration-500 overflow-hidden", u.verified ? "border-green-500 cyan-glow" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="h-6 w-6 text-primary/40" />}</div>
-                    <div>
-                      <p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p>
-                      <p className="text-[8px] text-muted-foreground uppercase">{u.email}</p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Badge variant="outline" className={cn("text-[6px] tracking-tighter uppercase font-black", u.role === 'admin' ? "border-primary text-primary" : "border-muted-foreground text-muted-foreground")}>
-                          {u.role === 'admin' ? 'Superuser' : 'Client'}
-                        </Badge>
-                      </div>
-                    </div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{u.username}</p><p className="text-[8px] text-muted-foreground uppercase">{u.email}</p></div>
                   </div>
-                  <div className="text-right flex flex-col items-end gap-1">
-                    <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="text-red-500/40 hover:text-red-500 transition-colors p-1.5 bg-red-500/5 rounded-lg border border-red-500/10 hover:border-red-500/40"><Trash2 size={14} /></button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="glass-card border-white/10 rounded-[2rem]">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-xs font-headline font-bold uppercase tracking-widest">Confirm Entity Deletion</AlertDialogTitle>
-                          <AlertDialogDescription className="text-[10px] uppercase text-muted-foreground">This action will permanently purge @{u.username} from the central database. This cannot be undone.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="rounded-xl font-headline text-[9px] uppercase border-white/10">Abort</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteUser(u.id)} className="rounded-xl font-headline text-[9px] uppercase bg-red-500 text-white hover:bg-red-600">Proceed with Purge</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  <div className="text-right flex flex-col items-end gap-1"><p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p></div>
                 </div>
-
                 <div className="space-y-3 pt-2 border-t border-white/5">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Shield size={12} className="text-primary/60" />
-                      <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Access Authority:</Label>
-                    </div>
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Access Authority:</Label>
                     <Select defaultValue={u.role || 'user'} onValueChange={(val) => handleUpdateRole(u.id, val)}>
-                      <SelectTrigger className="h-8 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase w-[100px] font-headline">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-white/10">
-                        <SelectItem value="user" className="text-[9px] uppercase">User</SelectItem>
-                        <SelectItem value="admin" className="text-[9px] uppercase text-primary font-bold">Admin</SelectItem>
-                      </SelectContent>
+                      <SelectTrigger className="h-8 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase w-[100px] font-headline"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-card border-white/10"><SelectItem value="user" className="text-[9px] uppercase">User</SelectItem><SelectItem value="admin" className="text-[9px] uppercase text-primary font-bold">Admin</SelectItem></SelectContent>
                     </Select>
                   </div>
-
                   {editingUserId === u.id ? (
-                    <div className="flex gap-2 animate-in slide-in-from-right-2">
-                      <Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-10 bg-background border-primary/20 rounded-xl text-xs" />
-                      <button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-10 h-10 bg-primary text-background rounded-xl flex items-center justify-center shrink-0"><Save size={16} /></button>
-                    </div>
+                    <div className="flex gap-2 animate-in slide-in-from-right-2"><Input type="number" value={newBalance} onChange={(e) => setNewBalance(e.target.value)} className="h-10 bg-background border-primary/20 rounded-xl text-xs" /><button onClick={() => handleUpdateBalance(u.id, u.balance || 0)} className="w-10 h-10 bg-primary text-background rounded-xl flex items-center justify-center shrink-0"><Save size={16} /></button></div>
                   ) : (
                     <button onClick={() => { setEditingUserId(u.id); setNewBalance(u.balance?.toString()); }} className="w-full h-10 bg-white/5 border border-white/5 rounded-xl text-[9px] font-headline font-bold uppercase tracking-widest hover:bg-white/10 transition-colors">Modify Asset Balance</button>
                   )}
@@ -646,20 +560,15 @@ export default function AdminPage() {
                   <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><FileCheck className="h-6 w-6 text-green-500" /></div>
                   <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">Identity Verification</p></div>
                 </div>
-
                 <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
-                  <p className="text-[7px] text-muted-foreground uppercase font-black">Submission Intelligence</p>
                   <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><Globe size={10} /> Country:</span><span className="text-[9px] font-headline text-white">{req.country || 'N/A'}</span></div>
                   <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><FileText size={10} /> Doc Type:</span><span className="text-[9px] font-headline text-white">{req.documentType || 'N/A'}</span></div>
                   <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase flex items-center gap-1"><Search size={10} /> Doc Number:</span><span className="text-[9px] font-headline text-primary">{req.documentNumber || 'N/A'}</span></div>
                 </div>
-
                 {req.documentUrl && (
                   <Dialog>
-                    <DialogTrigger asChild>
-                      <button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-primary group-hover:scale-110 transition-transform" /><span className="text-[8px] font-headline font-bold tracking-widest uppercase">View Document</span></button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><DialogHeader><DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase text-center mb-4">KYC Evidence</DialogTitle></DialogHeader><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.documentUrl} alt="KYC Proof" className="w-full h-full object-contain" /></div></DialogContent>
+                    <DialogTrigger asChild><button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-primary group-hover:scale-110" /><span className="text-[8px] font-headline font-bold uppercase">View Document</span></button></DialogTrigger>
+                    <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]"><div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black"><img src={req.documentUrl} alt="KYC Proof" className="w-full h-full object-contain" /></div></DialogContent>
                   </Dialog>
                 )}
                 {req.status === 'pending' && (
@@ -674,32 +583,12 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* KYC Rejection Reason Modal */}
       <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-6 rounded-[2rem]">
-          <DialogHeader>
-            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
-              <ShieldAlert className="text-red-500 h-4 w-4" /> Reject Identity Request
-            </DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><ShieldAlert className="text-red-500 h-4 w-4" /> Reject Identity Request</DialogTitle></DialogHeader>
           <div className="space-y-6 mt-4">
-            <div className="space-y-2">
-              <Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2">
-                <MessageSquare size={12} /> Specify Reason for Declining
-              </Label>
-              <Textarea 
-                placeholder="EX: DOCUMENT EXPIRED OR BLURRY IMAGE..." 
-                className="min-h-[120px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3 focus:border-red-500/50" 
-                value={rejectionReason} 
-                onChange={(e) => setRejectionReason(e.target.value)} 
-              />
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase">Abort</Button>
-              <Button onClick={handleRejectKyc} disabled={!rejectionReason.trim() || isSubmittingRejection} className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-headline uppercase">
-                {isSubmittingRejection ? <Loader2 className="animate-spin" /> : "Confirm Rejection"}
-              </Button>
-            </div>
+            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2"><MessageSquare size={12} /> Specify Reason</Label><Textarea placeholder="EX: DOCUMENT EXPIRED..." className="min-h-[120px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /></div>
+            <div className="flex gap-3"><Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase">Abort</Button><Button onClick={handleRejectKyc} disabled={!rejectionReason.trim() || isSubmittingRejection} className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-headline uppercase">{isSubmittingRejection ? <Loader2 className="animate-spin" /> : "Confirm Rejection"}</Button></div>
           </div>
         </DialogContent>
       </Dialog>
