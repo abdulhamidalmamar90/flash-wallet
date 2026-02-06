@@ -52,6 +52,7 @@ import {
 import { signOut } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from "html5-qrcode";
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -107,7 +108,6 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [recipient, db]);
 
-  // Enhanced & Robust QR Scanner Logic
   useEffect(() => {
     let isMounted = true;
 
@@ -304,7 +304,7 @@ export default function Dashboard() {
             <p className="font-headline font-bold text-sm">@{profile?.username}</p>
           </div>
         </button>
-        <button onClick={() => { setIsNotifOpen(true); markNotificationsAsRead(); }} className="relative p-2 text-muted-foreground hover:text-white transition-all">
+        <button onClick={() => { setIsNotifOpen(true); markNotificationsAsRead(); }} className="relative p-2 text-muted-foreground hover:text-foreground transition-all">
           <Bell size={24} />
           {unreadCount > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-[8px] font-bold text-white rounded-full flex items-center justify-center border-2 border-background">{unreadCount}</span>}
         </button>
@@ -313,8 +313,8 @@ export default function Dashboard() {
       <main className="px-8 space-y-10">
         <section className="text-center py-10 glass-card rounded-[2.5rem] gold-glow border-primary/20">
           <p className="text-muted-foreground text-[10px] uppercase tracking-[0.4em] font-headline mb-4">{language === 'ar' ? 'إجمالي الأصول' : 'Current Asset Value'}</p>
-          <h1 className="text-5xl font-headline font-bold text-white tracking-tighter">
-            ${profile?.balance?.toLocaleString()}<span className="textxl opacity-20">.00</span>
+          <h1 className="text-5xl font-headline font-bold text-foreground tracking-tighter">
+            ${profile?.balance?.toLocaleString()}<span className="text-xl opacity-20">.00</span>
           </h1>
           <div className="mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
             <div className="w-1.5 h-1.5 bg-primary animate-pulse rounded-full"></div>
@@ -324,15 +324,15 @@ export default function Dashboard() {
 
         <section className="grid grid-cols-3 gap-3">
           <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-primary transition-all group">
-            <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-background transition-all"><Send size={20} /></div>
+            <div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-all"><Send size={20} /></div>
             <span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إرسال' : 'Send'}</span>
           </button>
           <Link href="/deposit" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-secondary transition-all group">
             <div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><Wallet size={20} /></div>
             <span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إيداع' : 'Deposit'}</span>
           </Link>
-          <Link href="/withdraw" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-white transition-all group">
-            <div className="p-3 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-background transition-all"><ArrowDownLeft size={20} /></div>
+          <Link href="/withdraw" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-foreground/20 transition-all group">
+            <div className="p-3 rounded-xl bg-muted group-hover:bg-foreground group-hover:text-background transition-all"><ArrowDownLeft size={20} /></div>
             <span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'سحب' : 'Withdraw'}</span>
           </Link>
         </section>
@@ -344,7 +344,7 @@ export default function Dashboard() {
           </div>
           <div className="space-y-3">
             {transactions.map((tx: any) => (
-              <div key={tx.id} className="flex justify-between items-center p-5 glass-card rounded-2xl border-white/5 hover:bg-white/5 transition-all">
+              <div key={tx.id} className="flex justify-between items-center p-5 glass-card rounded-2xl border-border/40 hover:bg-muted/5 transition-all">
                 <div className="flex items-center gap-4">
                   <div className={cn("w-1 h-10 rounded-full", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "bg-red-500/40" : "bg-primary/40")} />
                   <div>
@@ -361,7 +361,7 @@ export default function Dashboard() {
                     </p>
                   </div>
                 </div>
-                <p className={cn("font-headline font-bold text-xs", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "text-white" : "text-primary")}>
+                <p className={cn("font-headline font-bold text-xs", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "text-foreground" : "text-primary")}>
                   {(tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? '-' : '+'}${tx.amount}
                 </p>
               </div>
@@ -370,9 +370,8 @@ export default function Dashboard() {
         </section>
       </main>
 
-      {/* QR Scanner Dialog */}
       <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-4 text-center rounded-[2.5rem] z-[2000]">
+        <DialogContent className="max-w-sm glass-card border-border/40 p-4 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader>
             <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">
               {language === 'ar' ? 'ماسح المعرف الرقمي' : 'FLASH ID SCANNER'}
@@ -391,7 +390,7 @@ export default function Dashboard() {
           </p>
           <button 
             onClick={() => setScannerOpen(false)} 
-            className="mt-6 w-full h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all"
+            className="mt-6 w-full h-12 bg-muted border border-border/40 rounded-xl flex items-center justify-center gap-2 hover:bg-muted/80 transition-all"
           >
             <X size={16} />
             <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إلغاء' : 'CANCEL'}</span>
@@ -400,7 +399,7 @@ export default function Dashboard() {
       </Dialog>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
+        <DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">{language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}</DialogTitle></DialogHeader>
           <div className="space-y-8 mt-4">
             <div className="flex flex-col items-center gap-4 text-center">
@@ -412,12 +411,13 @@ export default function Dashboard() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-md font-headline font-bold tracking-tight">@{profile?.username}</h3>
-                <button onClick={copyId} className="px-4 py-2 bg-white/5 text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-white/10 flex items-center gap-2 hover:bg-white/10 transition-all">
+                <button onClick={copyId} className="px-4 py-2 bg-muted text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-border/40 flex items-center gap-2 hover:bg-muted/80 transition-all">
                   ID: {profile?.customId} <Copy size={12} />
                 </button>
               </div>
             </div>
             <div className="space-y-3">
+              <ThemeToggle />
               <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
                 <QrCode size={18} className="text-primary" />
                 <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'المعرف الرقمي الخاص بي' : 'My Flash Identifier'}</span>
@@ -442,7 +442,7 @@ export default function Dashboard() {
                   <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary">{language === 'ar' ? 'لوحة الوكالة' : 'Agent Command'}</span>
                 </Link>
               )}
-              <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-white/5 transition-all">
+              <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-muted/20 transition-all">
                 <Languages size={18} />
                 <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'اللغة: العربية' : 'Language: EN'}</span>
               </button>
@@ -456,15 +456,15 @@ export default function Dashboard() {
       </Dialog>
 
       <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[1001]">
+        <DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader>
           <div className="space-y-8 mt-6">
-            <div className="p-6 bg-white rounded-3xl inline-block shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+            <div className="p-6 bg-white rounded-3xl inline-block shadow-lg">
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" />
             </div>
             <div className="space-y-2">
               <p className="text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p>
-              <p className="text-sm font-headline font-black tracking-widest text-white">{profile?.customId}</p>
+              <p className="text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p>
             </div>
             <button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button>
           </div>
@@ -472,14 +472,14 @@ export default function Dashboard() {
       </Dialog>
 
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] max-h-[80vh] overflow-y-auto z-[1000]">
+        <DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] max-h-[80vh] overflow-y-auto z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center mb-4">{language === 'ar' ? 'شريط الحماية' : 'Security Feed'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {notifications.length === 0 ? (
               <p className="text-center text-[10px] text-muted-foreground uppercase font-headline py-10">{language === 'ar' ? 'النظام خالي من التنبيهات' : 'System is clear'}</p>
             ) : (
               notifications.map((n: any) => (
-                <div key={n.id} className={cn("p-4 rounded-2xl border transition-all relative group", n.read ? "bg-white/5 border-white/5" : "bg-primary/5 border-primary/20 shadow-lg")}>
+                <div key={n.id} className={cn("p-4 rounded-2xl border transition-all relative group", n.read ? "bg-muted/20 border-border/40" : "bg-primary/5 border-primary/20 shadow-lg")}>
                   <button onClick={() => deleteNotification(n.id)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-red-500"><Trash2 size={12} /></button>
                   <div className="flex justify-between items-start mb-2">
                     <p className="text-[10px] font-headline font-bold uppercase text-primary">{n.title}</p>
@@ -494,7 +494,7 @@ export default function Dashboard() {
       </Dialog>
 
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 rounded-[2.5rem] z-[1000]">
+        <DialogContent className="max-w-sm glass-card border-border/40 p-10 rounded-[2.5rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">{language === 'ar' ? 'بروتوكول التحويل السريع' : 'Fast Transfer Protocol'}</DialogTitle></DialogHeader>
           <div className="space-y-8 mt-6">
             <div className="space-y-4">
@@ -504,7 +504,7 @@ export default function Dashboard() {
                   placeholder={language === 'ar' ? "معرف المستلم" : "RECIPIENT FLASH ID"} 
                   value={recipient} 
                   onChange={(e) => setRecipient(e.target.value.toUpperCase())} 
-                  className="w-full bg-white/5 border border-white/10 h-14 px-6 rounded-2xl font-headline text-[10px] tracking-widest uppercase focus:border-primary outline-none transition-all" 
+                  className="w-full bg-muted border border-border/40 h-14 px-6 rounded-2xl font-headline text-[10px] tracking-widest uppercase focus:border-primary outline-none transition-all" 
                 />
                 {isLookingUp && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary" size={16} />}
               </div>
@@ -521,7 +521,7 @@ export default function Dashboard() {
                   placeholder="0.00" 
                   value={sendAmount} 
                   onChange={(e) => setSendAmount(e.target.value)} 
-                  className="w-full bg-white/5 border border-white/10 h-20 pl-12 pr-6 rounded-2xl text-center text-3xl font-headline font-bold text-primary outline-none focus:border-primary transition-all" 
+                  className="w-full bg-muted border border-border/40 h-20 pl-12 pr-6 rounded-2xl text-center text-3xl font-headline font-bold text-primary outline-none focus:border-primary transition-all" 
                 />
               </div>
             </div>
@@ -532,9 +532,8 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* PIN Verification Modal */}
       <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+        <DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {language === 'ar' ? "تأكيد PIN" : "Verify Vault PIN"}</DialogTitle></DialogHeader>
           <div className="mt-8">
             <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleSendMoney} />

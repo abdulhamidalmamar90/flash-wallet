@@ -1,10 +1,32 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    --background: 0 0% 98%; /* #FBFBFB */
+    --foreground: 240 10% 4%;
+    --card: 197 100% 96%; /* #E8F9FF */
+    --card-foreground: 240 10% 10%;
+    --popover: 197 100% 96%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 46 65% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 219 100% 89%; /* #C4D9FF */
+    --secondary-foreground: 240 10% 10%;
+    --muted: 197 100% 92%;
+    --muted-foreground: 240 5% 40%;
+    --accent: 248 100% 86%; /* #C5BAFF */
+    --accent-foreground: 240 10% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 219 100% 85%;
+    --input: 219 100% 85%;
+    --ring: 46 65% 52%;
+    --radius: 1.5rem;
+  }
+
+  .dark {
     --background: 240 10% 4%;
     --foreground: 0 0% 90%;
     --card: 240 10% 6%;
@@ -24,7 +46,6 @@
     --border: 240 10% 15%;
     --input: 240 10% 15%;
     --ring: 46 65% 52%;
-    --radius: 1rem;
   }
 }
 
@@ -33,7 +54,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body overflow-x-hidden antialiased;
+    @apply bg-background text-foreground font-body overflow-x-hidden antialiased transition-colors duration-300;
     background-image: radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.05), transparent 50%),
                       radial-gradient(circle at 0% 100%, hsl(var(--secondary) / 0.03), transparent 40%);
     background-attachment: fixed;
@@ -51,15 +72,23 @@
 
 @layer utilities {
   .glass-card {
-    @apply bg-card/40 backdrop-blur-xl border border-white/5;
+    @apply bg-card/60 backdrop-blur-xl border border-border/40;
   }
 
   .gold-glow {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.4);
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
   }
 
   .cyan-glow {
-    box-shadow: 0 0 20px hsl(var(--secondary) / 0.4);
+    box-shadow: 0 0 20px hsl(var(--secondary) / 0.3);
+  }
+
+  .dark .gold-glow {
+    box-shadow: 0 0 25px hsl(var(--primary) / 0.4);
+  }
+
+  .dark .cyan-glow {
+    box-shadow: 0 0 25px hsl(var(--secondary) / 0.4);
   }
 
   .gold-glow-text {
@@ -88,8 +117,16 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
 }
 
-/* Custom QR Scan Animation */
-@keyframes scan-line {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(250px); }
+/* Theme Toggle Custom Styles */
+.theme-switch {
+  --toggle-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.theme-switch input {
+  display: none;
 }
