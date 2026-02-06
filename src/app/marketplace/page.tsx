@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from 'react';
@@ -51,6 +52,7 @@ export default function MarketplacePage() {
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
+  // Filter only ACTIVE services
   const servicesQuery = useMemo(() => query(collection(db, 'marketplace_services'), where('isActive', '==', true)), [db]);
   const { data: services = [], loading: servicesLoading } = useCollection(servicesQuery);
 
@@ -168,7 +170,11 @@ export default function MarketplacePage() {
                 ) : (
                   <div className="w-full h-full flex items-center justify-center"><Icon className={cn("h-10 w-10 opacity-20", service.color)} /></div>
                 )}
-                <div className="absolute top-3 left-3"><Badge className={cn("text-[7px] uppercase font-black tracking-tighter border-white/10", service.color)}>{service.category}</Badge></div>
+                <div className="absolute top-3 left-3">
+                  <Badge className={cn("text-[7px] uppercase font-black tracking-tighter border-white/10", service.color)}>
+                    {service.category}
+                  </Badge>
+                </div>
               </div>
               <div className="p-5 flex-1 flex flex-col justify-between gap-4">
                 <div>
@@ -211,7 +217,7 @@ export default function MarketplacePage() {
                       <SelectTrigger className="h-14 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase font-headline">
                         <SelectValue placeholder="CHOOSE QUANTITY" />
                       </SelectTrigger>
-                      <SelectContent className="bg-card border-white/10">
+                      <SelectContent className="bg-card border-white/10 z-[1100]" position="popper">
                         {selectedService.variants.map((v: any, idx: number) => (
                           <SelectItem key={idx} value={idx.toString()} className="text-[10px] uppercase font-headline">
                             {v.label} - ${v.price}

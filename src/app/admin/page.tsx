@@ -48,7 +48,9 @@ import {
   Ticket,
   ChevronDown,
   Layers,
-  Keyboard
+  Keyboard,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -62,6 +64,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 
 export const COUNTRIES = [
   { code: 'GL', name: 'Global / Worldwide' },
@@ -182,6 +185,7 @@ export default function AdminPage() {
   const [serviceVariants, setServiceVariants] = useState<Array<{ label: string, price: string }>>([]);
   const [requiresUserInput, setRequiresUserInput] = useState(false);
   const [userInputLabel, setUserInputLabel] = useState('');
+  const [isServiceActive, setIsServiceActive] = useState(true);
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -350,6 +354,7 @@ export default function AdminPage() {
     setServiceVariants([]);
     setRequiresUserInput(false);
     setUserInputLabel('');
+    setIsServiceActive(true);
   };
 
   const handleServiceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -389,7 +394,7 @@ export default function AdminPage() {
         type: newServiceType,
         requiresInput: requiresUserInput,
         inputLabel: requiresUserInput ? userInputLabel : '',
-        isActive: true
+        isActive: isServiceActive
       };
 
       if (newServiceType === 'fixed') {
@@ -418,6 +423,7 @@ export default function AdminPage() {
     setNewServiceColor(service.color);
     setRequiresUserInput(service.requiresInput || false);
     setUserInputLabel(service.inputLabel || '');
+    setIsServiceActive(service.isActive !== undefined ? service.isActive : true);
     
     if (service.type === 'variable') {
       setServiceVariants(service.variants.map((v: any) => ({ label: v.label, price: v.price.toString() })));
@@ -754,6 +760,14 @@ export default function AdminPage() {
                     </div>
                   )}
                 </div>
+
+                <div className="p-5 bg-white/5 border border-white/5 rounded-[1.5rem] flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-[9px] font-headline font-bold uppercase tracking-tight">Product Visibility</Label>
+                    <p className="text-[7px] text-muted-foreground uppercase">Enable or Disable (Out of Stock)</p>
+                  </div>
+                  <Switch checked={isServiceActive} onCheckedChange={setIsServiceActive} />
+                </div>
               </div>
             </div>
             <button onClick={handleAddService} className="w-full h-14 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all gold-glow"><Ticket size={16} /> {editingServiceId ? "Update Global Product" : "Deploy Global Product"}</button>
@@ -761,13 +775,16 @@ export default function AdminPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {marketplaceServices.map((s: any) => (
-              <div key={s.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
+              <div key={s.id} className={cn("glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group transition-all", !s.isActive && "opacity-50 grayscale")}>
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 overflow-hidden">
                     {s.imageUrl ? <img src={s.imageUrl} className="w-full h-full object-cover" /> : <div className={cn("text-xl", s.color)}><ShoppingBag /></div>}
                   </div>
                   <div>
-                    <p className="text-[10px] font-headline font-bold uppercase">{s.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-headline font-bold uppercase">{s.name}</p>
+                      {!s.isActive && <Badge variant="destructive" className="text-[6px] h-3 px-1">OOS</Badge>}
+                    </div>
                     <p className="text-[8px] text-muted-foreground uppercase">{s.category} - {s.type === 'variable' ? `${s.variants?.length} Options` : `$${s.price}`}</p>
                     {s.requiresInput && <Badge variant="secondary" className="text-[6px] h-4 mt-1">DATA REQUIRED</Badge>}
                   </div>
