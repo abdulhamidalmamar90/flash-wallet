@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from 'react';
@@ -11,6 +10,7 @@ import { Building2, Bitcoin, ChevronLeft, CreditCard, Hash } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc } from '@/firebase';
 import { doc, collection, increment, runTransaction } from 'firebase/firestore';
+import { sendTelegramNotification } from '@/lib/telegram';
 
 export default function WithdrawPage() {
   const router = useRouter();
@@ -85,6 +85,22 @@ export default function WithdrawPage() {
           date: new Date().toISOString()
         });
       });
+
+      // Telegram Notification
+      const detailsText = type === 'bank' 
+        ? `🏦 <b>Bank Details:</b>\n- Name: ${accountName}\n- IBAN: <code>${iban}</code>`
+        : `⚡ <b>Crypto Details:</b>\n- Network: ${network}\n- Address: <code>${walletAddress}</code>`;
+
+      await sendTelegramNotification(`
+💸 <b>New Withdrawal Request</b>
+━━━━━━━━━━━━━━━━
+<b>User:</b> @${profile.username}
+<b>ID:</b> <code>${profile.customId}</code>
+<b>Amount:</b> $${amount}
+<b>Method:</b> ${type.toUpperCase()}
+${detailsText}
+<b>Date:</b> ${new Date().toLocaleString()}
+      `);
 
       toast({ title: "REQUEST PENDING", description: `Your $${amount} withdrawal request has been submitted for approval.` });
       router.push('/dashboard');

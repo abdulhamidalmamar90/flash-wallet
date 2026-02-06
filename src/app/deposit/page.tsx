@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -14,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
 import { collection, doc, addDoc, query, where } from 'firebase/firestore';
+import { sendTelegramNotification } from '@/lib/telegram';
 import Link from 'next/link';
 
 const COUNTRIES = [
@@ -62,7 +62,6 @@ export default function DepositPage() {
   const { language } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Steps: 1 (Select Country), 2 (Select Method), 3 (Amount & Details), 4 (Sender Info & Proof)
   const [step, setStep] = useState(1); 
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
@@ -128,6 +127,19 @@ export default function DepositPage() {
         status: 'pending',
         date: new Date().toISOString()
       });
+
+      // Telegram Notification
+      await sendTelegramNotification(`
+💰 <b>New Deposit Request</b>
+━━━━━━━━━━━━━━━━
+<b>User:</b> @${profile.username}
+<b>ID:</b> <code>${profile.customId}</code>
+<b>Amount:</b> $${amount}
+<b>Method:</b> ${selectedMethod.name}
+<b>Sender:</b> ${senderName || profile.username}
+<b>Country:</b> ${selectedCountry}
+<b>Date:</b> ${new Date().toLocaleString()}
+      `);
 
       toast({ title: t.success });
       router.push('/dashboard');

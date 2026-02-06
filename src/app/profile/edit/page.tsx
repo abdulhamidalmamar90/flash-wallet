@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -29,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sendTelegramNotification } from '@/lib/telegram';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -206,6 +206,19 @@ export default function EditProfilePage() {
           docNumber: verifDocNumber
         }
       });
+
+      // Telegram Notification
+      await sendTelegramNotification(`
+🛡️ <b>New KYC Verification Request</b>
+━━━━━━━━━━━━━━━━
+<b>User:</b> @${profile.username}
+<b>ID:</b> <code>${profile.customId}</code>
+<b>Country:</b> ${verifCountry}
+<b>Doc Type:</b> ${verifDocType.toUpperCase()}
+<b>Doc Number:</b> <code>${verifDocNumber}</code>
+<b>Date:</b> ${new Date().toLocaleString()}
+      `);
+
       toast({ title: "Request Sent", description: t.verifPendingDesc });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message });
