@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Loader2, Wallet, Camera, Check, Info, Landmark, User as UserIcon } from 'lucide-react';
+import { ChevronLeft, Loader2, Wallet, Camera, Check, Info, Landmark, User as UserIcon, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -61,7 +61,6 @@ export default function DepositPage() {
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  // Fetch all active methods to filter available countries
   const allMethodsQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, 'deposit_methods'), where('isActive', '==', true));
@@ -100,7 +99,13 @@ export default function DepositPage() {
     success: language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Deposit request submitted!',
     error: language === 'ar' ? 'حدث خطأ ما' : 'An error occurred',
     details: language === 'ar' ? 'بيانات التحويل' : 'Gateway Credentials',
-    loadingCountries: language === 'ar' ? 'جاري تحميل الدول المتاحة...' : 'Loading available countries...'
+    loadingCountries: language === 'ar' ? 'جاري تحميل الدول المتاحة...' : 'Loading available countries...',
+    copied: language === 'ar' ? 'تم النسخ!' : 'Copied!'
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: t.copied });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,7 +226,9 @@ export default function DepositPage() {
                     </div>
                     <div className="text-left">
                       <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
-                      <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">Authorized Gateway</p>
+                      <div className="flex gap-1 mt-1">
+                        <Badge className="text-[6px] bg-primary/10 text-primary border-primary/20">Rate: {m.exchangeRate} {m.currencyCode}</Badge>
+                      </div>
                     </div>
                   </div>
                   <div className="p-2 rounded-full bg-white/5 group-hover:bg-primary transition-all">
@@ -240,11 +247,25 @@ export default function DepositPage() {
                 <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-primary">{selectedMethod.name}</span>
                 <span className="text-[8px] text-muted-foreground uppercase">{t.details}</span>
               </div>
-              <div className="p-6 bg-background/50 rounded-2xl border border-white/5 text-center space-y-2">
-                <p className="text-xl font-headline font-black text-white tracking-widest break-all whitespace-pre-wrap">{selectedMethod.details}</p>
-                <p className="text-[8px] text-muted-foreground uppercase font-black tracking-tighter">Copy data exactly as shown</p>
+              
+              <div className="space-y-3">
+                {selectedMethod.fields?.map((field: any, idx: number) => (
+                  <div key={idx} className="p-4 bg-background/50 rounded-2xl border border-white/5 flex items-center justify-between group">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[7px] text-muted-foreground uppercase font-black tracking-widest mb-1">{field.label}</p>
+                      <p className="text-sm font-headline font-bold text-white break-all">{field.value}</p>
+                    </div>
+                    <button 
+                      onClick={() => copyToClipboard(field.value)}
+                      className="p-2 bg-white/5 rounded-xl text-primary hover:bg-primary hover:text-background transition-all"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
+
             <div className="space-y-4">
               <Label className="text-[10px] tracking-[0.2em] font-headline uppercase block">{t.amountLabel}</Label>
               <Input 
@@ -254,6 +275,12 @@ export default function DepositPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
+              <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center">
+                <span className="text-[8px] text-muted-foreground uppercase">Estimated Local Value:</span>
+                <span className="text-sm font-headline font-black text-white">
+                  {Math.round(parseFloat(amount || '0') * (selectedMethod.exchangeRate || 1)).toLocaleString()} {selectedMethod.currencyCode}
+                </span>
+              </div>
               <Button 
                 onClick={() => setStep(4)} 
                 disabled={!amount}

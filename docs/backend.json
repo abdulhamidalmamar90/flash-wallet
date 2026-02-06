@@ -43,12 +43,14 @@
       "description": "Stored in /deposit_methods/{id}. Configured by admin per country.",
       "type": "object",
       "properties": {
-        "country": { "type": "string", "description": "Country code (e.g., EG, SA, GL)" },
-        "name": { "type": "string", "description": "Method name (e.g., InstaPay, Vodafone Cash)" },
-        "details": { "type": "string", "description": "The account number or details to show to the user" },
+        "country": { "type": "string" },
+        "name": { "type": "string" },
+        "currencyCode": { "type": "string" },
+        "exchangeRate": { "type": "number" },
+        "fields": { "type": "array", "description": "Dynamic payment details (e.g. IBAN, Account Name)" },
         "isActive": { "type": "boolean" }
       },
-      "required": ["country", "name", "details", "isActive"]
+      "required": ["country", "name", "currencyCode", "exchangeRate", "fields", "isActive"]
     },
     "WithdrawalMethod": {
       "title": "Withdrawal Method",
@@ -58,8 +60,8 @@
         "country": { "type": "string" },
         "name": { "type": "string" },
         "iconUrl": { "type": "string" },
-        "currencyCode": { "type": "string", "description": "e.g., USD, SYP, SAR" },
-        "exchangeRate": { "type": "number", "description": "Multiplication factor from USD" },
+        "currencyCode": { "type": "string" },
+        "exchangeRate": { "type": "number" },
         "feeType": { "type": "string", "enum": ["fixed", "percentage"] },
         "feeValue": { "type": "number" },
         "fields": { "type": "array" },
@@ -121,7 +123,7 @@
       "properties": {
         "userId": { "type": "string" },
         "username": { "type": "string" },
-        "senderName": { "type": "string", "description": "The name specified by the user during deposit" },
+        "senderName": { "type": "string" },
         "amount": { "type": "number" },
         "method": { "type": "string" },
         "proofUrl": { "type": "string" },

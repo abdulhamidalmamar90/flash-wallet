@@ -38,7 +38,8 @@ import {
   Image as ImageIcon,
   Percent,
   Coins,
-  Edit2
+  Edit2,
+  Copy
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -122,9 +123,12 @@ export default function AdminPage() {
   const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
   // Deposit Method Config State
+  const [editingDepositId, setEditingDepositId] = useState<string | null>(null);
   const [newMethodCountry, setNewMethodCountry] = useState('');
   const [newMethodName, setNewMethodName] = useState('');
-  const [newMethodDetails, setNewMethodDetails] = useState('');
+  const [newMethodCurrency, setNewMethodCurrency] = useState('');
+  const [newMethodRate, setNewMethodRate] = useState('1');
+  const [depositFields, setDepositFields] = useState<Array<{ label: string, value: string }>>([]);
 
   // Withdrawal Method Dynamic Config State
   const [editingWithdrawId, setEditingWithdrawId] = useState<string | null>(null);
@@ -287,18 +291,62 @@ export default function AdminPage() {
   };
 
   const handleAddDepositMethod = async () => {
-    if (!newMethodCountry || !newMethodName || !newMethodDetails) return;
+    if (!newMethodCountry || !newMethodName || !newMethodCurrency || depositFields.length === 0) {
+      toast({ variant: "destructive", title: "MISSING FIELDS" });
+      return;
+    }
     try {
-      await addDoc(collection(db, 'deposit_methods'), {
+      const data = {
         country: newMethodCountry,
         name: newMethodName,
-        details: newMethodDetails,
+        currencyCode: newMethodCurrency,
+        exchangeRate: parseFloat(newMethodRate) || 1,
+        fields: depositFields,
         isActive: true
-      });
-      toast({ title: "METHOD ADDED" });
-      setNewMethodName('');
-      setNewMethodDetails('');
+      };
+      
+      if (editingDepositId) {
+        await updateDoc(doc(db, 'deposit_methods', editingDepositId), data);
+        toast({ title: "METHOD UPDATED" });
+      } else {
+        await addDoc(collection(db, 'deposit_methods'), data);
+        toast({ title: "METHOD ADDED" });
+      }
+      resetDepositForm();
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const resetDepositForm = () => {
+    setEditingDepositId(null);
+    setNewMethodCountry('');
+    setNewMethodName('');
+    setNewMethodCurrency('');
+    setNewMethodRate('1');
+    setDepositFields([]);
+  };
+
+  const addDepositField = () => {
+    setDepositFields([...depositFields, { label: '', value: '' }]);
+  };
+
+  const removeDepositField = (index: number) => {
+    setDepositFields(depositFields.filter((_, i) => i !== index));
+  };
+
+  const updateDepositField = (index: number, key: 'label' | 'value', val: string) => {
+    const updated = [...depositFields];
+    updated[index][key] = val;
+    setDepositFields(updated);
+  };
+
+  const handleEditDepositMethod = (method: any) => {
+    setEditingDepositId(method.id);
+    setNewMethodCountry(method.country);
+    setNewMethodName(method.name);
+    setNewMethodCurrency(method.currencyCode || COUNTRY_CURRENCIES[method.country] || 'USD');
+    setNewMethodRate(method.exchangeRate?.toString() || '1');
+    setDepositFields(method.fields || []);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetWithdrawForm = () => {
@@ -313,10 +361,14 @@ export default function AdminPage() {
     setWithdrawFields([]);
   };
 
-  const handleCountryChange = (val: string) => {
-    setNewWithdrawCountry(val);
-    const localCurrency = COUNTRY_CURRENCIES[val] || 'USD';
-    setNewWithdrawCurrency(localCurrency);
+  const handleCountryChange = (val: string, type: 'withdraw' | 'deposit') => {
+    if (type === 'withdraw') {
+      setNewWithdrawCountry(val);
+      setNewWithdrawCurrency(COUNTRY_CURRENCIES[val] || 'USD');
+    } else {
+      setNewMethodCountry(val);
+      setNewMethodCurrency(COUNTRY_CURRENCIES[val] || 'USD');
+    }
   };
 
   const handleEditWithdrawalMethod = (method: any) => {
@@ -334,7 +386,7 @@ export default function AdminPage() {
 
   const handleAddWithdrawMethod = async () => {
     if (!newWithdrawCountry || !newWithdrawName || !newWithdrawCurrency || withdrawFields.length === 0) {
-      toast({ variant: "destructive", title: "MISSING FIELDS", description: "Method name, Currency, and at least one form field are required." });
+      toast({ variant: "destructive", title: "MISSING FIELDS" });
       return;
     }
     try {
@@ -489,22 +541,83 @@ export default function AdminPage() {
 
         <TabsContent value="config" className="space-y-6">
           <div className="glass-card p-6 rounded-[2rem] border-primary/10 space-y-6">
-            <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Database size={14} /> Deposit Infrastructure</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
-                <Select onValueChange={setNewMethodCountry}>
-                  <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT" /></SelectTrigger>
-                  <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest">Service Name</Label>
-                <Input placeholder="E.G. INSTAPAY" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodName} onChange={(e) => setNewMethodName(e.target.value)} />
-              </div>
-              <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest">Payment Data</Label><Textarea placeholder="ACCOUNT DETAILS" className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={newMethodDetails} onChange={(e) => setNewMethodDetails(e.target.value)} /></div>
+            <div className="flex justify-between items-center">
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Database size={14} /> {editingDepositId ? "Modify Deposit Gateway" : "Deposit Infrastructure"}</h3>
+              {editingDepositId && (
+                <button onClick={resetDepositForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel Editing</button>
+              )}
             </div>
-            <button onClick={handleAddDepositMethod} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy New Method</button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
+                    <Select value={newMethodCountry} onValueChange={(val) => handleCountryChange(val, 'deposit')}>
+                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT" /></SelectTrigger>
+                      <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest">Service Name</Label>
+                    <Input placeholder="E.G. BANK TRANSFER" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodName} onChange={(e) => setNewMethodName(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Currency Code</Label>
+                    <Select value={newMethodCurrency} onValueChange={setNewMethodCurrency}>
+                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="CURRENCY" /></SelectTrigger>
+                      <SelectContent className="bg-card border-white/10">
+                        <SelectItem value="USD" className="text-[10px] uppercase">USD</SelectItem>
+                        {newMethodCountry && COUNTRY_CURRENCIES[newMethodCountry] && COUNTRY_CURRENCIES[newMethodCountry] !== 'USD' && (
+                          <SelectItem value={COUNTRY_CURRENCIES[newMethodCountry]} className="text-[10px] uppercase">{COUNTRY_CURRENCIES[newMethodCountry]}</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Ex. Rate (1 USD = ?)</Label>
+                    <Input type="number" placeholder="1.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodRate} onChange={(e) => setNewMethodRate(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Payment Data Fields</Label><button onClick={addDepositField} className="p-1.5 bg-primary/20 text-primary rounded-lg hover:bg-primary hover:text-background transition-all"><Plus size={14} /></button></div>
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+                  {depositFields.map((field, idx) => (
+                    <div key={idx} className="flex flex-col gap-2 p-4 bg-white/5 border border-white/5 rounded-2xl">
+                      <div className="flex gap-2 items-center">
+                        <Input placeholder="LABEL (E.G. IBAN)" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateDepositField(idx, 'label', e.target.value)} />
+                        <button onClick={() => removeDepositField(idx)} className="p-2 text-red-500/40 hover:text-red-500"><Trash2 size={14} /></button>
+                      </div>
+                      <Input placeholder="VALUE (E.G. ACCOUNT NUMBER)" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.value} onChange={(e) => updateDepositField(idx, 'value', e.target.value)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <button onClick={handleAddDepositMethod} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> {editingDepositId ? "Update Infrastructure" : "Deploy Infrastructure"}</button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {depositMethods.map((m: any) => (
+              <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
+                <div className="flex items-center gap-4 flex-1 mr-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-white/5"><div className="text-primary font-headline font-bold text-xs">{m.country}</div></div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
+                    <p className="text-[8px] text-muted-foreground uppercase">{m.currencyCode} - Rate: {m.exchangeRate}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleEditDepositMethod(m)} className="p-2 text-primary/40 hover:text-primary transition-colors"><Edit2 size={16} /></button>
+                  <button onClick={() => handleDeleteMethod(m.id, 'deposit')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            ))}
           </div>
         </TabsContent>
 
@@ -523,7 +636,7 @@ export default function AdminPage() {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Target Country</Label>
-                  <Select value={newWithdrawCountry} onValueChange={handleCountryChange}>
+                  <Select value={newWithdrawCountry} onValueChange={(val) => handleCountryChange(val, 'withdraw')}>
                     <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT REGION" /></SelectTrigger>
                     <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
                   </Select>
@@ -549,11 +662,9 @@ export default function AdminPage() {
                     <Select value={newWithdrawCurrency} onValueChange={setNewWithdrawCurrency}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="CURRENCY" /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">
-                        <SelectItem value="USD" className="text-[10px] uppercase">USD - Dollar</SelectItem>
+                        <SelectItem value="USD" className="text-[10px] uppercase">USD</SelectItem>
                         {newWithdrawCountry && COUNTRY_CURRENCIES[newWithdrawCountry] && COUNTRY_CURRENCIES[newWithdrawCountry] !== 'USD' && (
-                          <SelectItem value={COUNTRY_CURRENCIES[newWithdrawCountry]} className="text-[10px] uppercase">
-                            {COUNTRY_CURRENCIES[newWithdrawCountry]} - Local
-                          </SelectItem>
+                          <SelectItem value={COUNTRY_CURRENCIES[newWithdrawCountry]} className="text-[10px] uppercase">{COUNTRY_CURRENCIES[newWithdrawCountry]}</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
