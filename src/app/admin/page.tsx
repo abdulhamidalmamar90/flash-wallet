@@ -37,7 +37,8 @@ import {
   ListFilter,
   Image as ImageIcon,
   Percent,
-  Coins
+  Coins,
+  Edit2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -100,6 +101,7 @@ export default function AdminPage() {
   const [newMethodDetails, setNewMethodDetails] = useState('');
 
   // Withdrawal Method Dynamic Config State
+  const [editingWithdrawId, setEditingWithdrawId] = useState<string | null>(null);
   const [newWithdrawCountry, setNewWithdrawCountry] = useState('');
   const [newWithdrawName, setNewWithdrawName] = useState('');
   const [newWithdrawIcon, setNewWithdrawIcon] = useState<string | null>(null);
@@ -273,13 +275,39 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
+  const resetWithdrawForm = () => {
+    setEditingWithdrawId(null);
+    setNewWithdrawCountry('');
+    setNewWithdrawName('');
+    setNewWithdrawIcon(null);
+    setNewWithdrawCurrency('');
+    setNewWithdrawRate('1');
+    setNewWithdrawFeeType('fixed');
+    setNewWithdrawFeeValue('0');
+    setWithdrawFields([]);
+  };
+
+  const handleEditWithdrawalMethod = (method: any) => {
+    setEditingWithdrawId(method.id);
+    setNewWithdrawCountry(method.country);
+    setNewWithdrawName(method.name);
+    setNewWithdrawIcon(method.iconUrl);
+    setNewWithdrawCurrency(method.currencyCode);
+    setNewWithdrawRate(method.exchangeRate.toString());
+    setNewWithdrawFeeType(method.feeType);
+    setNewWithdrawFeeValue(method.feeValue.toString());
+    setWithdrawFields(method.fields || []);
+    // Optional: Scroll to top of the config tab
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleAddWithdrawMethod = async () => {
     if (!newWithdrawCountry || !newWithdrawName || !newWithdrawCurrency || withdrawFields.length === 0) {
       toast({ variant: "destructive", title: "MISSING FIELDS", description: "Method name, Currency, and at least one form field are required." });
       return;
     }
     try {
-      await addDoc(collection(db, 'withdrawal_methods'), {
+      const data = {
         country: newWithdrawCountry,
         name: newWithdrawName,
         iconUrl: newWithdrawIcon,
@@ -289,14 +317,16 @@ export default function AdminPage() {
         feeValue: parseFloat(newWithdrawFeeValue) || 0,
         fields: withdrawFields,
         isActive: true
-      });
-      toast({ title: "WITHDRAW METHOD ADDED" });
-      setNewWithdrawName('');
-      setNewWithdrawIcon(null);
-      setNewWithdrawCurrency('');
-      setNewWithdrawRate('1');
-      setNewWithdrawFeeValue('0');
-      setWithdrawFields([]);
+      };
+
+      if (editingWithdrawId) {
+        await updateDoc(doc(db, 'withdrawal_methods', editingWithdrawId), data);
+        toast({ title: "METHOD UPDATED" });
+      } else {
+        await addDoc(collection(db, 'withdrawal_methods'), data);
+        toast({ title: "WITHDRAW METHOD ADDED" });
+      }
+      resetWithdrawForm();
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
@@ -449,13 +479,20 @@ export default function AdminPage() {
 
         <TabsContent value="withdraw_config" className="space-y-6">
           <div className="glass-card p-6 rounded-[2rem] border-secondary/10 space-y-8">
-            <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-secondary"><WalletCards size={14} /> Global Gateway Architect</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-secondary">
+                <WalletCards size={14} /> {editingWithdrawId ? "Modify Global Gateway" : "Global Gateway Architect"}
+              </h3>
+              {editingWithdrawId && (
+                <button onClick={resetWithdrawForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel Editing</button>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Target Country</Label>
-                  <Select onValueChange={setNewWithdrawCountry}>
+                  <Select value={newWithdrawCountry} onValueChange={setNewWithdrawCountry}>
                     <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT REGION" /></SelectTrigger>
                     <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
                   </Select>
@@ -527,7 +564,10 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-            <button onClick={handleAddWithdrawMethod} className="w-full h-14 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all cyan-glow"><Plus size={16} /> Deploy Secure Gateway</button>
+            <button onClick={handleAddWithdrawMethod} className="w-full h-14 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all cyan-glow">
+              {editingWithdrawId ? <Save size={16} /> : <Plus size={16} />} 
+              {editingWithdrawId ? "Update Secure Gateway" : "Deploy Secure Gateway"}
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -543,7 +583,10 @@ export default function AdminPage() {
                     <p className="text-[7px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percentage' ? '%' : ' ' + m.currencyCode}</p>
                   </div>
                 </div>
-                <button onClick={() => handleDeleteMethod(m.id, 'withdraw')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleEditWithdrawalMethod(m)} className="p-2 text-primary/40 hover:text-primary transition-colors"><Edit2 size={16} /></button>
+                  <button onClick={() => handleDeleteMethod(m.id, 'withdraw')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                </div>
               </div>
             ))}
           </div>
