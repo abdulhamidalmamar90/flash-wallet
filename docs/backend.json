@@ -27,12 +27,26 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "price": { "type": "number", "description": "Base price for fixed products" },
+        "type": { "type": "string", "enum": ["fixed", "variable"] },
+        "variants": { 
+          "type": "array", 
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "requiresInput": { "type": "boolean" },
+        "inputLabel": { "type": "string", "description": "Label for the required user data (e.g. Player ID)" },
         "category": { "type": "string", "enum": ["Games", "Cards", "Software", "Social"] },
         "color": { "type": "string", "description": "Tailwind color class" },
         "isActive": { "type": "boolean" }
       },
-      "required": ["name", "price", "category", "isActive"]
+      "required": ["name", "category", "isActive", "type"]
     },
     "ServiceRequest": {
       "title": "Service Request",
@@ -42,6 +56,8 @@
         "userId": { "type": "string" },
         "username": { "type": "string" },
         "serviceName": { "type": "string" },
+        "selectedVariant": { "type": "string" },
+        "userInput": { "type": "string" },
         "price": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
         "date": { "type": "string", "format": "date-time" }

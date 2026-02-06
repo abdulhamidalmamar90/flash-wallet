@@ -45,7 +45,10 @@ import {
   Gift,
   LayoutGrid,
   ShoppingBag,
-  Ticket
+  Ticket,
+  ChevronDown,
+  Layers,
+  Keyboard
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -58,6 +61,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export const COUNTRIES = [
   { code: 'GL', name: 'Global / Worldwide' },
@@ -135,6 +139,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const iconInputRef = useRef<HTMLInputElement>(null);
   const methodIconInputRef = useRef<HTMLInputElement>(null);
+  const serviceImageInputRef = useRef<HTMLInputElement>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -166,12 +171,17 @@ export default function AdminPage() {
   const [newWithdrawFeeValue, setNewWithdrawFeeValue] = useState('0');
   const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' | 'select', options?: string }>>([]);
 
-  // Marketplace Services Config State
+  // Advanced Marketplace Services Config State
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
   const [newServiceCategory, setNewServiceCategory] = useState('Games');
   const [newServiceColor, setNewServiceColor] = useState('text-orange-400');
+  const [newServiceImage, setNewServiceImage] = useState<string | null>(null);
+  const [newServiceType, setNewServiceType] = useState<'fixed' | 'variable'>('fixed');
+  const [serviceVariants, setServiceVariants] = useState<Array<{ label: string, price: string }>>([]);
+  const [requiresUserInput, setRequiresUserInput] = useState(false);
+  const [userInputLabel, setUserInputLabel] = useState('');
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -335,21 +345,58 @@ export default function AdminPage() {
     setNewServicePrice('');
     setNewServiceCategory('Games');
     setNewServiceColor('text-orange-400');
+    setNewServiceImage(null);
+    setNewServiceType('fixed');
+    setServiceVariants([]);
+    setRequiresUserInput(false);
+    setUserInputLabel('');
+  };
+
+  const handleServiceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setNewServiceImage(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addServiceVariant = () => {
+    setServiceVariants([...serviceVariants, { label: '', price: '' }]);
+  };
+
+  const removeServiceVariant = (idx: number) => {
+    setServiceVariants(serviceVariants.filter((_, i) => i !== idx));
+  };
+
+  const updateServiceVariant = (idx: number, field: 'label' | 'price', val: string) => {
+    const updated = [...serviceVariants];
+    updated[idx][field] = val;
+    setServiceVariants(updated);
   };
 
   const handleAddService = async () => {
-    if (!newServiceName || !newServicePrice) {
+    if (!newServiceName || (newServiceType === 'fixed' && !newServicePrice) || (newServiceType === 'variable' && serviceVariants.length === 0)) {
       toast({ variant: "destructive", title: "MISSING FIELDS" });
       return;
     }
     try {
-      const data = {
+      const data: any = {
         name: newServiceName,
-        price: parseFloat(newServicePrice),
+        imageUrl: newServiceImage,
         category: newServiceCategory,
         color: newServiceColor,
+        type: newServiceType,
+        requiresInput: requiresUserInput,
+        inputLabel: requiresUserInput ? userInputLabel : '',
         isActive: true
       };
+
+      if (newServiceType === 'fixed') {
+        data.price = parseFloat(newServicePrice);
+      } else {
+        data.variants = serviceVariants.map(v => ({ label: v.label, price: parseFloat(v.price) }));
+      }
       
       if (editingServiceId) {
         await updateDoc(doc(db, 'marketplace_services', editingServiceId), data);
@@ -365,9 +412,19 @@ export default function AdminPage() {
   const handleEditService = (service: any) => {
     setEditingServiceId(service.id);
     setNewServiceName(service.name);
-    setNewServicePrice(service.price.toString());
+    setNewServiceImage(service.imageUrl || null);
+    setNewServiceType(service.type || 'fixed');
     setNewServiceCategory(service.category);
     setNewServiceColor(service.color);
+    setRequiresUserInput(service.requiresInput || false);
+    setUserInputLabel(service.inputLabel || '');
+    
+    if (service.type === 'variable') {
+      setServiceVariants(service.variants.map((v: any) => ({ label: v.label, price: v.price.toString() })));
+    } else {
+      setNewServicePrice(service.price?.toString() || '');
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -586,6 +643,7 @@ export default function AdminPage() {
                     <div>
                       <p className="text-[11px] font-headline font-bold uppercase tracking-tight">@{req.username}</p>
                       <p className="text-[7px] text-muted-foreground uppercase">{req.serviceName}</p>
+                      {req.selectedVariant && <Badge variant="outline" className="text-[6px] mt-1 uppercase">{req.selectedVariant}</Badge>}
                     </div>
                   </div>
                   <div className="text-right">
@@ -593,6 +651,12 @@ export default function AdminPage() {
                     <p className="text-[7px] text-muted-foreground uppercase">{req.status}</p>
                   </div>
                 </div>
+                {req.userInput && (
+                  <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                    <p className="text-[7px] text-muted-foreground uppercase mb-1">User Provided Data:</p>
+                    <p className="text-[10px] font-headline font-bold text-white break-all">{req.userInput}</p>
+                  </div>
+                )}
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
                     <button onClick={() => handleUpdateServiceRequestStatus(req.id, 'completed')} className="flex-1 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[9px] font-headline font-bold uppercase">Mark Completed</span></button>
@@ -607,51 +671,105 @@ export default function AdminPage() {
         <TabsContent value="services_config" className="space-y-6">
           <div className="glass-card p-6 rounded-[2rem] border-primary/10 space-y-6">
             <div className="flex justify-between items-center">
-              <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Ticket size={14} /> {editingServiceId ? "Modify Service" : "Register New Service"}</h3>
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Ticket size={14} /> {editingServiceId ? "Modify Product" : "Register Product"}</h3>
               {editingServiceId && (
                 <button onClick={resetServiceForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel</button>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest">Service Name</Label>
-                  <Input placeholder="E.G. PUBG MOBILE 60 UC" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
+                  <Label className="text-[8px] uppercase tracking-widest">Product Name</Label>
+                  <Input placeholder="E.G. PUBG MOBILE" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest">Price (USD)</Label>
-                  <Input type="number" placeholder="9.99" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value)} />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest">Category</Label>
+                    <Select value={newServiceCategory} onValueChange={setNewServiceCategory}>
+                      <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-card border-white/10">{SERVICE_CATEGORIES.map(c => (<SelectItem key={c.id} value={c.id} className="text-[10px] uppercase">{c.label}</SelectItem>))}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest">Product Image</Label>
+                    <div onClick={() => serviceImageInputRef.current?.click()} className="h-12 bg-background/50 border-dashed border border-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-primary/5 transition-all overflow-hidden">
+                      {newServiceImage ? <img src={newServiceImage} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-muted-foreground" />}
+                      <input type="file" ref={serviceImageInputRef} className="hidden" accept="image/*" onChange={handleServiceImageUpload} />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-4">
+
                 <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest">Category</Label>
-                  <Select value={newServiceCategory} onValueChange={setNewServiceCategory}>
+                  <Label className="text-[8px] uppercase tracking-widest">Pricing Strategy</Label>
+                  <Select value={newServiceType} onValueChange={(val: any) => setNewServiceType(val)}>
                     <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-card border-white/10">{SERVICE_CATEGORIES.map(c => (<SelectItem key={c.id} value={c.id} className="text-[10px] uppercase">{c.label}</SelectItem>))}</SelectContent>
+                    <SelectContent className="bg-card border-white/10">
+                      <SelectItem value="fixed" className="text-[10px] uppercase">Fixed Price (Single)</SelectItem>
+                      <SelectItem value="variable" className="text-[10px] uppercase">Variable (Packages/Cards)</SelectItem>
+                    </SelectContent>
                   </Select>
                 </div>
+
+                {newServiceType === 'fixed' ? (
+                  <div className="space-y-2">
+                    <Label className="text-[8px] uppercase tracking-widest">Price (USD)</Label>
+                    <Input type="number" placeholder="9.99" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value)} />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest">Price Packages</Label><button onClick={addServiceVariant} className="p-1.5 bg-primary/20 text-primary rounded-lg"><Plus size={14} /></button></div>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                      {serviceVariants.map((v, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <Input placeholder="LABEL (E.G. 60 UC)" className="flex-1 h-10 bg-background/50 border-white/10 text-[9px] uppercase" value={v.label} onChange={(e) => updateServiceVariant(idx, 'label', e.target.value)} />
+                          <Input placeholder="PRICE $" className="w-20 h-10 bg-background/50 border-white/10 text-[9px] uppercase" type="number" value={v.price} onChange={(e) => updateServiceVariant(idx, 'price', e.target.value)} />
+                          <button onClick={() => removeServiceVariant(idx)} className="p-2 text-red-500/40 hover:text-red-500"><X size={14} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest">Display Color</Label>
+                  <Label className="text-[8px] uppercase tracking-widest">Theme Accent</Label>
                   <Select value={newServiceColor} onValueChange={setNewServiceColor}>
                     <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-card border-white/10">{SERVICE_COLORS.map(c => (<SelectItem key={c.id} value={c.id} className={cn("text-[10px] uppercase", c.id)}>{c.label}</SelectItem>))}</SelectContent>
                   </Select>
                 </div>
+
+                <div className="p-5 bg-white/5 border border-white/5 rounded-[1.5rem] space-y-4">
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <Checkbox id="requiresInput" checked={requiresUserInput} onCheckedChange={(val: boolean) => setRequiresUserInput(val)} />
+                    <Label htmlFor="requiresInput" className="text-[9px] font-headline font-bold uppercase tracking-tight">Require Data from User (e.g. ID)</Label>
+                  </div>
+                  {requiresUserInput && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                      <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Input Field Label</Label>
+                      <Input placeholder="E.G. PLAYER ID OR PHONE" className="h-10 bg-background/50 border-white/10 text-[9px] uppercase" value={userInputLabel} onChange={(e) => setUserInputLabel(e.target.value)} />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <button onClick={handleAddService} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> {editingServiceId ? "Update Product" : "Deploy Product"}</button>
+            <button onClick={handleAddService} className="w-full h-14 bg-primary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all gold-glow"><Ticket size={16} /> {editingServiceId ? "Update Global Product" : "Deploy Global Product"}</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {marketplaceServices.map((s: any) => (
               <div key={s.id} className="glass-card p-5 rounded-2xl border-white/5 flex justify-between items-center group">
                 <div className="flex items-center gap-4">
-                  <div className={cn("w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/5", s.color)}><ShoppingBag size={20} /></div>
+                  <div className="w-14 h-14 rounded-xl bg-white/5 flex items-center justify-center border border-white/5 overflow-hidden">
+                    {s.imageUrl ? <img src={s.imageUrl} className="w-full h-full object-cover" /> : <div className={cn("text-xl", s.color)}><ShoppingBag /></div>}
+                  </div>
                   <div>
                     <p className="text-[10px] font-headline font-bold uppercase">{s.name}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase">{s.category} - ${s.price}</p>
+                    <p className="text-[8px] text-muted-foreground uppercase">{s.category} - {s.type === 'variable' ? `${s.variants?.length} Options` : `$${s.price}`}</p>
+                    {s.requiresInput && <Badge variant="secondary" className="text-[6px] h-4 mt-1">DATA REQUIRED</Badge>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
