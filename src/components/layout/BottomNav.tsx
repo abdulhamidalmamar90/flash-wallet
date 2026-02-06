@@ -23,15 +23,15 @@ export function BottomNav() {
   
   const { data: profile } = useDoc(userDocRef);
 
-  // Robust check to hide on auth-related pages, handling trailing slashes
-  const authPaths = ['/', '/register', '/onboarding', '/splash', '/otp'];
-  const isAuthPage = authPaths.some(path => {
+  // Robust check to hide on specific pages, handling trailing slashes
+  const hiddenPaths = ['/', '/register', '/onboarding', '/splash', '/otp', '/profile/edit'];
+  const isHiddenPage = hiddenPaths.some(path => {
     const normalizedPath = pathname?.replace(/\/$/, '') || '/';
     const normalizedTarget = path.replace(/\/$/, '') || '/';
     return normalizedPath === normalizedTarget;
   });
 
-  if (isAuthPage) return null;
+  if (isHiddenPage) return null;
 
   const navItems = [
     { label: language === 'ar' ? 'الرئيسية' : 'HOME', icon: Home, href: '/dashboard' },
