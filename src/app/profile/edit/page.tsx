@@ -44,6 +44,7 @@ const AVATARS = [
 ];
 
 const COUNTRIES = [
+  { code: 'GL', nameEn: 'Global / Worldwide', nameAr: 'عالمي / دولي', flag: '🌐', prefix: '' },
   { code: 'SA', nameEn: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameEn: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
@@ -84,7 +85,7 @@ export default function EditProfilePage() {
   // Profile States
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[1]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
@@ -117,7 +118,7 @@ export default function EditProfilePage() {
     if (profile) {
       setUsername(profile.username || '');
       const fullPhone = profile.phone || '';
-      const countryMatch = COUNTRIES.find(c => fullPhone.startsWith(c.prefix));
+      const countryMatch = COUNTRIES.find(c => c.prefix && fullPhone.startsWith(c.prefix));
       if (countryMatch) {
         setSelectedCountry(countryMatch);
         setPhone(fullPhone.replace(countryMatch.prefix, ''));

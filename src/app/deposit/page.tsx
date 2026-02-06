@@ -17,6 +17,7 @@ import { collection, doc, addDoc, query, where } from 'firebase/firestore';
 import { sendTelegramPhoto } from '@/lib/telegram';
 
 const COUNTRIES = [
+  { code: 'GL', name: 'Global / Worldwide', ar: 'عالمي / دولي' },
   { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
   { code: 'EG', name: 'Egypt', ar: 'مصر' },
   { code: 'AE', name: 'UAE', ar: 'الإمارات' },
@@ -38,18 +39,6 @@ const COUNTRIES = [
   { code: 'US', name: 'USA', ar: 'أمريكا' },
   { code: 'GB', name: 'UK', ar: 'بريطانيا' },
   { code: 'CA', name: 'Canada', ar: 'كندا' },
-  { code: 'DE', name: 'Germany', ar: 'ألمانيا' },
-  { code: 'FR', name: 'France', ar: 'فرنسا' },
-  { code: 'IT', name: 'Italy', ar: 'إيطاليا' },
-  { code: 'ES', name: 'Spain', ar: 'إسبانيا' },
-  { code: 'TR', name: 'Turkey', ar: 'تركيا' },
-  { code: 'CN', name: 'China', ar: 'الصين' },
-  { code: 'JP', name: 'Japan', ar: 'اليابان' },
-  { code: 'KR', name: 'South Korea', ar: 'كوريا الجنوبية' },
-  { code: 'IN', name: 'India', ar: 'الهند' },
-  { code: 'RU', name: 'Russia', ar: 'روسيا' },
-  { code: 'BR', name: 'Brazil', ar: 'البرازيل' },
-  { code: 'AU', name: 'Australia', ar: 'أستراليا' },
 ];
 
 export default function DepositPage() {

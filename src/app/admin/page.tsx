@@ -33,7 +33,9 @@ import {
   WalletCards,
   MapPin,
   MessageSquare,
-  Shield
+  Shield,
+  Type,
+  AlignLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -49,6 +51,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '@/components/ui/button';
 
 const COUNTRIES = [
+  { code: 'GL', name: 'Global / Worldwide' },
   { code: 'SA', name: 'Saudi Arabia' },
   { code: 'EG', name: 'Egypt' },
   { code: 'AE', name: 'UAE' },
@@ -105,10 +108,10 @@ export default function AdminPage() {
   const [newMethodName, setNewMethodName] = useState('');
   const [newMethodDetails, setNewMethodDetails] = useState('');
 
-  // Withdrawal Method Config State
+  // Withdrawal Method Dynamic Config State
   const [newWithdrawCountry, setNewWithdrawCountry] = useState('');
   const [newWithdrawName, setNewWithdrawName] = useState('');
-  const [newWithdrawInstructions, setNewWithdrawInstructions] = useState('');
+  const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' }>>([]);
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
@@ -293,18 +296,35 @@ export default function AdminPage() {
   };
 
   const handleAddWithdrawMethod = async () => {
-    if (!newWithdrawCountry || !newWithdrawName || !newWithdrawInstructions) return;
+    if (!newWithdrawCountry || !newWithdrawName || withdrawFields.length === 0) {
+      toast({ variant: "destructive", title: "MISSING FIELDS", description: "Define at least one form field." });
+      return;
+    }
     try {
       await addDoc(collection(db, 'withdrawal_methods'), {
         country: newWithdrawCountry,
         name: newWithdrawName,
-        instructions: newWithdrawInstructions,
+        fields: withdrawFields,
         isActive: true
       });
       toast({ title: "WITHDRAW METHOD ADDED" });
       setNewWithdrawName('');
-      setNewWithdrawInstructions('');
+      setWithdrawFields([]);
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const addField = () => {
+    setWithdrawFields([...withdrawFields, { label: '', type: 'text' }]);
+  };
+
+  const removeField = (index: number) => {
+    setWithdrawFields(withdrawFields.filter((_, i) => i !== index));
+  };
+
+  const updateField = (index: number, key: 'label' | 'type', value: string) => {
+    const updated = [...withdrawFields];
+    (updated[index] as any)[key] = value;
+    setWithdrawFields(updated);
   };
 
   const handleDeleteMethod = async (id: string, type: 'deposit' | 'withdraw') => {
@@ -362,25 +382,20 @@ export default function AdminPage() {
                 <div className={cn("absolute top-0 left-0 w-1.5 h-full", req.status === 'pending' ? "bg-orange-500/40" : req.status === 'approved' ? "bg-primary/40" : "bg-red-500/40")} />
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5">{req.type === 'bank' ? <Building2 className="h-6 w-6 text-primary" /> : <Bitcoin className="h-6 w-6 text-secondary" />}</div>
-                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.type} transfer</p></div>
+                    <div className="w-12 h-12 rounded-2xl bg-background/50 flex items-center justify-center border border-white/5"><Building2 className="h-6 w-6 text-primary" /></div>
+                    <div><p className="text-[11px] font-headline font-bold uppercase tracking-tight text-foreground">@{req.username}</p><p className="text-[7px] text-muted-foreground uppercase">{req.methodName}</p></div>
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-primary">${req.amount}</p></div>
                 </div>
                 
                 <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
-                  <p className="text-[7px] text-muted-foreground uppercase font-black">Destination Intel</p>
-                  {req.type === 'bank' ? (
-                    <>
-                      <div className="flex justify-between"><span className="text-[8px] text-muted-foreground uppercase">Name:</span><span className="text-[9px] font-headline text-white">{req.details?.accountName || 'N/A'}</span></div>
-                      <div className="flex justify-between"><span className="text-[8px] text-muted-foreground uppercase">IBAN:</span><span className="text-[9px] font-headline text-primary tracking-tighter">{req.details?.iban || 'N/A'}</span></div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex justify-between"><span className="text-[8px] text-muted-foreground uppercase">Network:</span><span className="text-[9px] font-headline text-secondary">{req.details?.network || 'N/A'}</span></div>
-                      <div className="flex justify-between items-center gap-2"><span className="text-[8px] text-muted-foreground uppercase">Address:</span><span className="text-[9px] font-headline text-white truncate max-w-[120px]">{req.details?.walletAddress || 'N/A'}</span></div>
-                    </>
-                  )}
+                  <p className="text-[7px] text-muted-foreground uppercase font-black">User Details</p>
+                  {req.details && Object.entries(req.details).map(([label, value]: [string, any]) => (
+                    <div key={label} className="flex justify-between items-start">
+                      <span className="text-[8px] text-muted-foreground uppercase">{label}:</span>
+                      <span className="text-[9px] font-headline text-white text-right break-all ml-4">{value}</span>
+                    </div>
+                  ))}
                 </div>
 
                 {req.status === 'pending' && (
@@ -477,29 +492,47 @@ export default function AdminPage() {
         <TabsContent value="withdraw_config" className="space-y-6">
           <div className="glass-card p-6 rounded-[2rem] border-secondary/10 space-y-6">
             <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-secondary"><WalletCards size={14} /> Withdrawal Gateways</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
-                <Select onValueChange={setNewWithdrawCountry}>
-                  <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT" /></SelectTrigger>
-                  <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
-                </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
+                  <Select onValueChange={setNewWithdrawCountry}>
+                    <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT" /></SelectTrigger>
+                    <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase tracking-widest">Method Name</Label>
+                  <Input placeholder="E.G. GLOBAL BANK WIRE" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawName} onChange={(e) => setNewWithdrawName(e.target.value)} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest">Method Name</Label>
-                <Input placeholder="E.G. BANK WIRE" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawName} onChange={(e) => setNewWithdrawName(e.target.value)} />
-              </div>
-              <div className="space-y-2 lg:col-span-1">
-                <Label className="text-[8px] uppercase tracking-widest">User Instructions</Label>
-                <Textarea 
-                  placeholder="EX: PROVIDE IBAN AND SWIFT CODE" 
-                  className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" 
-                  value={newWithdrawInstructions} 
-                  onChange={(e) => setNewWithdrawInstructions(e.target.value)} 
-                />
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label className="text-[8px] uppercase tracking-widest">Form Structure (Inputs)</Label>
+                  <button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button>
+                </div>
+                <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
+                  {withdrawFields.map((field, idx) => (
+                    <div key={idx} className="flex gap-2 items-center animate-in slide-in-from-right-2">
+                      <Input placeholder="FIELD LABEL" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateField(idx, 'label', e.target.value)} />
+                      <Select value={field.type} onValueChange={(val: any) => updateField(idx, 'type', val)}>
+                        <SelectTrigger className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] w-[120px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-white/10">
+                          <SelectItem value="text" className="text-[9px] uppercase"><Type size={10} className="inline mr-2" /> Text</SelectItem>
+                          <SelectItem value="textarea" className="text-[9px] uppercase"><AlignLeft size={10} className="inline mr-2" /> Area</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <button onClick={() => removeField(idx)} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  ))}
+                  {withdrawFields.length === 0 && <p className="text-[8px] text-muted-foreground text-center py-4 uppercase font-black">Add fields to generate form</p>}
+                </div>
               </div>
             </div>
-            <button onClick={handleAddWithdrawMethod} className="w-full h-12 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy Withdraw Option</button>
+            <button onClick={handleAddWithdrawMethod} className="w-full h-12 bg-secondary text-background rounded-xl font-headline font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"><Plus size={16} /> Deploy Dynamic Method</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -509,7 +542,11 @@ export default function AdminPage() {
                   <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center text-secondary font-headline font-bold text-xs shrink-0">{m.country}</div>
                   <div className="min-w-0">
                     <p className="text-[10px] font-headline font-bold uppercase truncate">{m.name}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest whitespace-pre-line line-clamp-2">{m.instructions}</p>
+                    <div className="flex gap-1 mt-1 overflow-x-auto">
+                      {m.fields?.map((f: any, i: number) => (
+                        <Badge key={i} variant="outline" className="text-[6px] tracking-tight uppercase border-white/10 text-muted-foreground whitespace-nowrap">{f.label}</Badge>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 <button onClick={() => handleDeleteMethod(m.id, 'withdraw')} className="p-2 text-red-500/40 hover:text-red-500 transition-colors shrink-0"><Trash2 size={16} /></button>
