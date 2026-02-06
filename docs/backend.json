@@ -83,6 +83,7 @@
       "properties": {
         "userId": { "type": "string" },
         "username": { "type": "string" },
+        "senderName": { "type": "string", "description": "The name specified by the user during deposit" },
         "amount": { "type": "number" },
         "method": { "type": "string" },
         "proofUrl": { "type": "string" },

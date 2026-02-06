@@ -8,12 +8,22 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, Loader2, Wallet, Camera, Check, Info, Landmark, Settings } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, Loader2, Wallet, Camera, Check, Info, Landmark, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
 import { collection, doc, addDoc, query, where } from 'firebase/firestore';
 import Link from 'next/link';
+
+const COUNTRIES = [
+  { code: 'SA', name: 'Saudi Arabia', ar: 'السعودية' },
+  { code: 'EG', name: 'Egypt', ar: 'مصر' },
+  { code: 'AE', name: 'UAE', ar: 'الإمارات' },
+  { code: 'KW', name: 'Kuwait', ar: 'الكويت' },
+  { code: 'QA', name: 'Qatar', ar: 'قطر' },
+  { code: 'US', name: 'USA', ar: 'أمريكا' },
+];
 
 export default function DepositPage() {
   const router = useRouter();
@@ -23,32 +33,43 @@ export default function DepositPage() {
   const { language } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Steps: 1 (Select Country), 2 (Select Method), 3 (Amount & Details), 4 (Sender Info & Proof)
   const [step, setStep] = useState(1); 
+  const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [amount, setAmount] = useState('');
+  const [senderName, setSenderName] = useState('');
   const [proofImage, setProofImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
+  useEffect(() => {
+    if (profile?.country && !selectedCountry) {
+      setSelectedCountry(profile.country);
+      setStep(1); // User can still change country from dropdown
+    }
+  }, [profile?.country, selectedCountry]);
+
   const methodsQuery = useMemo(() => {
-    if (!db || !profile?.country) return null;
-    return query(collection(db, 'deposit_methods'), where('country', '==', profile.country), where('isActive', '==', true));
-  }, [db, profile?.country]);
+    if (!db || !selectedCountry) return null;
+    return query(collection(db, 'deposit_methods'), where('country', '==', selectedCountry), where('isActive', '==', true));
+  }, [db, selectedCountry]);
   
   const { data: methods = [], loading: methodsLoading } = useCollection(methodsQuery);
 
   const t = {
     header: language === 'ar' ? 'إيداع رصيد' : 'Deposit Assets',
+    selectCountry: language === 'ar' ? 'اختر الدولة' : 'Select Country',
     selectMethod: language === 'ar' ? 'اختر وسيلة الإيداع' : 'Select Deposit Gateway',
-    noMethods: language === 'ar' ? 'لا تتوفر وسائل إيداع في بلدك حالياً' : 'No gateways available for your region',
-    noCountry: language === 'ar' ? 'يرجى تحديد بلدك أولاً من الإعدادات' : 'Please select your country in profile settings first',
-    goToSettings: language === 'ar' ? 'اذهب للإعدادات' : 'GO TO SETTINGS',
+    noMethods: language === 'ar' ? 'لا تتوفر وسائل إيداع في هذا البلد حالياً' : 'No gateways available for this region',
     amountLabel: language === 'ar' ? 'المبلغ المطلوب إيداعه' : 'Amount to Deposit',
     proofLabel: language === 'ar' ? 'صورة إثبات الدفع' : 'Payment Evidence',
+    senderLabel: language === 'ar' ? 'اسم المرسل' : 'Sender Name',
     instructions: language === 'ar' ? 'قم بالتحويل للبيانات المذكورة وارفاق صورة الوصل للمراجعة.' : 'Transfer to the credentials above and attach the receipt for review.',
     submitBtn: language === 'ar' ? 'إرسال طلب الإيداع' : 'SUBMIT DEPOSIT REQUEST',
+    nextBtn: language === 'ar' ? 'استمرار' : 'CONTINUE',
     success: language === 'ar' ? 'تم إرسال طلبك بنجاح' : 'Deposit request submitted!',
     error: language === 'ar' ? 'حدث خطأ ما' : 'An error occurred',
     details: language === 'ar' ? 'بيانات التحويل' : 'Gateway Credentials'
@@ -72,6 +93,7 @@ export default function DepositPage() {
       await addDoc(collection(db, 'deposits'), {
         userId: user.uid,
         username: profile.username,
+        senderName: senderName || profile.username,
         amount: parseFloat(amount),
         method: selectedMethod.name,
         proofUrl: proofImage,
@@ -88,81 +110,81 @@ export default function DepositPage() {
     }
   };
 
-  if (methodsLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
-
-  return (
-    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32">
-      <header className="flex items-center gap-4">
-        <button onClick={() => step === 1 ? router.back() : setStep(1)} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
-          <ChevronLeft className={cn("h-5 w-5", language === 'ar' && "rotate-180")} />
-        </button>
-        <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
-      </header>
-
-      {step === 1 ? (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{t.selectMethod}</h2>
-            {profile?.country ? (
-              <Badge variant="outline" className="text-[8px] uppercase tracking-widest border-primary/20 text-primary">{profile.country}</Badge>
-            ) : (
-              <Badge variant="destructive" className="text-[8px] uppercase tracking-widest">{language === 'ar' ? 'دولة غير محددة' : 'NO COUNTRY'}</Badge>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 gap-4">
-            {!profile?.country ? (
-              <div className="glass-card p-10 rounded-3xl text-center space-y-6">
-                <Info className="mx-auto text-muted-foreground" size={32} />
-                <p className="text-[10px] font-headline font-bold uppercase text-muted-foreground leading-relaxed">{t.noCountry}</p>
-                <Link href="/profile/edit">
-                  <Button className="h-12 bg-primary text-background rounded-xl font-headline font-bold text-[9px] tracking-widest uppercase">
-                    <Settings className="mr-2 h-4 w-4" /> {t.goToSettings}
-                  </Button>
-                </Link>
-              </div>
-            ) : methods.length === 0 ? (
-              <div className="glass-card p-10 rounded-3xl text-center space-y-4">
-                <Info className="mx-auto text-muted-foreground" size={32} />
-                <p className="text-[10px] font-headline font-bold uppercase text-muted-foreground">{t.noMethods}</p>
-              </div>
-            ) : methods.map((m: any) => (
-              <button 
-                key={m.id} 
-                onClick={() => { setSelectedMethod(m); setStep(2); }}
-                className="glass-card p-6 rounded-3xl flex items-center justify-between border-white/5 hover:border-primary/40 hover:bg-primary/5 transition-all group"
-              >
-                <div className="flex items-center gap-5">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    <Landmark size={24} />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">Authorized Gateway</p>
-                  </div>
-                </div>
-                <div className="p-2 rounded-full bg-white/5 group-hover:bg-primary transition-all">
-                  <Check size={14} className="group-hover:text-background" />
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in zoom-in-95 duration-300">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-primary">{selectedMethod.name}</span>
-              <span className="text-[8px] text-muted-foreground uppercase">{t.details}</span>
-            </div>
-            <div className="p-6 bg-background/50 rounded-2xl border border-white/5 text-center space-y-2">
-              <p className="text-xl font-headline font-black text-white tracking-widest">{selectedMethod.details}</p>
-              <p className="text-[8px] text-muted-foreground uppercase font-black tracking-tighter">Copy data exactly as shown</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
             <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t.selectCountry}</Label>
+              <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setStep(2); }}>
+                <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase tracking-widest font-headline">
+                  <SelectValue placeholder="CHOOSE COUNTRY" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-white/10">
+                  {COUNTRIES.map(c => (
+                    <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
+                      {language === 'ar' ? c.ar : c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="flex justify-between items-center">
+              <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{t.selectMethod}</h2>
+              <Badge variant="outline" className="text-[8px] uppercase tracking-widest border-primary/20 text-primary">{selectedCountry}</Badge>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {methodsLoading ? (
+                <Loader2 className="animate-spin mx-auto text-primary" />
+              ) : methods.length === 0 ? (
+                <div className="glass-card p-10 rounded-3xl text-center space-y-4">
+                  <Info className="mx-auto text-muted-foreground" size={32} />
+                  <p className="text-[10px] font-headline font-bold uppercase text-muted-foreground">{t.noMethods}</p>
+                  <Button variant="ghost" className="text-[8px] uppercase font-headline" onClick={() => setStep(1)}>Change Country</Button>
+                </div>
+              ) : methods.map((m: any) => (
+                <button 
+                  key={m.id} 
+                  onClick={() => { setSelectedMethod(m); setStep(3); }}
+                  className="glass-card p-6 rounded-3xl flex items-center justify-between border-white/5 hover:border-primary/40 hover:bg-primary/5 transition-all group"
+                >
+                  <div className="flex items-center gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                      <Landmark size={24} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
+                      <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">Authorized Gateway</p>
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-full bg-white/5 group-hover:bg-primary transition-all">
+                    <Check size={14} className="group-hover:text-background" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4 duration-300">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-primary">{selectedMethod.name}</span>
+                <span className="text-[8px] text-muted-foreground uppercase">{t.details}</span>
+              </div>
+              <div className="p-6 bg-background/50 rounded-2xl border border-white/5 text-center space-y-2">
+                <p className="text-xl font-headline font-black text-white tracking-widest break-all">{selectedMethod.details}</p>
+                <p className="text-[8px] text-muted-foreground uppercase font-black tracking-tighter">Copy data exactly as shown</p>
+              </div>
+            </div>
+            <div className="space-y-4">
               <Label className="text-[10px] tracking-[0.2em] font-headline uppercase block">{t.amountLabel}</Label>
               <Input 
                 type="number" 
@@ -170,11 +192,34 @@ export default function DepositPage() {
                 className="text-2xl font-headline font-bold h-16 text-center bg-background/50 border-white/10 rounded-xl text-primary focus:border-primary/50"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                required
               />
+              <Button 
+                onClick={() => setStep(4)} 
+                disabled={!amount}
+                className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary hover:bg-primary/90 text-background font-black tracking-widest"
+              >
+                {t.nextBtn}
+              </Button>
+            </div>
+          </div>
+        );
+      case 4:
+        return (
+          <form onSubmit={handleSubmit} className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4 duration-300">
+            <div className="space-y-4">
+              <Label className="text-[10px] tracking-[0.2em] font-headline uppercase block">{t.senderLabel}</Label>
+              <div className="relative group">
+                <UserIcon className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
+                <Input 
+                  placeholder="NAME ON ACCOUNT" 
+                  className={cn("h-12 bg-background/50 border-white/10 rounded-xl text-[10px] font-headline uppercase", language === 'ar' ? "pr-10" : "pl-10")}
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-4">
               <Label className="text-[10px] tracking-[0.2em] font-headline uppercase block">{t.proofLabel}</Label>
               <div 
                 onClick={() => fileInputRef.current?.click()}
@@ -199,14 +244,28 @@ export default function DepositPage() {
 
             <Button 
               type="submit" 
-              disabled={loading || !amount || !proofImage}
+              disabled={loading || !proofImage}
               className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary hover:bg-primary/90 text-background font-black tracking-widest"
             >
               {loading ? <Loader2 className="animate-spin" /> : t.submitBtn}
             </Button>
           </form>
-        </div>
-      )}
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in duration-500 pb-32">
+      <header className="flex items-center gap-4">
+        <button onClick={() => step === 1 ? router.back() : setStep(step - 1)} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
+          <ChevronLeft className={cn("h-5 w-5", language === 'ar' && "rotate-180")} />
+        </button>
+        <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
+      </header>
+
+      {renderStep()}
     </div>
   );
 }

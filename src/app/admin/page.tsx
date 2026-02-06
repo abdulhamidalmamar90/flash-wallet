@@ -28,7 +28,8 @@ import {
   Trash2,
   Settings2,
   Plus,
-  Database
+  Database,
+  UserCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const COUNTRIES = [
   { code: 'SA', name: 'Saudi Arabia' },
@@ -294,6 +296,11 @@ export default function AdminPage() {
                   </div>
                   <div className="text-right"><p className="text-lg font-headline font-black text-secondary">${req.amount}</p></div>
                 </div>
+
+                <div className="bg-background/50 p-4 rounded-2xl border border-white/5 space-y-2">
+                  <div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase">Sender:</span><span className="text-[9px] font-headline text-white flex items-center gap-1"><UserCheck size={10} className="text-secondary" /> {req.senderName || 'N/A'}</span></div>
+                </div>
+
                 {req.proofUrl && (
                   <Dialog>
                     <DialogTrigger asChild>
@@ -364,7 +371,21 @@ export default function AdminPage() {
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
                     <p className="text-lg font-headline font-black text-primary">${u.balance?.toLocaleString()}</p>
-                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-500/40 hover:text-red-500 transition-colors p-1.5 bg-red-500/5 rounded-lg border border-red-500/10 hover:border-red-500/40"><Trash2 size={14} /></button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="text-red-500/40 hover:text-red-500 transition-colors p-1.5 bg-red-500/5 rounded-lg border border-red-500/10 hover:border-red-500/40"><Trash2 size={14} /></button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="glass-card border-white/10 rounded-[2rem]">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-xs font-headline font-bold uppercase tracking-widest">Confirm Entity Deletion</AlertDialogTitle>
+                          <AlertDialogDescription className="text-[10px] uppercase text-muted-foreground">This action will permanently purge @{u.username} from the central database. This cannot be undone.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="rounded-xl font-headline text-[9px] uppercase border-white/10">Abort</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteUser(u.id)} className="rounded-xl font-headline text-[9px] uppercase bg-red-500 text-white hover:bg-red-600">Proceed with Purge</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
                 {editingUserId === u.id ? (
