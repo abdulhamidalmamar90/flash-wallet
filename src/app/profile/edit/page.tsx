@@ -12,25 +12,21 @@ import {
   Check, 
   Loader2,
   ShieldCheck,
-  FileText,
-  Globe,
-  CheckCircle2,
   Mail,
   ChevronDown,
-  Smartphone
+  Smartphone,
+  CheckCircle2
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
-import { useUser, useFirestore, useDoc, useCollection, useAuth } from '@/firebase';
-import { doc, updateDoc, collection, addDoc, query, where, limit } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { sendTelegramPhoto } from '@/lib/telegram';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -72,19 +68,11 @@ export default function EditProfilePage() {
   const { toast } = useToast();
   const language = useStore().language;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
   
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  const verifQuery = useMemo(() => user ? query(
-    collection(db, 'verifications'),
-    where('userId', '==', user.uid),
-    limit(1)
-  ) : null, [db, user]);
-  const { data: verifRequests } = useCollection(verifQuery);
-  const pendingRequest = verifRequests?.find(r => r.status === 'pending');
-
+  const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
@@ -100,10 +88,12 @@ export default function EditProfilePage() {
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const otpInputs = useRef<HTMLInputElement[]>([]);
+  const recaptchaVerifier = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
     if (profile) {
-      // Try to parse the stored phone to split prefix and number
+      setUsername(profile.username || '');
+      // Try to parse phone
       const fullPhone = profile.phone || '';
       const countryMatch = COUNTRIES.find(c => fullPhone.startsWith(c.prefix));
       if (countryMatch) {
@@ -119,51 +109,39 @@ export default function EditProfilePage() {
 
   const t = {
     header: language === 'ar' ? 'تعديل الحساب' : 'Edit Profile',
+    usernameLabel: language === 'ar' ? 'اسم المستخدم' : 'Username',
     emailLabel: language === 'ar' ? 'البريد الإلكتروني' : 'Email Address',
     phoneLabel: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
-    countryLabel: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
     passLabel: language === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
     passPlaceholder: language === 'ar' ? 'اتركه فارغاً للحفاظ على الحالية' : 'Leave blank to keep current',
     saveBtn: language === 'ar' ? 'حفظ التغييرات' : 'Save Changes',
     saving: language === 'ar' ? 'جاري الحفظ...' : 'Saving...',
     success: language === 'ar' ? 'تم تحديث البيانات بنجاح' : 'Profile updated successfully',
     avatarHeader: language === 'ar' ? 'اختر صورتك الرمزية' : 'Choose Your Avatar',
-    uploadLabel: language === 'ar' ? 'رفع صورة' : 'Upload Image',
-    imageTooLarge: language === 'ar' ? 'حجم الصورة كبير جداً' : 'Image too large',
-    verifHeader: language === 'ar' ? 'توثيق الهوية (KYC)' : 'Identity Verification (KYC)',
-    docTypeLabel: language === 'ar' ? 'نوع الوثيقة' : 'Document Type',
-    docNumberLabel: language === 'ar' ? 'رقم الوثيقة' : 'Document Number',
-    docImageLabel: language === 'ar' ? 'صورة الوثيقة' : 'Document Photo',
-    submitVerif: language === 'ar' ? 'إرسال طلب التوثيق' : 'Submit Verification',
-    idCard: language === 'ar' ? 'بطاقة هوية' : 'ID Card',
-    passport: language === 'ar' ? 'جواز سفر' : 'Passport',
-    verifPending: language === 'ar' ? 'قيد المراجعة' : 'Pending Review',
-    verifPendingDesc: language === 'ar' ? 'سيتم مراجعة وثائقك قريباً' : 'Review in progress',
-    verifiedStatus: language === 'ar' ? 'حساب موثق' : 'Account Verified',
-    verifiedDesc: language === 'ar' ? 'هويتك مؤكدة بالكامل' : 'Identity fully confirmed',
     verifyBtn: language === 'ar' ? 'تحقق' : 'Verify',
     otpTitle: language === 'ar' ? 'رمز التحقق' : 'Verification Code',
     otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
     validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
+    verified: language === 'ar' ? 'موثق' : 'Verified'
   };
 
   const setupRecaptcha = () => {
-    if (!(window as any).recaptchaVerifier) {
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+    if (!recaptchaVerifier.current && auth) {
+      recaptchaVerifier.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
       });
     }
   };
 
   const handleSendOtp = async () => {
-    if (!phone) return;
+    if (!phone || !auth) return;
     setVerifyingPhone(true);
     setupRecaptcha();
-    const appVerifier = (window as any).recaptchaVerifier;
+    
     const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
 
     try {
-      const result = await signInWithPhoneNumber(auth, fullPhone, appVerifier);
+      const result = await signInWithPhoneNumber(auth, fullPhone, recaptchaVerifier.current!);
       setConfirmationResult(result);
       setIsOtpOpen(true);
       toast({ title: language === 'ar' ? "تم إرسال الكود" : "OTP Sent" });
@@ -194,31 +172,21 @@ export default function EditProfilePage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 1024 * 1024) {
-        toast({ variant: "destructive", title: "Error", description: t.imageTooLarge });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => setter(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !db) return;
     setLoading(true);
 
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
+      const updates: any = {
+        username: username.trim(),
         phone: `${selectedCountry.prefix}${phone.trim()}`,
         country: selectedCountry.code,
         avatarUrl: selectedAvatar,
         phoneVerified: isPhoneVerified
-      });
+      };
+
+      await updateDoc(doc(db, 'users', user.uid), updates);
 
       if (newPassword.trim()) {
         await updatePassword(user, newPassword.trim());
@@ -243,7 +211,7 @@ export default function EditProfilePage() {
   };
 
   return (
-    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32" onClick={() => setIsCountryOpen(false)}>
+    <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in duration-500 pb-32" onClick={() => setIsCountryOpen(false)}>
       <header className="flex items-center gap-4">
         <button onClick={() => router.back()} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
           <ChevronLeft className={cn("h-5 w-5", language === 'ar' && "rotate-180")} />
@@ -274,7 +242,14 @@ export default function EditProfilePage() {
           >
             <Camera size={18} />
           </button>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, setSelectedAvatar)} />
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => setSelectedAvatar(reader.result as string);
+              reader.readAsDataURL(file);
+            }
+          }} />
         </div>
         <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[10px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors">{t.avatarHeader}</button>
 
@@ -288,7 +263,19 @@ export default function EditProfilePage() {
       </div>
 
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl">
-        <div className="space-y-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.usernameLabel}</Label>
+            <div className="relative group">
+              <User className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} />
+              <Input 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                className={cn("h-12 bg-white/5 border-white/10 rounded-xl font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} 
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.emailLabel}</Label>
             <div className="relative group">
@@ -339,13 +326,13 @@ export default function EditProfilePage() {
                     type="button"
                     onClick={handleSendOtp} 
                     disabled={verifyingPhone || !phone}
-                    className="h-12 bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary hover:text-background text-[10px] font-headline font-bold uppercase"
+                    className="h-12 bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary hover:text-background text-[10px] font-headline font-bold uppercase shrink-0"
                   >
                     {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.verifyBtn}
                   </Button>
                 ) : (
-                  <div className="h-12 flex items-center gap-2 text-green-500 font-headline font-bold text-[9px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20">
-                    <Check size={14} /> Verified
+                  <div className="h-12 flex items-center gap-2 text-green-500 font-headline font-bold text-[8px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20 shrink-0">
+                    <CheckCircle2 size={14} /> {t.verified}
                   </div>
                 )}
               </div>
