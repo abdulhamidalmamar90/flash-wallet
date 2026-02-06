@@ -28,7 +28,8 @@ import {
   Delete,
   Check,
   Fingerprint,
-  Briefcase
+  Briefcase,
+  ChevronLeft
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -399,10 +400,24 @@ export default function Dashboard() {
       </Dialog>
 
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] z-[1000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">{language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] z-[1000] animate-in fade-in slide-in-from-bottom-10 duration-500 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:slide-out-to-bottom-10">
+          <DialogHeader className="relative mb-4">
+            <button 
+              onClick={() => setIsSettingsOpen(false)} 
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-primary",
+                language === 'ar' ? "right-[-10px]" : "left-[-10px]"
+              )}
+            >
+              <ChevronLeft className={cn("h-6 w-6", language === 'ar' && "rotate-180")} />
+            </button>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center w-full">
+              {language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}
+            </DialogTitle>
+          </DialogHeader>
+          
           <div className="space-y-8 mt-4">
-            <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex flex-col items-center gap-4 text-center animate-in fade-in zoom-in-95 duration-700 delay-100 fill-mode-both">
               <div className={cn(
                 "w-20 h-20 rounded-2xl border-2 flex items-center justify-center relative overflow-hidden shadow-xl",
                 profile?.verified ? "border-green-500" : "border-red-500"
@@ -416,7 +431,8 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-            <div className="space-y-3">
+            
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both">
               <ThemeToggle />
               <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
                 <QrCode size={18} className="text-primary" />
