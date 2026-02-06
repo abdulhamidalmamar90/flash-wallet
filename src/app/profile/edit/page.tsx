@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -163,10 +164,12 @@ export default function EditProfilePage() {
     saving: language === 'ar' ? 'جاري الحفظ...' : 'Saving...',
     success: language === 'ar' ? 'تم تحديث البيانات بنجاح' : 'Profile updated successfully',
     avatarHeader: language === 'ar' ? 'اختر صورتك الرمزية' : 'Choose Your Avatar',
-    verifyBtn: language === 'ar' ? 'تحقق' : 'Verify',
+    verifyBtn: language === 'ar' ? 'تحقق من الرقم' : 'Verify Phone',
     otpTitle: language === 'ar' ? 'رمز التحقق' : 'Verification Code',
     otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
     validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
+    resendBtn: language === 'ar' ? 'إعادة إرسال الرمز' : 'Resend Code',
+    cancelBtn: language === 'ar' ? 'إلغاء' : 'Cancel',
     verified: language === 'ar' ? 'موثق' : 'Verified',
     identityVerified: language === 'ar' ? 'هوية موثقة' : 'Identity Verified',
     awaitingVerification: language === 'ar' ? 'في انتظار التوثيق' : 'Awaiting Verification',
@@ -430,7 +433,8 @@ export default function EditProfilePage() {
               <input value={profile?.email || ''} readOnly className={cn("w-full h-12 bg-white/5 border border-white/5 rounded-xl opacity-60 font-body outline-none", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
             </div>
           </div>
-          <div className="space-y-2">
+          
+          <div className="space-y-3">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
             <div className="flex gap-2 relative z-50" dir="ltr">
               <div className="relative">
@@ -445,15 +449,23 @@ export default function EditProfilePage() {
                   </div>
                 )}
               </div>
-              <div className="relative flex-1 flex gap-2">
-                <div className="relative flex-1">
-                  <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
-                  <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border-white/10 rounded-xl font-body pl-10 pr-4 text-left" placeholder="123456789" />
-                </div>
-                {!isPhoneVerified ? <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="h-12 bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary hover:text-background text-[10px] font-headline font-bold uppercase shrink-0">{verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.verifyBtn}</Button> : <div className="h-12 flex items-center gap-2 text-green-500 font-headline font-bold text-[8px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20 shrink-0"><CheckCircle2 size={14} /> {t.verified}</div>}
+              <div className="relative flex-1">
+                <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
+                <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border-white/10 rounded-xl font-body pl-10 pr-4 text-left" placeholder="123456789" />
               </div>
             </div>
+            
+            {!isPhoneVerified ? (
+              <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary hover:text-background text-[10px] font-headline font-bold uppercase tracking-widest">
+                {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.verifyBtn}
+              </Button>
+            ) : (
+              <div className="h-12 flex items-center justify-center gap-2 text-green-500 font-headline font-bold text-[10px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20 w-full">
+                <CheckCircle2 size={14} /> {t.verified}
+              </div>
+            )}
           </div>
+
           <div className="space-y-2">
             <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.passLabel}</Label>
             <div className="relative group">
@@ -629,9 +641,9 @@ export default function EditProfilePage() {
 
       {/* OTP Verification Modal */}
       <Dialog open={isOtpOpen} onOpenChange={setIsOtpOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-secondary">{t.otpTitle}</DialogTitle></DialogHeader>
-          <div className="space-y-8 mt-4">
+          <div className="space-y-6 mt-4">
             <div className="w-16 h-16 bg-secondary/10 border border-secondary/20 rounded-2xl flex items-center justify-center mx-auto text-secondary"><Smartphone size={32} /></div>
             <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">{t.otpDesc}</p>
             <div className="flex gap-2 justify-center" dir="ltr">
@@ -639,7 +651,29 @@ export default function EditProfilePage() {
                 <input key={i} ref={el => { if(el) otpInputs.current[i] = el; }} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpInput(i, e.target.value)} className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-headline font-bold text-secondary focus:border-secondary transition-all outline-none rounded-lg" />
               ))}
             </div>
-            <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">{verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.validateBtn}</Button>
+            
+            <div className="flex flex-col gap-3 mt-4">
+              <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">
+                {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.validateBtn}
+              </Button>
+              
+              <button 
+                type="button" 
+                onClick={handleSendOtp} 
+                disabled={verifyingPhone}
+                className="text-[10px] font-headline font-bold uppercase text-primary/60 hover:text-primary transition-colors py-2"
+              >
+                {t.resendBtn}
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={() => setIsOtpOpen(false)}
+                className="text-[10px] font-headline font-bold uppercase text-red-500/60 hover:text-red-500 transition-colors py-2"
+              >
+                {t.cancelBtn}
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
