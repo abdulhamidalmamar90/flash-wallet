@@ -23,8 +23,14 @@ export function BottomNav() {
   
   const { data: profile } = useDoc(userDocRef);
 
-  // Hide on auth pages
-  const isAuthPage = pathname === '/' || pathname === '/register' || pathname === '/onboarding' || pathname === '/splash' || pathname === '/otp';
+  // Robust check to hide on auth-related pages, handling trailing slashes
+  const authPaths = ['/', '/register', '/onboarding', '/splash', '/otp'];
+  const isAuthPage = authPaths.some(path => {
+    const normalizedPath = pathname?.replace(/\/$/, '') || '/';
+    const normalizedTarget = path.replace(/\/$/, '') || '/';
+    return normalizedPath === normalizedTarget;
+  });
+
   if (isAuthPage) return null;
 
   const navItems = [
@@ -59,7 +65,7 @@ export function BottomNav() {
             );
           }
 
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || pathname === `${item.href}/`;
           return (
             <div key={item.label + idx} className="flex-1 flex justify-center items-center">
               <Link
