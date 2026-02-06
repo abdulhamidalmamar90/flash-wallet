@@ -3,16 +3,17 @@ import { initializeFirebase } from '@/firebase';
 import { doc, getDoc, runTransaction, increment, collection, setDoc, updateDoc } from 'firebase/firestore';
 
 const TELEGRAM_CHAT_ID = '7306867055';
+const TELEGRAM_TOKEN = '8236708164:AAHi0AYmvf3_IJEpYAgug-GYdf4O9AkvZY4';
 
 export async function POST(request: Request) {
   const body = await request.json();
   const { firestore } = initializeFirebase();
 
-  // Check if it's a callback query from Telegram
+  // Check if it's a callback query (button press)
   if (body.callback_query) {
-    const { id, data, from } = body.callback_query;
+    const { id: callbackQueryId, data, from } = body.callback_query;
 
-    // Security: Only allow your specific Telegram ID
+    // Security check: Only Authorized Admin
     if (from.id.toString() !== TELEGRAM_CHAT_ID) {
       return NextResponse.json({ ok: true });
     }
@@ -21,13 +22,12 @@ export async function POST(request: Request) {
 
     try {
       if (type === 'dep') {
-        // --- DEPOSIT APPROVAL ---
         const depositRef = doc(firestore, 'deposits', docId);
         const depSnap = await getDoc(depositRef);
-        if (!depSnap.exists()) throw new Error("Deposit not found");
+        if (!depSnap.exists()) throw new Error("Deposit ID not found");
         const depData = depSnap.data();
 
-        if (action === 'app') {
+        if (action === 'app' && depData.status === 'pending') {
           await runTransaction(firestore, async (transaction) => {
             const userRef = doc(firestore, 'users', depData.userId);
             const txRef = doc(collection(firestore, 'users', depData.userId, 'transactions'));
@@ -49,20 +49,19 @@ export async function POST(request: Request) {
               date: new Date().toISOString()
             });
           });
-          await notifyTelegram(id, `✅ Deposit for @${depData.username} APPROVED ($${depData.amount})`);
-        } else {
+          await answerTelegram(callbackQueryId, `✅ Approved for @${depData.username}`);
+        } else if (action === 'rej') {
           await updateDoc(depositRef, { status: 'rejected' });
-          await notifyTelegram(id, `❌ Deposit for @${depData.username} REJECTED`);
+          await answerTelegram(callbackQueryId, `❌ Rejected for @${depData.username}`);
         }
       } 
       else if (type === 'wit') {
-        // --- WITHDRAWAL APPROVAL ---
         const withdrawalRef = doc(firestore, 'withdrawals', docId);
         const witSnap = await getDoc(withdrawalRef);
-        if (!witSnap.exists()) throw new Error("Withdrawal not found");
+        if (!witSnap.exists()) throw new Error("Withdrawal ID not found");
         const witData = witSnap.data();
 
-        if (action === 'app') {
+        if (action === 'app' && witData.status === 'pending') {
           await updateDoc(withdrawalRef, { status: 'approved' });
           const notifRef = doc(collection(firestore, 'users', witData.userId, 'notifications'));
           await setDoc(notifRef, {
@@ -72,9 +71,9 @@ export async function POST(request: Request) {
             read: false,
             date: new Date().toISOString()
           });
-          await notifyTelegram(id, `✅ Withdrawal for @${witData.username} APPROVED ($${witData.amount})`);
-        } else {
-          // REFUND ON REJECTION
+          await answerTelegram(callbackQueryId, `✅ Withdrawal Approved: @${witData.username}`);
+        } else if (action === 'rej') {
+          // Refund logic
           await runTransaction(firestore, async (transaction) => {
             const userRef = doc(firestore, 'users', witData.userId);
             const txRef = doc(collection(firestore, 'users', witData.userId, 'transactions'));
@@ -88,37 +87,34 @@ export async function POST(request: Request) {
               date: new Date().toISOString()
             });
           });
-          await notifyTelegram(id, `❌ Withdrawal for @${witData.username} REJECTED & REFUNDED`);
+          await answerTelegram(callbackQueryId, `❌ Rejected & Refunded: @${witData.username}`);
         }
       }
       else if (type === 'ver') {
-        // --- KYC APPROVAL ---
         const verifRef = doc(firestore, 'verifications', docId);
         const verSnap = await getDoc(verifRef);
-        if (!verSnap.exists()) throw new Error("Verification not found");
+        if (!verSnap.exists()) throw new Error("KYC ID not found");
         const verData = verSnap.data();
 
         if (action === 'app') {
           await updateDoc(verifRef, { status: 'approved' });
           await updateDoc(doc(firestore, 'users', verData.userId), { verified: true });
-          await notifyTelegram(id, `🛡️ KYC for @${verData.username} APPROVED`);
-        } else {
+          await answerTelegram(callbackQueryId, `🛡️ KYC Approved: @${verData.username}`);
+        } else if (action === 'rej') {
           await updateDoc(verifRef, { status: 'rejected' });
-          await notifyTelegram(id, `❌ KYC for @${verData.username} REJECTED`);
+          await answerTelegram(callbackQueryId, `❌ KYC Rejected: @${verData.username}`);
         }
       }
 
     } catch (e: any) {
-      console.error(e);
-      await notifyTelegram(id, `⚠️ Error: ${e.message}`);
+      await answerTelegram(callbackQueryId, `⚠️ Error: ${e.message}`);
     }
   }
 
   return NextResponse.json({ ok: true });
 }
 
-async function notifyTelegram(callbackQueryId: string, text: string) {
-  const TELEGRAM_TOKEN = '8236708164:AAHi0AYmvf3_IJEpYAgug-GYdf4O9AkvZY4';
+async function answerTelegram(callbackQueryId: string, text: string) {
   await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/answerCallbackQuery`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
