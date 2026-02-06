@@ -43,6 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const COUNTRIES = [
+  // Arab Countries
   { code: 'SA', name: 'Saudi Arabia' },
   { code: 'EG', name: 'Egypt' },
   { code: 'AE', name: 'UAE' },
@@ -53,7 +54,30 @@ const COUNTRIES = [
   { code: 'LY', name: 'Libya' },
   { code: 'DZ', name: 'Algeria' },
   { code: 'MA', name: 'Morocco' },
+  { code: 'PS', name: 'Palestine' },
+  { code: 'LB', name: 'Lebanon' },
+  { code: 'SY', name: 'Syria' },
+  { code: 'OM', name: 'Oman' },
+  { code: 'YE', name: 'Yemen' },
+  { code: 'BH', name: 'Bahrain' },
+  { code: 'TN', name: 'Tunisia' },
+  { code: 'SD', name: 'Sudan' },
+  // Global Countries
   { code: 'US', name: 'USA' },
+  { code: 'GB', name: 'UK' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'TR', name: 'Turkey' },
+  { code: 'CN', name: 'China' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'KR', name: 'South Korea' },
+  { code: 'IN', name: 'India' },
+  { code: 'RU', name: 'Russia' },
+  { code: 'BR', name: 'Brazil' },
+  { code: 'AU', name: 'Australia' },
 ];
 
 export default function AdminPage() {

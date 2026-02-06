@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 const COUNTRIES = [
+  // Arab Countries
   { code: 'SA', nameEn: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameEn: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
@@ -25,7 +26,30 @@ const COUNTRIES = [
   { code: 'LY', nameEn: 'Libya', nameAr: 'ليبيا', flag: '🇱🇾', prefix: '+218' },
   { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
   { code: 'MA', nameEn: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', prefix: '+212' },
+  { code: 'PS', nameEn: 'Palestine', nameAr: 'فلسطين', flag: '🇵🇸', prefix: '+970' },
+  { code: 'LB', nameEn: 'Lebanon', nameAr: 'لبنان', flag: '🇱🇧', prefix: '+961' },
+  { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
+  { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
+  { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
+  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
+  { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
+  { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
+  // Global Countries
   { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
+  { code: 'GB', nameEn: 'UK', nameAr: 'بريطانيا', flag: '🇬🇧', prefix: '+44' },
+  { code: 'CA', nameEn: 'Canada', nameAr: 'كندا', flag: '🇨🇦', prefix: '+1' },
+  { code: 'DE', nameEn: 'Germany', nameAr: 'ألمانيا', flag: '🇩🇪', prefix: '+49' },
+  { code: 'FR', nameEn: 'France', nameAr: 'فرنسا', flag: '🇫🇷', prefix: '+33' },
+  { code: 'IT', nameEn: 'Italy', nameAr: 'إيطاليا', flag: '🇮🇹', prefix: '+39' },
+  { code: 'ES', nameEn: 'Spain', nameAr: 'إسبانيا', flag: '🇪🇸', prefix: '+34' },
+  { code: 'TR', nameEn: 'Turkey', nameAr: 'تركيا', flag: '🇹🇷', prefix: '+90' },
+  { code: 'CN', nameEn: 'China', nameAr: 'الصين', flag: '🇨🇳', prefix: '+86' },
+  { code: 'JP', nameEn: 'Japan', nameAr: 'اليابان', flag: '🇯🇵', prefix: '+81' },
+  { code: 'KR', nameEn: 'South Korea', nameAr: 'كوريا الجنوبية', flag: '🇰🇷', prefix: '+82' },
+  { code: 'IN', nameEn: 'India', nameAr: 'الهند', flag: '🇮🇳', prefix: '+91' },
+  { code: 'RU', nameEn: 'Russia', nameAr: 'روسيا', flag: '🇷🇺', prefix: '+7' },
+  { code: 'BR', nameEn: 'Brazil', nameAr: 'البرازيل', flag: '🇧🇷', prefix: '+55' },
+  { code: 'AU', nameEn: 'Australia', nameAr: 'أستراليا', flag: '🇦🇺', prefix: '+61' },
 ];
 
 export default function RegisterPage() {
