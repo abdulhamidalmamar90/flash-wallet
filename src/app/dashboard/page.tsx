@@ -24,7 +24,8 @@ import {
   Wallet,
   Send,
   X,
-  Camera
+  Camera,
+  ShoppingBag
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -308,6 +309,7 @@ export default function Dashboard() {
                        tx.type === 'receive' ? (language === 'ar' ? `استلام من @${tx.sender || 'SYSTEM'}` : `RECEIVED FROM @${tx.sender || 'SYSTEM'}`) :
                        tx.type === 'withdraw' ? (language === 'ar' ? 'طلب سحب رصيد' : 'WITHDRAWAL INITIATED') :
                        tx.type === 'deposit' ? (language === 'ar' ? 'تأكيد إيداع' : 'DEPOSIT CONFIRMED') :
+                       tx.type === 'refund' ? (language === 'ar' ? 'استرداد رصيد' : 'ASSET REFUNDED') :
                        `${tx.service}`}
                     </p>
                     <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">
@@ -376,6 +378,10 @@ export default function Dashboard() {
                 <QrCode size={18} className="text-primary" />
                 <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'المعرف الرقمي الخاص بي' : 'My Flash Identifier'}</span>
               </button>
+              <Link href="/orders" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
+                <ShoppingBag size={18} className="text-primary" />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'طلباتي' : 'Asset Orders'}</span>
+              </Link>
               <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
                 <Settings size={18} className="text-muted-foreground" />
                 <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تعديل الحساب' : 'Configure Account'}</span>

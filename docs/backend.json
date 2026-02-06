@@ -60,6 +60,8 @@
         "userInput": { "type": "string" },
         "price": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "completed", "rejected"] },
+        "resultCode": { "type": "string", "description": "The voucher/code provided by admin on completion" },
+        "rejectionReason": { "type": "string", "description": "Why the request was declined" },
         "date": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "username", "serviceName", "price", "status", "date"]
@@ -118,7 +120,7 @@
       "description": "Stored in /users/{userId}/transactions/{txId}. History of movements.",
       "type": "object",
       "properties": {
-        "type": { "type": "string", "enum": ["send", "receive", "withdraw", "purchase", "deposit"] },
+        "type": { "type": "string", "enum": ["send", "receive", "withdraw", "purchase", "deposit", "refund"] },
         "amount": { "type": "number" },
         "recipient": { "type": "string" },
         "sender": { "type": "string" },

@@ -50,7 +50,8 @@ import {
   Layers,
   Keyboard,
   Eye,
-  EyeOff
+  EyeOff,
+  Hash
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -154,6 +155,13 @@ export default function AdminPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
+  // Service Request Modal States
+  const [activeServiceRequest, setActiveServiceRequest] = useState<any>(null);
+  const [serviceAction, setServiceAction] = useState<'complete' | 'reject' | null>(null);
+  const [serviceResult, setServiceResult] = useState('');
+  const [serviceRejectReason, setServiceRejectReason] = useState('');
+  const [isSubmittingService, setIsSubmittingService] = useState(false);
+
   // Deposit Method Config State
   const [editingDepositId, setEditingDepositId] = useState<string | null>(null);
   const [newMethodCountry, setNewMethodCountry] = useState('');
@@ -251,10 +259,10 @@ export default function AdminPage() {
         transaction.update(withdrawalRef, { status: 'rejected' });
         transaction.update(userRef, { balance: increment(req.amountUsd) });
         transaction.set(txRef, {
-          type: 'receive',
+          type: 'refund',
           amount: req.amountUsd,
           status: 'completed',
-          sender: 'SYSTEM REFUND',
+          sender: 'WITHDRAWAL REFUND',
           date: new Date().toISOString()
         });
       });
@@ -343,6 +351,69 @@ export default function AdminPage() {
   };
 
   // Service Management Handlers
+  const handleProcessServiceRequest = async () => {
+    if (!activeServiceRequest || !serviceAction) return;
+    setIsSubmittingService(true);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const reqRef = doc(db, 'service_requests', activeServiceRequest.id);
+        const userRef = doc(db, 'users', activeServiceRequest.userId);
+        
+        if (serviceAction === 'complete') {
+          transaction.update(reqRef, { 
+            status: 'completed', 
+            resultCode: serviceResult.trim() 
+          });
+          
+          const notifRef = doc(collection(db, 'users', activeServiceRequest.userId, 'notifications'));
+          transaction.set(notifRef, {
+            title: "Service Order Complete",
+            message: `Your order for ${activeServiceRequest.serviceName} is ready. Code: ${serviceResult}`,
+            type: 'transaction',
+            read: false,
+            date: new Date().toISOString()
+          });
+        } else {
+          // Reject and Refund
+          transaction.update(reqRef, { 
+            status: 'rejected', 
+            rejectionReason: serviceRejectReason.trim() 
+          });
+          transaction.update(userRef, { balance: increment(activeServiceRequest.price) });
+          
+          // Transaction log for refund
+          const txRef = doc(collection(db, 'users', activeServiceRequest.userId, 'transactions'));
+          transaction.set(txRef, {
+            type: 'refund',
+            amount: activeServiceRequest.price,
+            service: `REFUND: ${activeServiceRequest.serviceName}`,
+            status: 'completed',
+            date: new Date().toISOString()
+          });
+
+          // Notification for refund
+          const notifRef = doc(collection(db, 'users', activeServiceRequest.userId, 'notifications'));
+          transaction.set(notifRef, {
+            title: "Order Rejected & Refunded",
+            message: `Your order for ${activeServiceRequest.serviceName} was declined. Reason: ${serviceRejectReason}. Funds returned.`,
+            type: 'transaction',
+            read: false,
+            date: new Date().toISOString()
+          });
+        }
+      });
+      toast({ title: serviceAction === 'complete' ? "ORDER COMPLETED" : "ORDER REJECTED & REFUNDED" });
+      setActiveServiceRequest(null);
+      setServiceAction(null);
+      setServiceResult('');
+      setServiceRejectReason('');
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "PROCESSING FAILED", description: e.message });
+    } finally {
+      setIsSubmittingService(false);
+    }
+  };
+
   const resetServiceForm = () => {
     setEditingServiceId(null);
     setNewServiceName('');
@@ -438,13 +509,6 @@ export default function AdminPage() {
     try {
       await deleteDoc(doc(db, 'marketplace_services', id));
       toast({ title: "SERVICE REMOVED" });
-    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
-  };
-
-  const handleUpdateServiceRequestStatus = async (id: string, status: string) => {
-    try {
-      await updateDoc(doc(db, 'service_requests', id), { status });
-      toast({ title: `REQUEST ${status.toUpperCase()}` });
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
 
@@ -654,7 +718,7 @@ export default function AdminPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-headline font-black text-primary">${req.price}</p>
-                    <p className="text-[7px] text-muted-foreground uppercase">{req.status}</p>
+                    <Badge variant={req.status === 'completed' ? 'default' : req.status === 'rejected' ? 'destructive' : 'outline'} className="text-[6px] h-4 mt-1 uppercase">{req.status}</Badge>
                   </div>
                 </div>
                 {req.userInput && (
@@ -663,10 +727,22 @@ export default function AdminPage() {
                     <p className="text-[10px] font-headline font-bold text-white break-all">{req.userInput}</p>
                   </div>
                 )}
+                {req.status === 'completed' && req.resultCode && (
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
+                    <p className="text-[7px] text-green-500 uppercase font-black mb-1">Voucher/Code Issued:</p>
+                    <p className="text-[10px] font-headline font-bold text-white tracking-widest">{req.resultCode}</p>
+                  </div>
+                )}
+                {req.status === 'rejected' && req.rejectionReason && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                    <p className="text-[7px] text-red-500 uppercase font-black mb-1">Rejection Reason:</p>
+                    <p className="text-[10px] font-headline font-bold text-white italic">"{req.rejectionReason}"</p>
+                  </div>
+                )}
                 {req.status === 'pending' && (
                   <div className="flex gap-4 pt-2">
-                    <button onClick={() => handleUpdateServiceRequestStatus(req.id, 'completed')} className="flex-1 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[9px] font-headline font-bold uppercase">Mark Completed</span></button>
-                    <button onClick={() => handleUpdateServiceRequestStatus(req.id, 'rejected')} className="flex-1 h-10 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[9px] font-headline font-bold uppercase">Reject</span></button>
+                    <button onClick={() => { setActiveServiceRequest(req); setServiceAction('complete'); }} className="flex-1 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center gap-2 hover:bg-primary hover:text-background transition-all"><Check className="h-4 w-4" /><span className="text-[9px] font-headline font-bold uppercase">Mark Completed</span></button>
+                    <button onClick={() => { setActiveServiceRequest(req); setServiceAction('reject'); }} className="flex-1 h-10 bg-red-500/5 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500 transition-all"><X className="h-4 w-4" /><span className="text-[9px] font-headline font-bold uppercase">Reject</span></button>
                   </div>
                 )}
               </div>
@@ -693,7 +769,7 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[8px] uppercase tracking-widest">Category</Label>
-                    <Select value={newServiceCategory} onValueChange={setNewServiceCategory}>
+                    <Select value={newServiceCategory} onValueChange={newServiceCategory}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">{SERVICE_CATEGORIES.map(c => (<SelectItem key={c.id} value={c.id} className="text-[10px] uppercase">{c.label}</SelectItem>))}</SelectContent>
                     </Select>
@@ -1169,12 +1245,50 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
+      {/* KYC Rejection Dialog */}
       <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-6 rounded-[2rem]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><ShieldAlert className="text-red-500 h-4 w-4" /> Reject Identity Request</DialogTitle></DialogHeader>
           <div className="space-y-6 mt-4">
             <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2"><MessageSquare size={12} /> Specify Reason</Label><Textarea placeholder="EX: DOCUMENT EXPIRED..." className="min-h-[120px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /></div>
             <div className="flex gap-3"><Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase">Abort</Button><Button onClick={handleRejectKyc} disabled={!rejectionReason.trim() || isSubmittingRejection} className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-headline uppercase">{isSubmittingRejection ? <Loader2 className="animate-spin" /> : "Confirm Rejection"}</Button></div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Service Request Processing Dialog */}
+      <Dialog open={!!activeServiceRequest} onOpenChange={() => !isSubmittingService && setActiveServiceRequest(null)}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
+              {serviceAction === 'complete' ? <Check className="text-green-500 h-4 w-4" /> : <X className="text-red-500 h-4 w-4" />}
+              {serviceAction === 'complete' ? "Complete Order" : "Reject & Refund"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 mt-4">
+            {serviceAction === 'complete' ? (
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2"><Hash size={12} /> Voucher/Result Code</Label>
+                <Input placeholder="EX: ABCD-1234-EFGH" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={serviceResult} onChange={(e) => setServiceResult(e.target.value)} />
+                <p className="text-[7px] text-muted-foreground uppercase mt-1">This code will be visible to the user in their order history.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2"><MessageSquare size={12} /> Rejection Reason</Label>
+                <Textarea placeholder="EX: INVALID ID PROVIDED" className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={serviceRejectReason} onChange={(e) => setServiceRejectReason(e.target.value)} />
+                <p className="text-[7px] text-red-500/60 uppercase mt-1">Funds (${activeServiceRequest?.price}) will be automatically returned to the user.</p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setActiveServiceRequest(null)} className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase" disabled={isSubmittingService}>Abort</Button>
+              <Button 
+                onClick={handleProcessServiceRequest} 
+                disabled={isSubmittingService || (serviceAction === 'complete' && !serviceResult.trim()) || (serviceAction === 'reject' && !serviceRejectReason.trim())} 
+                className={cn("flex-1 h-12 rounded-xl text-[10px] font-headline uppercase font-bold", serviceAction === 'complete' ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700")}
+              >
+                {isSubmittingService ? <Loader2 className="animate-spin" /> : "Confirm Action"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

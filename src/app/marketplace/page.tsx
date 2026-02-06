@@ -18,7 +18,8 @@ import {
   Keyboard,
   Coins,
   ArrowRight,
-  X
+  X,
+  ShieldCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ export default function MarketplacePage() {
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedVariantIdx, setSelectedVariantIdx] = useState<string>("");
   const [userInput, setUserInput] = useState("");
+  const [isConfirming, setIsConfirming] = useState(false);
   const [isBuying, setIsSending] = useState(false);
 
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
@@ -62,6 +64,33 @@ export default function MarketplacePage() {
     setSelectedService(service);
     setSelectedVariantIdx("");
     setUserInput("");
+    setIsConfirming(false);
+  };
+
+  const handleInitiatePurchase = () => {
+    if (!selectedService) return;
+
+    if (selectedService.type === 'variable' && selectedVariantIdx === "") {
+      toast({ variant: "destructive", title: "SELECT OPTION", description: "Please select a package first." });
+      return;
+    }
+
+    if (selectedService.requiresInput && !userInput.trim()) {
+      toast({ variant: "destructive", title: "DATA REQUIRED", description: `Please provide the ${selectedService.inputLabel}.` });
+      return;
+    }
+
+    let price = selectedService.price;
+    if (selectedService.type === 'variable') {
+      price = selectedService.variants[parseInt(selectedVariantIdx)].price;
+    }
+
+    if (profile.balance < price) {
+      toast({ variant: "destructive", title: "INSUFFICIENT BALANCE", description: "Add funds to complete this purchase." });
+      return;
+    }
+
+    setIsConfirming(true);
   };
 
   const handleConfirmPurchase = async () => {
@@ -71,23 +100,9 @@ export default function MarketplacePage() {
     let variantLabel = "";
 
     if (selectedService.type === 'variable') {
-      if (selectedVariantIdx === "") {
-        toast({ variant: "destructive", title: "SELECT OPTION", description: "Please select a package first." });
-        return;
-      }
       const variant = selectedService.variants[parseInt(selectedVariantIdx)];
       finalPrice = variant.price;
       variantLabel = variant.label;
-    }
-
-    if (selectedService.requiresInput && !userInput.trim()) {
-      toast({ variant: "destructive", title: "DATA REQUIRED", description: `Please provide the ${selectedService.inputLabel}.` });
-      return;
-    }
-
-    if (profile.balance < finalPrice) {
-      toast({ variant: "destructive", title: "INSUFFICIENT BALANCE", description: "Add funds to complete this purchase." });
-      return;
     }
 
     setIsSending(true);
@@ -195,69 +210,100 @@ export default function MarketplacePage() {
             <>
               <DialogHeader>
                 <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
-                  <ShoppingBag size={14} className="text-primary" /> Purchase Protocol
+                  <ShoppingBag size={14} className="text-primary" /> 
+                  {isConfirming ? "Security Authorization" : "Purchase Protocol"}
                 </DialogTitle>
               </DialogHeader>
               
               <div className="mt-6 space-y-6">
-                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/20 shrink-0">
-                    {selectedService.imageUrl ? <img src={selectedService.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ShoppingBag size={20} className="text-primary/20" /></div>}
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-headline font-bold uppercase">{selectedService.name}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest">{selectedService.category}</p>
-                  </div>
-                </div>
+                {!isConfirming ? (
+                  <>
+                    <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/20 shrink-0">
+                        {selectedService.imageUrl ? <img src={selectedService.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ShoppingBag size={20} className="text-primary/20" /></div>}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-headline font-bold uppercase">{selectedService.name}</p>
+                        <p className="text-[8px] text-muted-foreground uppercase tracking-widest">{selectedService.category}</p>
+                      </div>
+                    </div>
 
-                {selectedService.type === 'variable' && (
-                  <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Select Package</Label>
-                    <Select value={selectedVariantIdx} onValueChange={setSelectedVariantIdx}>
-                      <SelectTrigger className="h-14 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase font-headline">
-                        <SelectValue placeholder="CHOOSE QUANTITY" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-white/10 z-[1100]" position="popper">
-                        {selectedService.variants.map((v: any, idx: number) => (
-                          <SelectItem key={idx} value={idx.toString()} className="text-[10px] uppercase font-headline">
-                            {v.label} - ${v.price}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                    {selectedService.type === 'variable' && (
+                      <div className="space-y-2">
+                        <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Select Package</Label>
+                        <Select value={selectedVariantIdx} onValueChange={setSelectedVariantIdx}>
+                          <SelectTrigger className="h-14 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase font-headline">
+                            <SelectValue placeholder="CHOOSE QUANTITY" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card border-white/10 z-[1100]" position="popper">
+                            {selectedService.variants.map((v: any, idx: number) => (
+                              <SelectItem key={idx} value={idx.toString()} className="text-[10px] uppercase font-headline">
+                                {v.label} - ${v.price}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
-                {selectedService.requiresInput && (
-                  <div className="space-y-2 animate-in slide-in-from-top-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{selectedService.inputLabel || "Required Info"}</Label>
-                    <div className="relative">
-                      <Keyboard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
-                      <Input 
-                        placeholder={`ENTER ${selectedService.inputLabel?.toUpperCase() || "DATA"}`} 
-                        className="h-14 bg-background/50 border-white/10 rounded-xl text-[10px] font-headline uppercase pl-12" 
-                        value={userInput}
-                        onChange={(e) => setUserInput(e.target.value)}
-                      />
+                    {selectedService.requiresInput && (
+                      <div className="space-y-2 animate-in slide-in-from-top-2">
+                        <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{selectedService.inputLabel || "Required Info"}</Label>
+                        <div className="relative">
+                          <Keyboard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
+                          <Input 
+                            placeholder={`ENTER ${selectedService.inputLabel?.toUpperCase() || "DATA"}`} 
+                            className="h-14 bg-background/50 border-white/10 rounded-xl text-[10px] font-headline uppercase pl-12" 
+                            value={userInput}
+                            onChange={(e) => setUserInput(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-5 bg-primary/10 rounded-2xl border border-primary/20 flex justify-between items-center">
+                      <p className="text-[10px] font-headline font-bold uppercase text-primary">Final Asset Cost</p>
+                      <p className="text-2xl font-headline font-black text-primary">
+                        ${selectedService.type === 'variable' 
+                          ? (selectedVariantIdx !== "" ? selectedService.variants[parseInt(selectedVariantIdx)].price : "---")
+                          : selectedService.price}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button variant="outline" onClick={() => setSelectedService(null)} className="flex-1 h-14 rounded-xl font-headline text-[9px] uppercase tracking-widest border-white/10">Abort</Button>
+                      <button onClick={handleInitiatePurchase} className="flex-1 h-14 bg-primary text-background rounded-xl font-headline text-[9px] uppercase tracking-widest font-black gold-glow flex items-center justify-center gap-2">
+                        Checkout <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-6 animate-in zoom-in-95">
+                    <div className="p-6 bg-primary/5 border border-primary/20 rounded-3xl text-center space-y-4">
+                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto border border-primary/30">
+                        <ShieldCheck className="text-primary h-8 w-8" />
+                      </div>
+                      <p className="text-[10px] font-headline font-bold uppercase tracking-widest leading-relaxed">
+                        Are you sure you want to authorize this transaction?
+                      </p>
+                      <div className="pt-2">
+                        <p className="text-[8px] text-muted-foreground uppercase font-black">Amount to deduct:</p>
+                        <p className="text-3xl font-headline font-black text-primary">
+                          ${selectedService.type === 'variable' 
+                            ? selectedService.variants[parseInt(selectedVariantIdx)].price 
+                            : selectedService.price}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <Button onClick={handleConfirmPurchase} disabled={isBuying} className="w-full h-14 bg-primary text-background rounded-xl font-headline text-[10px] uppercase tracking-widest font-black gold-glow">
+                        {isBuying ? <Loader2 className="animate-spin" /> : "Authorize Payment"}
+                      </Button>
+                      <Button variant="ghost" onClick={() => setIsConfirming(false)} className="w-full h-10 text-[8px] font-headline uppercase text-muted-foreground" disabled={isBuying}>Back to selection</Button>
                     </div>
                   </div>
                 )}
-
-                <div className="p-5 bg-primary/10 rounded-2xl border border-primary/20 flex justify-between items-center">
-                  <p className="text-[10px] font-headline font-bold uppercase text-primary">Final Asset Cost</p>
-                  <p className="text-2xl font-headline font-black text-primary">
-                    ${selectedService.type === 'variable' 
-                      ? (selectedVariantIdx !== "" ? selectedService.variants[parseInt(selectedVariantIdx)].price : "---")
-                      : selectedService.price}
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setSelectedService(null)} className="flex-1 h-14 rounded-xl font-headline text-[9px] uppercase tracking-widest border-white/10" disabled={isBuying}>Abort</Button>
-                  <Button onClick={handleConfirmPurchase} disabled={isBuying} className="flex-1 h-14 bg-primary text-background rounded-xl font-headline text-[9px] uppercase tracking-widest font-black gold-glow">
-                    {isBuying ? <Loader2 className="animate-spin" /> : "Authorize"}
-                  </Button>
-                </div>
               </div>
             </>
           )}
