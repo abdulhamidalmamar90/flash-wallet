@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Loader2, Landmark, Check, Info, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Loader2, Landmark, Check, Info, AlertCircle, ShieldCheck, Coins } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -77,6 +77,17 @@ export default function WithdrawPage() {
     return allMethods.filter((m: any) => m.country === selectedCountry || m.country === 'GL' || m.country === 'CR');
   }, [allMethods, selectedCountry]);
 
+  // Logic to auto-select if Crypto and only one USDT method exists
+  useEffect(() => {
+    if (selectedCountry === 'CR' && filteredMethods.length > 0 && step === 2) {
+      const usdtMethod = filteredMethods.find((m: any) => m.name.toUpperCase().includes('USDT'));
+      if (usdtMethod) {
+        setSelectedMethod(usdtMethod);
+        setStep(3);
+      }
+    }
+  }, [selectedCountry, filteredMethods, step]);
+
   const methodFee = selectedMethod?.fee || 0;
   const totalDeduction = parseFloat(amount || '0') + methodFee;
 
@@ -93,7 +104,9 @@ export default function WithdrawPage() {
     insufficient: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
     fillRequired: language === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields',
     fee: language === 'ar' ? 'العمولة' : 'Commission Fee',
-    total: language === 'ar' ? 'إجمالي الخصم' : 'Total Deduction'
+    total: language === 'ar' ? 'إجمالي الخصم' : 'Total Deduction',
+    cryptoNotice: language === 'ar' ? 'عمولة سحب ثابتة: 2.00 دولار' : 'Fixed Commission Fee: $2.00',
+    networkLabel: language === 'ar' ? 'نوع الشبكة' : 'Network Type',
   };
 
   const handleInputChange = (label: string, value: string) => {
@@ -225,13 +238,25 @@ ${detailsText}
           </div>
         );
       case 3:
+        const isCrypto = selectedCountry === 'CR' || selectedMethod.name.toUpperCase().includes('USDT');
         return (
           <form onSubmit={handleSubmit} className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-headline font-bold uppercase text-primary">{selectedMethod.name}</span>
+                <div className="flex items-center gap-2">
+                  {isCrypto ? <Coins className="h-5 w-5 text-primary" /> : <Landmark className="h-5 w-5 text-primary" />}
+                  <span className="text-[10px] font-headline font-bold uppercase text-primary">{selectedMethod.name}</span>
+                </div>
                 <span className="text-[8px] text-muted-foreground uppercase">{t.balance}: ${profile?.balance?.toLocaleString()}</span>
               </div>
+              
+              {isCrypto && (
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-center gap-3">
+                  <Info className="h-4 w-4 text-primary shrink-0" />
+                  <p className="text-[9px] font-headline font-black text-primary uppercase tracking-widest">{t.cryptoNotice}</p>
+                </div>
+              )}
+
               <Label className="text-[10px] tracking-widest font-headline uppercase block">{t.amountLabel}</Label>
               <Input type="number" placeholder="0.00" className="text-3xl font-headline font-bold h-20 text-center bg-background/50 border-white/10 rounded-xl text-primary" value={amount} onChange={(e) => setAmount(e.target.value)} required />
               
