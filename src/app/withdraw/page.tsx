@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Loader2, Landmark, Check, Info, AlertCircle, ShieldCheck, Coins } from 'lucide-react';
+import { ChevronLeft, Loader2, Landmark, Check, Info, AlertCircle, ShieldCheck, Coins, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
@@ -74,22 +74,30 @@ export default function WithdrawPage() {
   const { data: allMethods = [], loading: methodsLoading } = useCollection(methodsQuery);
 
   const filteredMethods = useMemo(() => {
-    return allMethods.filter((m: any) => m.country === selectedCountry || m.country === 'GL' || m.country === 'CR');
+    return allMethods.filter((m: any) => m.country === selectedCountry || m.country === 'GL');
   }, [allMethods, selectedCountry]);
 
-  // Logic to auto-select if Crypto and only one USDT method exists
+  // Logic to handle Crypto jump
   useEffect(() => {
-    if (selectedCountry === 'CR' && filteredMethods.length > 0 && step === 2) {
-      const usdtMethod = filteredMethods.find((m: any) => m.name.toUpperCase().includes('USDT'));
-      if (usdtMethod) {
-        setSelectedMethod(usdtMethod);
-        setStep(3);
-      }
+    if (selectedCountry === 'CR' && step === 2) {
+      // Define a synthetic USDT method for Crypto region
+      setSelectedMethod({
+        name: 'USDT',
+        country: 'CR',
+        fee: 2.0,
+        fields: [
+          { label: language === 'ar' ? 'نوع الشبكة' : 'Network Type', type: 'select', options: 'Tron (TRC20), TRX, BNB Smart Chain (BEP20)' },
+          { label: language === 'ar' ? 'عنوان الشبكة' : 'Network Address', type: 'text' }
+        ]
+      });
+      setStep(3);
     }
-  }, [selectedCountry, filteredMethods, step]);
+  }, [selectedCountry, step, language]);
 
   const methodFee = selectedMethod?.fee || 0;
-  const totalDeduction = parseFloat(amount || '0') + methodFee;
+  const amountVal = parseFloat(amount || '0');
+  const totalDeduction = amountVal; // In crypto, user receives (amount - 2), so total from balance is just 'amount'
+  const netAmount = Math.max(0, amountVal - methodFee);
 
   const t = {
     header: language === 'ar' ? 'سحب رصيد' : 'Withdraw Funds',
@@ -104,9 +112,9 @@ export default function WithdrawPage() {
     insufficient: language === 'ar' ? 'الرصيد غير كافٍ' : 'Insufficient balance',
     fillRequired: language === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields',
     fee: language === 'ar' ? 'العمولة' : 'Commission Fee',
-    total: language === 'ar' ? 'إجمالي الخصم' : 'Total Deduction',
-    cryptoNotice: language === 'ar' ? 'عمولة سحب ثابتة: 2.00 دولار' : 'Fixed Commission Fee: $2.00',
-    networkLabel: language === 'ar' ? 'نوع الشبكة' : 'Network Type',
+    willReceive: language === 'ar' ? 'المبلغ الذي سيصلك' : 'You will receive',
+    cryptoNotice: language === 'ar' ? 'سيصلك المبلغ الذي أدخلته مخصوماً منه 2 دولار (عمولة الشبكة)' : 'You will receive the amount you entered minus $2.00 (Network Fee)',
+    minNotice: language === 'ar' ? 'يجب أن يكون المبلغ أكبر من 2 دولار' : 'Amount must be greater than $2.00',
   };
 
   const handleInputChange = (label: string, value: string) => {
@@ -118,7 +126,12 @@ export default function WithdrawPage() {
     if (!user || !amount || !profile || !selectedMethod) return;
 
     const amountNum = parseFloat(amount);
-    if (totalDeduction > (profile.balance || 0)) {
+    if (amountNum <= methodFee) {
+      toast({ variant: "destructive", title: t.minNotice });
+      return;
+    }
+
+    if (amountNum > (profile.balance || 0)) {
       toast({ variant: "destructive", title: t.insufficient });
       return;
     }
@@ -134,7 +147,7 @@ export default function WithdrawPage() {
       let requestId = "";
       await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', user.uid);
-        transaction.update(userRef, { balance: increment(-totalDeduction) });
+        transaction.update(userRef, { balance: increment(-amountNum) });
         
         const requestRef = doc(collection(db, 'withdrawals'));
         requestId = requestRef.id;
@@ -142,7 +155,7 @@ export default function WithdrawPage() {
           userId: user.uid,
           username: profile.username,
           methodName: selectedMethod.name,
-          amount: amountNum,
+          amount: netAmount, // Record net amount to be sent
           fee: methodFee,
           details: formData,
           status: 'pending',
@@ -152,7 +165,7 @@ export default function WithdrawPage() {
         const txRef = doc(collection(db, 'users', user.uid, 'transactions'));
         transaction.set(txRef, {
           type: 'withdraw',
-          amount: totalDeduction,
+          amount: amountNum,
           status: 'pending',
           date: new Date().toISOString()
         });
@@ -160,14 +173,13 @@ export default function WithdrawPage() {
 
       const detailsText = Object.entries(formData).map(([k, v]) => `- ${k}: <code>${v}</code>`).join('\n');
       await sendTelegramNotification(`
-💸 <b>New Withdrawal Request</b>
+💸 <b>New Withdrawal Request (${selectedMethod.name})</b>
 ━━━━━━━━━━━━━━━━
 <b>User:</b> @${profile.username}
 <b>ID:</b> <code>${profile.customId}</code>
-<b>Amount:</b> $${amount}
+<b>Entered Amount:</b> $${amount}
+<b>Net to Send:</b> $${netAmount}
 <b>Fee:</b> $${methodFee}
-<b>Total:</b> $${totalDeduction}
-<b>Method:</b> ${selectedMethod.name}
 <b>Details:</b>
 ${detailsText}
       `, {
@@ -226,7 +238,7 @@ ${detailsText}
                     <div className="text-left">
                       <p className="text-xs font-headline font-bold uppercase text-white">{m.name}</p>
                       <div className="flex gap-1 mt-1">
-                        <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.country === 'GL' ? 'GLOBAL' : m.country === 'CR' ? 'CRYPTO' : m.country}</Badge>
+                        <Badge variant="outline" className="text-[6px] text-muted-foreground border-white/10">{m.country === 'GL' ? 'GLOBAL' : m.country}</Badge>
                         {m.fee > 0 && <Badge className="text-[6px] bg-primary/10 text-primary border-primary/20">Fee: ${m.fee}</Badge>}
                       </div>
                     </div>
@@ -238,31 +250,31 @@ ${detailsText}
           </div>
         );
       case 3:
-        const isCrypto = selectedCountry === 'CR' || selectedMethod.name.toUpperCase().includes('USDT');
+        const isCrypto = selectedCountry === 'CR';
         return (
           <form onSubmit={handleSubmit} className="glass-card p-8 rounded-3xl space-y-8 border-white/5 gold-glow animate-in slide-in-from-right-4">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   {isCrypto ? <Coins className="h-5 w-5 text-primary" /> : <Landmark className="h-5 w-5 text-primary" />}
-                  <span className="text-[10px] font-headline font-bold uppercase text-primary">{selectedMethod.name}</span>
+                  <span className="text-[12px] font-headline font-bold uppercase text-primary">{selectedMethod.name} Withdrawal</span>
                 </div>
                 <span className="text-[8px] text-muted-foreground uppercase">{t.balance}: ${profile?.balance?.toLocaleString()}</span>
               </div>
               
               {isCrypto && (
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-center gap-3">
-                  <Info className="h-4 w-4 text-primary shrink-0" />
-                  <p className="text-[9px] font-headline font-black text-primary uppercase tracking-widest">{t.cryptoNotice}</p>
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-start gap-3">
+                  <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[9px] font-headline font-black text-primary uppercase tracking-widest leading-relaxed">{t.cryptoNotice}</p>
                 </div>
               )}
 
               <Label className="text-[10px] tracking-widest font-headline uppercase block">{t.amountLabel}</Label>
-              <Input type="number" placeholder="0.00" className="text-3xl font-headline font-bold h-20 text-center bg-background/50 border-white/10 rounded-xl text-primary" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+              <Input type="number" placeholder="0.00" className="text-3xl font-headline font-bold h-20 text-center bg-background/50 border-white/10 rounded-xl text-primary focus:border-primary/50" value={amount} onChange={(e) => setAmount(e.target.value)} required />
               
               <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
                 <div><p className="text-[8px] text-muted-foreground uppercase">{t.fee}</p><p className="text-sm font-headline font-bold text-white">${methodFee}</p></div>
-                <div className="text-right"><p className="text-[8px] text-muted-foreground uppercase">{t.total}</p><p className="text-sm font-headline font-bold text-primary">${totalDeduction}</p></div>
+                <div className="text-right"><p className="text-[8px] text-muted-foreground uppercase">{t.willReceive}</p><p className="text-sm font-headline font-bold text-primary">${netAmount.toLocaleString()}</p></div>
               </div>
             </div>
 
@@ -289,7 +301,7 @@ ${detailsText}
               ))}
             </div>
 
-            <Button type="submit" disabled={loading || !amount} className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary text-background font-black tracking-widest">
+            <Button type="submit" disabled={loading || !amount || parseFloat(amount) <= 2} className="w-full h-14 text-md font-headline rounded-xl gold-glow bg-primary text-background font-black tracking-widest">
               {loading ? <Loader2 className="animate-spin" /> : t.submitBtn}
             </Button>
           </form>
