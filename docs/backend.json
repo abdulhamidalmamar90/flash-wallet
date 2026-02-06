@@ -33,6 +33,18 @@
       },
       "required": ["country", "name", "details", "isActive"]
     },
+    "WithdrawalMethod": {
+      "title": "Withdrawal Method",
+      "description": "Stored in /withdrawal_methods/{id}. Configured by admin per country for user selection.",
+      "type": "object",
+      "properties": {
+        "country": { "type": "string", "description": "Country code (e.g., EG, SA)" },
+        "name": { "type": "string", "description": "Method name (e.g., Bank Transfer, USDT)" },
+        "instructions": { "type": "string", "description": "Required info for user to provide (e.g., IBAN, Wallet Address)" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["country", "name", "instructions", "isActive"]
+    },
     "Transaction": {
       "title": "Transaction",
       "description": "Stored in /users/{userId}/transactions/{txId}. History of movements.",
@@ -104,6 +116,10 @@
     "/deposit_methods/{methodId}": {
       "schema": "DepositMethod",
       "description": "Admin configured deposit options by country"
+    },
+    "/withdrawal_methods/{methodId}": {
+      "schema": "WithdrawalMethod",
+      "description": "Admin configured withdrawal options by country"
     },
     "/users/{userId}/transactions/{transactionId}": {
       "schema": "Transaction",
