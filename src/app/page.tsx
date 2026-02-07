@@ -157,8 +157,8 @@ export default function LoginPage() {
                 <div className="futuristic-darkBorderBg"></div>
                 <div className="futuristic-darkBorderBg"></div>
                 <div className="futuristic-darkBorderBg"></div>
-                <div className="futuristic-white"></div>
-                <div className="futuristic-border"></div>
+                <div className="white futuristic-white"></div>
+                <div className="border futuristic-border"></div>
 
                 <div className="futuristic-main-area">
                   <input 
@@ -198,8 +198,8 @@ export default function LoginPage() {
                 <div className="futuristic-darkBorderBg"></div>
                 <div className="futuristic-darkBorderBg"></div>
                 <div className="futuristic-darkBorderBg"></div>
-                <div className="futuristic-white"></div>
-                <div className="futuristic-border"></div>
+                <div className="white futuristic-white"></div>
+                <div className="border futuristic-border"></div>
 
                 <div className="futuristic-main-area">
                   <input 
@@ -213,14 +213,11 @@ export default function LoginPage() {
                     autoComplete="current-password"
                   />
                   
-                  {/* Password Toggle Button Integrated */}
+                  {/* Password Toggle Button - Fixed position to right to align with futuristic design logic */}
                   <button 
                     type="button" 
                     onClick={() => setShowPassword(!showPassword)}
-                    className={cn(
-                      "absolute top-1/2 -translate-y-1/2 text-white/30 hover:text-primary transition-all z-[10]",
-                      language === 'ar' ? "left-[60px]" : "right-[60px]"
-                    )}
+                    className="absolute top-1/2 -translate-y-1/2 right-[52px] text-white/30 hover:text-primary transition-all z-[10]"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>

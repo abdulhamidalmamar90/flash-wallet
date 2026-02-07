@@ -117,7 +117,7 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
 }
 
-/* --- Futuristic Input Styles --- */
+/* --- Futuristic Input Styles (Unified Classes) --- */
 .futuristic-grid-bg {
   height: 800px;
   width: 800px;
@@ -146,14 +146,16 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .futuristic-input {
-  background-color: #010201;
-  border: none;
+  background-color: #010201 !important;
+  border: none !important;
   width: 100%;
   max-width: 301px;
   height: 56px;
   border-radius: 10px;
-  color: white;
-  padding-inline: 20px 59px;
+  color: white !important;
+  /* Fixed padding-right to accommodate icons regardless of RTL/LTR */
+  padding-right: 85px !important;
+  padding-left: 20px !important;
   font-size: 14px;
   font-family: inherit;
 }
@@ -173,6 +175,13 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .futuristic-input:focus {
   outline: none;
+}
+
+.futuristic-main-area {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .futuristic-main-area:focus-within > .futuristic-input-mask {
@@ -321,6 +330,7 @@ input[type="number"]::-webkit-outer-spin-button {
   transition: all 2s;
 }
 
+/* Icons are fixed to the physical right to maintain consistent UI architecture */
 .futuristic-filter-icon {
   position: absolute;
   top: 8px;
@@ -362,5 +372,3 @@ input[type="number"]::-webkit-outer-spin-button {
 @keyframes rotate-futuristic {
   100% { transform: translate(-50%, -50%) rotate(450deg); }
 }
-
-.futuristic-main-area { position: relative; width: 100%; display: flex; justify-content: center; }
