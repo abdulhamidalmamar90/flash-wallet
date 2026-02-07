@@ -66,6 +66,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 
 const COUNTRIES = [
@@ -89,6 +99,7 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false);
   
   // Chat Admin States
   const [chatConfig, setChatConfig] = useState<any>(null);
@@ -358,14 +369,11 @@ export default function AdminPage() {
 
   const handleDeleteUserEntity = async () => {
     if (!editingUserId || !db) return;
-    
-    const confirmPurge = window.confirm("CRITICAL WARNING: This will permanently purge this entity and all associated vault credentials from the global ledger. This action cannot be reversed. Proceed?");
-    if (!confirmPurge) return;
-    
     try {
       await deleteDoc(doc(db, 'users', editingUserId));
       toast({ title: "ENTITY PURGED", description: "The user has been removed from all database records." });
       setEditingUserId(null);
+      setIsUserDeleteDialogOpen(false);
     } catch (e: any) {
       toast({ variant: "destructive", title: "PURGE FAILED", description: e.message });
     }
@@ -431,7 +439,7 @@ export default function AdminPage() {
                   <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={d.proofUrl} className="w-full h-full object-cover" alt="proof" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={d.proofUrl} className="w-full h-auto" alt="proof enlarged" /></DialogContent></Dialog>
                   <div>
                     <div className="text-[10px] font-headline font-bold uppercase">@{d.username} <span className="text-white/20 ml-2">via {d.method}</span></div>
-                    <p className="text-[12px] font-headline font-black text-primary">${d.amount}</p>
+                    <div className="text-[12px] font-headline font-black text-primary">${d.amount}</div>
                   </div>
                 </div>
                 {d.status === 'pending' && (
@@ -557,7 +565,7 @@ export default function AdminPage() {
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20"><ShoppingBag size={20} /></div>
                     <div>
                       <div className="text-[10px] font-headline font-bold uppercase">@{o.username} <span className="text-white/20 ml-2"> ordered {o.serviceName}</span></div>
-                      <p className="text-[12px] font-headline font-black text-primary">${o.price} <span className="text-[8px] text-muted-foreground font-black ml-2">{o.selectedVariant}</span></p>
+                      <div className="text-[12px] font-headline font-black text-primary">${o.price} <span className="text-[8px] text-muted-foreground font-black ml-2">{o.selectedVariant}</span></div>
                     </div>
                   </div>
                   <Badge className="uppercase text-[7px]">{o.status}</Badge>
@@ -854,7 +862,7 @@ export default function AdminPage() {
               
               <button 
                 type="button"
-                onClick={handleDeleteUserEntity}
+                onClick={() => setIsUserDeleteDialogOpen(true)}
                 className="w-full py-3 flex items-center justify-center gap-2 text-red-500/60 hover:text-red-500 transition-all text-[8px] font-headline font-bold uppercase tracking-[0.2em] hover:bg-red-500/10 rounded-xl"
               >
                 <AlertTriangle size={14} /> Purge Entity from Ledger
@@ -863,6 +871,31 @@ export default function AdminPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation Popup */}
+      <AlertDialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
+        <AlertDialogContent className="glass-card border-white/10 rounded-[2rem] p-8 max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xs font-headline font-bold uppercase text-red-500 flex items-center gap-2">
+              <AlertTriangle size={16} /> Critical Warning
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[10px] font-headline uppercase leading-relaxed text-white/60">
+              This action will permanently purge the entity and all associated vault credentials from the global ledger. This protocol cannot be reversed. Proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex flex-col gap-2">
+            <AlertDialogAction 
+              onClick={handleDeleteUserEntity}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 font-headline font-black text-[10px] uppercase tracking-widest"
+            >
+              Confirm Purge
+            </AlertDialogAction>
+            <AlertDialogCancel className="bg-white/5 border-white/10 text-white rounded-xl h-12 font-headline font-bold text-[9px] uppercase hover:bg-white/10 transition-all">
+              Abort Protocol
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Archive Modal */}
       <Dialog open={!!selectedArchive} onOpenChange={() => setSelectedArchive(null)}>
