@@ -13,7 +13,6 @@ import {
   ChevronDown, 
   Eye, 
   EyeOff, 
-  Calendar as CalendarIcon, 
   UserCircle,
   CheckCircle2,
   XCircle,
@@ -38,9 +37,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const COUNTRIES = [
@@ -303,17 +299,13 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label className="text-[10px] uppercase text-white/40">{t.birthDate}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full h-12 bg-white/5 border-white/10 justify-start text-left font-normal rounded-xl", !birthDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                    {birthDate ? format(birthDate, "PPP") : <span>Select Date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-card border-white/10" align="start">
-                  <Calendar mode="single" selected={birthDate} onSelect={setBirthDate} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
-                </PopoverContent>
-              </Popover>
+              <Input 
+                type="date"
+                value={birthDate ? birthDate.toISOString().split('T')[0] : ''}
+                onChange={(e) => setBirthDate(e.target.value ? new Date(e.target.value) : undefined)}
+                className="bg-white/5 border-white/10 h-12 text-sm text-white focus:border-primary/50 rounded-xl"
+                style={{ colorScheme: 'dark' }}
+              />
             </div>
 
             <Button onClick={handleNextStep} disabled={!firstName || !lastName || !birthDate} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-2xl gold-glow mt-4">

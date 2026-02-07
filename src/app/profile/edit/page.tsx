@@ -1,59 +1,41 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   User, 
   Phone, 
-  Lock, 
   ChevronLeft, 
   Camera, 
-  Check, 
   Loader2,
-  Mail,
   ChevronDown,
-  Smartphone,
   CheckCircle2,
   ShieldCheck,
-  ShieldAlert,
-  FileText,
-  Globe,
-  UploadCloud,
-  Clock,
-  Crop as CropIcon,
-  X,
   KeyRound,
   Delete,
   Fingerprint,
   Plus,
-  Shield,
   UserCircle
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
-import { doc, updateDoc, addDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, limit } from 'firebase/firestore';
 import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { sendTelegramPhoto } from '@/lib/telegram';
-import { Textarea } from '@/components/ui/textarea';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/crop-image';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { NativeBiometric } from 'capacitor-native-biometric';
-import { format } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -81,7 +63,6 @@ export default function EditProfilePage() {
   const { toast } = useToast();
   const { language } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const kycInputRef = useRef<HTMLInputElement>(null);
   const otpInputs = useRef<HTMLInputElement[]>([]);
   
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
@@ -100,13 +81,6 @@ export default function EditProfilePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
-
-  // Biometric State
-  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
-  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
-  const [isBiometricEnrollModalOpen, setIsBiometricEnrollModalOpen] = useState(false);
-  const [confirmPasswordForBio, setConfirmPasswordForBio] = useState('');
-  const [submittingBioEnroll, setSubmittingBioEnroll] = useState(false);
 
   // PIN States
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -127,20 +101,6 @@ export default function EditProfilePage() {
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
-  // KYC Verification States
-  const [kycCountry, setKycCountry] = useState('');
-  const [docType, setDocType] = useState('ID Card');
-  const [docNumber, setDocNumber] = useState('');
-  const [docImage, setDocImage] = useState<string | null>(null);
-  const [submittingKyc, setSubmittingKyc] = useState(false);
-
-  const kycQuery = useMemo(() => {
-    if (!user || !db) return null;
-    return query(collection(db, 'verifications'), where('userId', '==', user.uid), limit(1));
-  }, [db, user]);
-  const { data: kycRequests = [] } = useCollection(kycQuery);
-  const currentKyc = kycRequests[0] as any;
-
   useEffect(() => {
     if (profile) {
       setFirstName(profile.firstName || '');
@@ -158,23 +118,8 @@ export default function EditProfilePage() {
       }
       setSelectedAvatar(profile.avatarUrl || AVATARS[0]);
       setIsPhoneVerified(profile.phoneVerified || false);
-      setKycCountry(profile.country || '');
     }
   }, [profile]);
-
-  useEffect(() => {
-    const checkBiometricEnrollment = async () => {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const availability = await NativeBiometric.isAvailable();
-          setIsBiometricAvailable(availability.isAvailable);
-          const { value } = await Preferences.get({ key: 'flash_biometric_auth' });
-          setIsBiometricEnrolled(!!value);
-        } catch (e) { console.warn(e); }
-      }
-    };
-    checkBiometricEnrollment();
-  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -334,17 +279,13 @@ export default function EditProfilePage() {
 
         <div className="space-y-2">
           <Label className="text-[10px] uppercase text-white/40">Birth Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full h-12 bg-white/5 border-white/10 justify-start">
-                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                {birthDate ? format(birthDate, "PPP") : "Select Date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-card border-white/10">
-              <Calendar mode="single" selected={birthDate} onSelect={setBirthDate} initialFocus />
-            </PopoverContent>
-          </Popover>
+          <Input 
+            type="date"
+            value={birthDate ? birthDate.toISOString().split('T')[0] : ''}
+            onChange={(e) => setBirthDate(e.target.value ? new Date(e.target.value) : undefined)}
+            className="h-12 bg-white/5 border-white/10 text-white focus:border-primary/50"
+            style={{ colorScheme: 'dark' }}
+          />
         </div>
 
         <div className="space-y-2">
@@ -390,7 +331,6 @@ export default function EditProfilePage() {
         </Button>
       </form>
 
-      {/* Re-using logic from current modals for PIN and Biometrics */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> Security PIN</h2>
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
