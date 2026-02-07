@@ -39,6 +39,7 @@ import {
   AlertTriangle,
   Keyboard,
   Edit3,
+  ImageIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -101,6 +102,9 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<any>({});
   const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false);
   
+  // Product Image Ref
+  const productFileInputRef = useRef<HTMLInputElement>(null);
+
   // Chat Admin States
   const [chatConfig, setChatConfig] = useState<any>(null);
   const [activeChat, setActiveChat] = useState<any>(null);
@@ -290,6 +294,17 @@ export default function AdminPage() {
     setIsAddingProduct(true);
   };
 
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewProduct((prev: any) => ({ ...prev, imageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const toggleStatus = async (coll: string, id: string, status: boolean) => {
     try { await updateDoc(doc(db, coll, id), { isActive: status }); toast({ title: "STATUS SYNCED" }); } catch (e) { }
   };
@@ -387,7 +402,6 @@ export default function AdminPage() {
             ))}
           </div>
         </TabsContent>
-        {/* ... (Keep other content tabs) */}
       </Tabs>
 
       {/* Entity Edit Modal */}
@@ -461,7 +475,25 @@ export default function AdminPage() {
               <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
             </div>
             {newProduct.requiresInput && <Input placeholder="Input Descriptor (e.g. Player ID)" className="h-12 bg-background/50" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} />}
-            <div className="space-y-2"><Label className="text-[8px] uppercase font-black">Image URL</Label><Input className="bg-background/50 h-12" value={newProduct.imageUrl} onChange={(e) => setNewProduct({...newProduct, imageUrl: e.target.value})} /></div>
+            
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase font-black">Asset Image</Label>
+              <div 
+                onClick={() => productFileInputRef.current?.click()}
+                className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all overflow-hidden relative"
+              >
+                {newProduct.imageUrl ? (
+                  <img src={newProduct.imageUrl} className="w-full h-full object-cover" alt="preview" />
+                ) : (
+                  <>
+                    <ImageIcon size={24} className="text-muted-foreground" />
+                    <span className="text-[7px] font-headline uppercase text-muted-foreground">Click to Upload Asset Art</span>
+                  </>
+                )}
+                <input type="file" ref={productFileInputRef} className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+              </div>
+            </div>
+
             <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] rounded-xl gold-glow uppercase tracking-widest">{editingProductId ? "Update Asset" : "Deploy Asset"}</Button>
           </div>
         </DialogContent>
