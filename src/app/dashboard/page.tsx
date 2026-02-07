@@ -40,7 +40,8 @@ import {
   ImageIcon,
   SendHorizontal,
   CircleDot,
-  Star
+  Star,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -329,13 +330,13 @@ export default function Dashboard() {
       const snap = await getDocs(q);
       if (snap.empty) { setIsSending(false); return; }
       const recipientId = snap.docs[0].id;
-      const recipientData = snap.docs[0].data();
+      const recipientName = snap.docs[0].data().username;
       await runTransaction(db, async (transaction) => {
         const senderRef = doc(db, 'users', user.uid);
         const receiverRef = doc(db, 'users', recipientId);
         transaction.update(senderRef, { balance: increment(-amountNum) });
         transaction.update(receiverRef, { balance: increment(amountNum) });
-        transaction.set(doc(collection(db, 'users', user.uid, 'transactions')), { type: 'send', amount: amountNum, recipient: recipientData.username, status: 'completed', date: new Date().toISOString() });
+        transaction.set(doc(collection(db, 'users', user.uid, 'transactions')), { type: 'send', amount: amountNum, recipient: recipientName, status: 'completed', date: new Date().toISOString() });
         transaction.set(doc(collection(db, 'users', recipientId, 'transactions')), { type: 'receive', amount: amountNum, sender: profile.username, status: 'completed', date: new Date().toISOString() });
         transaction.set(doc(collection(db, 'users', recipientId, 'notifications')), { title: "Incoming Transfer", message: `Success! Received $${amountNum} from @${profile.username}`, type: 'transaction', read: false, date: new Date().toISOString() });
       });
@@ -517,26 +518,31 @@ export default function Dashboard() {
               ) : chatSession.status === 'closed' ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-8 animate-in zoom-in-95">
                   <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 border border-green-500/20"><CheckCircle2 size={40} /></div>
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تم إنهاء المحادثة' : 'Protocol Terminated'}</h3>
-                    <p className="text-[8px] text-muted-foreground uppercase">{language === 'ar' ? 'يرجى الضغط على الزر للتقييم' : 'Please authorize service evaluation'}</p>
-                  </div>
                   
                   {!showRatingUI ? (
-                    <Button onClick={() => setShowRatingUI(true)} className="w-full h-14 bg-primary text-background rounded-2xl font-headline font-black text-[10px] tracking-widest gold-glow">
-                      {language === 'ar' ? 'بدء التقييم' : 'BEGIN EVALUATION'}
-                    </Button>
+                    <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4 w-full">
+                      <div className="space-y-1">
+                        <h3 className="text-xs font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تم إنهاء المحادثة' : 'Protocol Terminated'}</h3>
+                        <p className="text-[8px] text-muted-foreground uppercase">{language === 'ar' ? 'شكراً لتواصلك معنا. يرجى الضغط على الزر أدناه لتقييم الخدمة.' : 'Case complete. Please authorize service evaluation via the button below.'}</p>
+                      </div>
+                      <Button onClick={() => setShowRatingUI(true)} className="w-full h-14 bg-primary text-background rounded-2xl font-headline font-black text-[10px] tracking-widest gold-glow shadow-lg shadow-primary/20">
+                        {language === 'ar' ? 'بدء التقييم الآن' : 'BEGIN EVALUATION'}
+                      </Button>
+                    </div>
                   ) : (
-                    <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-2">
-                      <p className="text-[8px] text-primary font-black uppercase tracking-widest">{language === 'ar' ? 'كيف كانت تجربتك معنا؟' : 'Rate your authority experience'}</p>
+                    <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-2 w-full">
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-primary font-black uppercase tracking-widest">{language === 'ar' ? 'كيف كانت تجربتك؟' : 'Rate your authority experience'}</p>
+                        <p className="text-[7px] text-muted-foreground uppercase">Evaluation for Case: {chatSession.caseId}</p>
+                      </div>
                       <div className="flex justify-center gap-3">
                         {[1, 2, 3, 4, 5].map((s) => (
-                          <button key={s} onClick={() => submitRating(s)} className={cn("p-2 transition-all hover:scale-125", userRating >= s ? "text-primary" : "text-white/10")}><Star fill={userRating >= s ? "currentColor" : "none"} size={24} /></button>
+                          <button key={s} onClick={() => submitRating(s)} className={cn("p-2 transition-all hover:scale-125", userRating >= s ? "text-primary" : "text-white/10")}><Star fill={userRating >= s ? "currentColor" : "none"} size={32} /></button>
                         ))}
                       </div>
                     </div>
                   )}
-                  <Button variant="ghost" onClick={() => { setChatSession(null); setShowRatingUI(false); }} className="text-[8px] font-headline uppercase">{language === 'ar' ? 'إغلاق' : 'CLOSE'}</Button>
+                  <Button variant="ghost" onClick={() => { setChatSession(null); setShowRatingUI(false); }} className="text-[8px] font-headline uppercase text-muted-foreground hover:text-white">{language === 'ar' ? 'إغلاق الأرشيف' : 'CLOSE ARCHIVE'}</Button>
                 </div>
               ) : (
                 <>
@@ -574,6 +580,16 @@ export default function Dashboard() {
       <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-4 text-center rounded-[2.5rem] z-[2000]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'ماسح المعرف الرقمي' : 'FLASH ID SCANNER'}</DialogTitle></DialogHeader><div className="relative mt-4 overflow-hidden rounded-2xl border-2 border-primary/20 cyan-glow"><div id="reader" className="w-full aspect-square bg-black"></div><div className="absolute inset-0 pointer-events-none flex items-center justify-center"><div className="w-48 h-48 border-2 border-primary/50 rounded-2xl animate-pulse flex items-center justify-center"><div className="w-full h-0.5 bg-primary/80 absolute top-1/2 -translate-y-1/2 animate-[scan_2s_infinite]"></div></div></div></div><p className="mt-4 text-[9px] font-headline font-bold text-muted-foreground uppercase tracking-widest">{language === 'ar' ? 'وجه الكاميرا نحو رمز QR للمستلم' : 'POINT CAMERA AT RECIPIENT QR CODE'}</p><button onClick={() => setScannerOpen(false)} className="mt-6 w-full h-12 bg-muted border border-border/40 rounded-xl flex items-center justify-center gap-2 hover:bg-muted/80 transition-all"><X size={16} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إلغاء' : 'CANCEL'}</span></button></DialogContent></Dialog>
 
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-10 rounded-[2.5rem] z-[1000]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">{language === 'ar' ? 'بروتوكول التحويل السريع' : 'Fast Transfer Protocol'}</DialogTitle></DialogHeader><div className="space-y-8 mt-6"><div className="space-y-4"><div className="relative group"><input type="text" placeholder={language === 'ar' ? "معرف المستلم" : "RECIPIENT FLASH ID"} value={recipient} onChange={(e) => setRecipient(e.target.value.toUpperCase())} className="w-full bg-muted border border-border/40 h-14 px-6 rounded-2xl font-headline text-[10px] tracking-widest uppercase focus:border-primary outline-none transition-all" />{isLookingUp && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary" size={16} />}</div>{recipientName && <div className="flex items-center justify-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-xl"><CheckCircle2 size={12} className="text-green-500" /><p className="text-[9px] font-headline font-bold text-green-500 uppercase tracking-widest">{language === 'ar' ? 'موثق:' : 'VERIFIED:'} @{recipientName}</p></div>}<div className="relative"><span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-headline font-bold text-primary/30">$</span><input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted border border-border/40 h-20 pl-12 pr-6 rounded-2xl text-center text-3xl font-headline font-bold text-primary outline-none focus:border-primary transition-all" /></div></div><button onClick={handleInitiateTransfer} disabled={isSending || !recipientName || !sendAmount} className="w-full bg-primary text-primary-foreground font-headline font-bold py-5 rounded-2xl gold-glow active:scale-95 disabled:opacity-50 transition-all uppercase tracking-widest text-xs">{isSending ? <Loader2 className="animate-spin mx-auto" /> : (language === 'ar' ? "تأكيد العملية" : "AUTHORIZE TRANSACTION")}</button></div></DialogContent></Dialog>
+
+      <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Verify Vault PIN</DialogTitle></DialogHeader>
+          <div className="mt-8">
+            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleSendMoney} />
+            {isSending && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <style jsx global>{`
         @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }

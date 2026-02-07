@@ -63,7 +63,8 @@ import {
   Star,
   History,
   Info,
-  Clock
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -146,9 +147,6 @@ export default function AdminPage() {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
-  const iconInputRef = useRef<HTMLInputElement>(null);
-  const methodIconInputRef = useRef<HTMLInputElement>(null);
-  const serviceImageInputRef = useRef<HTMLInputElement>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -365,22 +363,10 @@ export default function AdminPage() {
     } catch (e) { toast({ variant: "destructive", title: "Reply Failed" }); }
   };
 
-  const sendNotification = async (userId: string, title: string, message: string, type: 'system' | 'transaction' | 'verification' = 'system') => {
-    const notifRef = doc(collection(db, 'users', userId, 'notifications'));
-    await setDoc(notifRef, {
-      title,
-      message,
-      type,
-      read: false,
-      date: new Date().toISOString()
-    });
-  };
-
   const handleApproveWithdrawal = async (req: any) => {
     try {
       const ref = doc(db, 'withdrawals', req.id);
       await updateDoc(ref, { status: 'approved' });
-      await sendNotification(req.userId, "Withdrawal Confirmed", `Your request for ${req.netAmount} ${req.currencyCode} has been processed.`, 'transaction');
       toast({ title: "WITHDRAWAL APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
@@ -402,7 +388,6 @@ export default function AdminPage() {
           date: new Date().toISOString()
         });
       });
-      await sendNotification(req.userId, "Withdrawal Rejected", `Your request was declined. $${req.amountUsd} have been returned to your vault.`, 'transaction');
       toast({ title: "WITHDRAWAL REJECTED & REFUNDED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
@@ -423,7 +408,6 @@ export default function AdminPage() {
           date: new Date().toISOString()
         });
       });
-      await sendNotification(userId, "Deposit Approved", `Success! $${amount} has been credited to your vault.`, 'transaction');
       toast({ title: "DEPOSIT APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
@@ -432,7 +416,6 @@ export default function AdminPage() {
     try {
       await updateDoc(doc(db, 'verifications', req.id), { status: 'approved' });
       await updateDoc(doc(db, 'users', req.userId), { verified: true });
-      await sendNotification(req.userId, "Identity Verified", `Congratulations @${req.username}, your identity has been successfully verified.`, 'verification');
       toast({ title: "KYC APPROVED" });
     } catch (e: any) { toast({ variant: "destructive", title: "ERROR" }); }
   };
@@ -445,7 +428,6 @@ export default function AdminPage() {
         status: 'rejected',
         reason: rejectionReason.trim()
       });
-      await sendNotification(activeKycRequest.userId, "Identity Verification Rejected", `Your request was declined. Reason: ${rejectionReason}`, 'verification');
       toast({ title: "KYC REJECTED" });
       setIsRejectModalOpen(false);
       setRejectionReason('');
@@ -472,7 +454,6 @@ export default function AdminPage() {
           });
         }
       });
-      await sendNotification(targetUserId, "Balance Adjustment", `Administrator has updated your balance to $${amountNum}`, 'system');
       toast({ title: "BALANCE UPDATED" });
       setEditingUserId(null);
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
@@ -481,7 +462,6 @@ export default function AdminPage() {
   const handleUpdateRole = async (targetUserId: string, newRole: string) => {
     try {
       await updateDoc(doc(db, 'users', targetUserId), { role: newRole });
-      await sendNotification(targetUserId, "Role Updated", `Your account authority has been changed to: ${newRole.toUpperCase()}`, 'system');
       toast({ title: "ROLE UPDATED" });
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); }
   };
@@ -489,7 +469,6 @@ export default function AdminPage() {
   const handleResetPin = async (targetUserId: string) => {
     try {
       await updateDoc(doc(db, 'users', targetUserId), { pin: null });
-      await sendNotification(targetUserId, "Security Reset", "Your account PIN has been reset by the administrator. Please set a new one.", 'system');
       toast({ title: "PIN RESET SUCCESSFUL" });
     } catch (e: any) { toast({ variant: "destructive", title: "RESET FAILED" }); }
   };
@@ -507,15 +486,6 @@ export default function AdminPage() {
             status: 'completed', 
             resultCode: serviceResult.trim() 
           });
-          
-          const notifRef = doc(collection(db, 'users', activeServiceRequest.userId, 'notifications'));
-          transaction.set(notifRef, {
-            title: "Service Order Complete",
-            message: `Your order for ${activeServiceRequest.serviceName} is ready. Code: ${serviceResult}`,
-            type: 'transaction',
-            read: false,
-            date: new Date().toISOString()
-          });
         } else {
           transaction.update(reqRef, { 
             status: 'rejected', 
@@ -529,15 +499,6 @@ export default function AdminPage() {
             amount: activeServiceRequest.price,
             service: `REFUND: ${activeServiceRequest.serviceName}`,
             status: 'completed',
-            date: new Date().toISOString()
-          });
-
-          const notifRef = doc(collection(db, 'users', activeServiceRequest.userId, 'notifications'));
-          transaction.set(notifRef, {
-            title: "Order Rejected & Refunded",
-            message: `Your order for ${activeServiceRequest.serviceName} was declined. Reason: ${serviceRejectReason}. Funds returned.`,
-            type: 'transaction',
-            read: false,
             date: new Date().toISOString()
           });
         }
@@ -841,7 +802,6 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* The rest of the TabsContent remain unchanged as per request focus */}
         <TabsContent value="withdrawals" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {withdrawals.length === 0 ? <p className="col-span-full text-center text-[10px] text-muted-foreground uppercase py-10">No pending withdrawals</p> : withdrawals.map((req: any) => (
@@ -927,8 +887,6 @@ export default function AdminPage() {
             ))}
           </div>
         </TabsContent>
-
-        {/* ... remaining tabs are consistent ... */}
       </Tabs>
 
       {/* Archive Modal */}
