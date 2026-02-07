@@ -38,7 +38,8 @@ import {
   MessageSquare,
   FileText,
   ImageIcon,
-  SendHorizontal
+  SendHorizontal,
+  CircleDot
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -58,7 +59,8 @@ import {
   updateDoc, 
   deleteDoc, 
   addDoc,
-  setDoc 
+  setDoc,
+  onSnapshot
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -83,8 +85,15 @@ export default function Dashboard() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isPinVerificationOpen, setIsPinVerificationOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [supportStep, setSupportStep] = useState<'options' | 'form'>('options');
+  const [supportStep, setSupportStep] = useState<'options' | 'form' | 'chat'>('options');
   
+  // Chat States
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatStatus, setChatStatus] = useState<any>(null);
+  const [chatSession, setChatSession] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const [recipient, setRecipient] = useState(''); 
   const [recipientName, setRecipientName] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
@@ -115,6 +124,92 @@ export default function Dashboard() {
   const notificationsQuery = useMemo(() => (user && db) ? query(collection(db, 'users', user.uid, 'notifications'), orderBy('date', 'desc')) : null, [db, user?.uid]);
   const { data: notifications = [] } = useCollection(notificationsQuery);
   const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+  // Listen to Chat Config (for online/offline status)
+  useEffect(() => {
+    if (!db) return;
+    const unsub = onSnapshot(doc(db, 'system_settings', 'chat_config'), (doc) => {
+      if (doc.exists()) setChatStatus(doc.data());
+    });
+    return () => unsub();
+  }, [db]);
+
+  // Listen to Chat Messages if session exists
+  useEffect(() => {
+    if (!db || !user || supportStep !== 'chat') return;
+    
+    // Check for existing open session
+    const sessionsQuery = query(collection(db, 'chat_sessions'), where('userId', '==', user.uid), where('status', '==', 'open'), limit(1));
+    
+    const unsubSessions = onSnapshot(sessionsQuery, (snap) => {
+      if (!snap.empty) {
+        const session = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        setChatSession(session);
+        
+        // Listen to messages
+        const msgsQuery = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
+        onSnapshot(msgsQuery, (mSnap) => {
+          setMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        });
+      } else {
+        setChatSession(null);
+        setMessages([]);
+      }
+    });
+
+    return () => unsubSessions();
+  }, [db, user, supportStep]);
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatMessage.trim() || !user || !profile) return;
+
+    try {
+      let sessionId = chatSession?.id;
+
+      if (!sessionId) {
+        // Create new session
+        const newSessionRef = await addDoc(collection(db, 'chat_sessions'), {
+          userId: user.uid,
+          username: profile.username,
+          email: profile.email,
+          status: 'open',
+          lastMessage: chatMessage.trim(),
+          updatedAt: new Date().toISOString()
+        });
+        sessionId = newSessionRef.id;
+
+        // Notify Admin on Telegram
+        const telegramMsg = `
+💬 <b>New Live Chat Protocol</b>
+━━━━━━━━━━━━━━━━
+<b>From:</b> @${profile.username}
+<b>Email:</b> ${profile.email}
+<b>Message:</b>
+${chatMessage.trim()}
+        `;
+        await sendTelegramNotification(telegramMsg);
+      } else {
+        await updateDoc(doc(db, 'chat_sessions', sessionId), {
+          lastMessage: chatMessage.trim(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      // Add Message
+      await addDoc(collection(db, 'chat_sessions', sessionId, 'messages'), {
+        text: chatMessage.trim(),
+        senderId: user.uid,
+        isAdmin: false,
+        timestamp: new Date().toISOString()
+      });
+
+      setChatMessage('');
+    } catch (e) {
+      toast({ variant: "destructive", title: "Chat Error" });
+    }
+  };
 
   useEffect(() => {
     const lookupRecipient = async () => {
@@ -526,7 +621,10 @@ ${supportMessage}
         <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2.5rem] z-[1001] max-h-[90vh] overflow-y-auto no-scrollbar">
           <DialogHeader className="relative mb-6">
             <button 
-              onClick={() => supportStep === 'form' ? setSupportStep('options') : setIsSupportOpen(false)} 
+              onClick={() => {
+                if (supportStep === 'options') setIsSupportOpen(false);
+                else setSupportStep('options');
+              }} 
               className={cn(
                 "absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-secondary",
                 language === 'ar' ? "right-[-10px]" : "left-[-10px]"
@@ -548,6 +646,14 @@ ${supportMessage}
                   <p className="text-[8px] text-muted-foreground uppercase">{language === 'ar' ? 'افتح تذكرة دعم فني جديدة' : 'Open a new encrypted ticket'}</p>
                 </div>
               </button>
+
+              <button onClick={() => setSupportStep('chat')} className="w-full p-6 glass-card rounded-3xl border-primary/20 flex items-center gap-5 hover:border-primary transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><CircleDot size={24} className="animate-pulse" /></div>
+                <div className="text-left">
+                  <p className="text-[11px] font-headline font-bold uppercase">{language === 'ar' ? 'دردشة مباشرة' : 'Direct Live Chat'}</p>
+                  <p className="text-[8px] text-muted-foreground uppercase">{language === 'ar' ? 'تواصل فوري مع الموظف' : 'Immediate connection with agent'}</p>
+                </div>
+              </button>
               
               <a href="https://t.me/flash_support" target="_blank" className="w-full p-6 glass-card rounded-3xl border-blue-500/20 flex items-center gap-5 hover:border-blue-500 transition-all group">
                 <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform"><SendHorizontal size={24} /></div>
@@ -556,18 +662,8 @@ ${supportMessage}
                   <p className="text-[8px] text-muted-foreground uppercase">Direct immediate connection</p>
                 </div>
               </a>
-
-              <a href="https://wa.me/message/YOUR_LINK" target="_blank" className="w-full p-6 glass-card rounded-3xl border-green-500/20 flex items-center gap-5 hover:border-green-500 transition-all group">
-                <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
-                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.353-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.13.57-.074 1.758-.706 2.003-1.388.245-.682.245-1.265.172-1.388-.073-.123-.27-.197-.568-.346zM12 0C5.373 0 0 5.373 0 12c0 2.123.55 4.118 1.512 5.859L0 24l6.337-1.663C7.935 23.33 9.904 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
-                </div>
-                <div className="text-left">
-                  <p className="text-[11px] font-headline font-bold uppercase">WhatsApp Official</p>
-                  <p className="text-[8px] text-muted-foreground uppercase">Connect with authorized agent</p>
-                </div>
-              </a>
             </div>
-          ) : (
+          ) : supportStep === 'form' ? (
             <form onSubmit={handleSupportSubmit} className="space-y-5 animate-in slide-in-from-right-4 duration-300">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -630,6 +726,53 @@ ${supportMessage}
                 {isSubmittingSupport ? <Loader2 className="animate-spin" /> : (language === 'ar' ? 'إرسال التذكرة' : 'DEPLOY SUPPORT TICKET')}
               </button>
             </form>
+          ) : (
+            <div className="flex flex-col h-[500px] animate-in slide-in-from-right-4 duration-300">
+              <div className="flex-1 overflow-y-auto space-y-4 p-2 no-scrollbar">
+                {messages.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-60">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary"><MessageSquare size={32} /></div>
+                    <p className="text-[10px] font-headline uppercase tracking-widest">
+                      {language === 'ar' ? 'يرجى إرسال مشكلتك للبدء' : 'Describe your issue to begin'}
+                    </p>
+                  </div>
+                ) : (
+                  messages.map((msg) => (
+                    <div key={msg.id} className={cn("flex flex-col max-w-[80%]", msg.isAdmin ? "self-start items-start" : "self-end items-end")}>
+                      <div className={cn("p-3 rounded-2xl text-[10px] font-headline", msg.isAdmin ? "bg-muted text-foreground rounded-tl-none" : "bg-primary text-background rounded-tr-none")}>
+                        {msg.text}
+                      </div>
+                      <span className="text-[6px] text-muted-foreground mt-1 uppercase">
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {messages.length > 0 && (
+                <div className="py-3 px-4 bg-primary/10 border border-primary/20 rounded-xl mb-4 text-center animate-pulse">
+                  <p className="text-[8px] font-headline font-black text-primary uppercase tracking-widest">
+                    {chatStatus?.isActive 
+                      ? (language === 'ar' ? 'جاري البحث عن موظف...' : 'Searching for an agent...')
+                      : (language === 'ar' ? 'سيتم التواصل معك في أوقات العمل' : 'We will contact you during working hours')}
+                  </p>
+                </div>
+              )}
+
+              <form onSubmit={handleSendChatMessage} className="mt-auto pt-4 flex gap-2">
+                <Input 
+                  placeholder={language === 'ar' ? 'اكتب هنا...' : 'TYPE MESSAGE...'} 
+                  className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline"
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                />
+                <button type="submit" disabled={!chatMessage.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all disabled:opacity-50">
+                  <SendHorizontal size={20} />
+                </button>
+              </form>
+            </div>
           )}
         </DialogContent>
       </Dialog>

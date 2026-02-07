@@ -27,20 +27,29 @@
       },
       "required": ["username", "email", "customId", "balance", "role", "verified", "language"]
     },
-    "Transaction": {
-      "title": "Transaction",
-      "description": "Stored in /users/{userId}/transactions/{txId}. History of movements.",
+    "ChatSession": {
+      "title": "Chat Session",
+      "description": "Active support chat sessions.",
       "type": "object",
       "properties": {
-        "type": { "type": "string", "enum": ["send", "receive", "withdraw", "purchase", "deposit", "refund"] },
-        "amount": { "type": "number" },
-        "recipient": { "type": "string" },
-        "sender": { "type": "string" },
-        "service": { "type": "string" },
-        "status": { "type": "string", "enum": ["completed", "pending", "rejected"] },
-        "date": { "type": "string", "format": "date-time" }
-      },
-      "required": ["type", "amount", "status", "date"]
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Individual messages in a chat session.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isAdmin": { "type": "boolean" }
+      }
     },
     "SupportTicket": {
       "title": "Support Ticket",
@@ -67,9 +76,13 @@
       "schema": "UserProfile",
       "description": "Individual user settings and balance"
     },
-    "/support_tickets/{ticketId}": {
-      "schema": "SupportTicket",
-      "description": "Global support requests"
+    "/chat_sessions/{sessionId}": {
+      "schema": "ChatSession",
+      "description": "Active support chats"
+    },
+    "/chat_sessions/{sessionId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Individual messages"
     }
   }
 }

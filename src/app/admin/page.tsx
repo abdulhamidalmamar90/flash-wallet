@@ -55,12 +55,14 @@ import {
   Filter,
   Unlock,
   Briefcase,
-  Contact
+  Contact,
+  SendHorizontal,
+  CircleDot
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc, addDoc, onSnapshot, where } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -151,6 +153,13 @@ export default function AdminPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
+  // Chat Admin States
+  const [chatConfig, setChatConfig] = useState<any>(null);
+  const [activeChat, setActiveChat] = useState<any>(null);
+  const [chatReply, setChatMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
   const [activeServiceRequest, setActiveServiceRequest] = useState<any>(null);
   const [serviceAction, setServiceAction] = useState<'complete' | 'reject' | null>(null);
   const [serviceResult, setServiceResult] = useState('');
@@ -203,6 +212,9 @@ export default function AdminPage() {
   const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
   const { data: allUsers = [] } = useCollection(allUsersQuery);
 
+  const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions'), where('status', '==', 'open'), orderBy('updatedAt', 'desc')), [db]);
+  const { data: chatSessions = [] } = useCollection(chatSessionsQuery);
+
   const methodsQuery = useMemo(() => query(collection(db, 'deposit_methods')), [db]);
   const { data: depositMethods = [] } = useCollection(methodsQuery);
 
@@ -231,6 +243,51 @@ export default function AdminPage() {
       router.push('/dashboard');
     }
   }, [profile, profileLoading, authLoading, router, toast]);
+
+  // Handle Chat Config
+  useEffect(() => {
+    if (!db) return;
+    const unsub = onSnapshot(doc(db, 'system_settings', 'chat_config'), (doc) => {
+      if (doc.exists()) setChatConfig(doc.data());
+    });
+    return () => unsub();
+  }, [db]);
+
+  const toggleChatAvailability = async (isActive: boolean) => {
+    try {
+      await setDoc(doc(db, 'system_settings', 'chat_config'), { isActive });
+      toast({ title: isActive ? "Chat Protocols Online" : "Chat Protocols Offline" });
+    } catch (e) { toast({ variant: "destructive", title: "Config Failed" }); }
+  };
+
+  // Listen to Active Chat Messages
+  useEffect(() => {
+    if (!db || !activeChat) return;
+    const qMsg = query(collection(db, 'chat_sessions', activeChat.id, 'messages'), orderBy('timestamp', 'asc'));
+    const unsub = onSnapshot(qMsg, (snap) => {
+      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setTimeout(() => chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    });
+    return () => unsub();
+  }, [db, activeChat]);
+
+  const handleSendAdminReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatReply.trim() || !activeChat || !user) return;
+    try {
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: chatReply.trim(),
+        senderId: user.uid,
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        lastMessage: chatReply.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      setChatMessage('');
+    } catch (e) { toast({ variant: "destructive", title: "Reply Failed" }); }
+  };
 
   const sendNotification = async (userId: string, title: string, message: string, type: 'system' | 'transaction' | 'verification' = 'system') => {
     const notifRef = doc(collection(db, 'users', userId, 'notifications'));
@@ -700,9 +757,10 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-9 h-auto bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
           <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraws</TabsTrigger>
           <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ArrowDownCircle className="h-3 w-3 mr-1" /> Deposits</TabsTrigger>
+          <TabsTrigger value="chats" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><MessageSquare className="h-3 w-3 mr-1" /> Chats</TabsTrigger>
           <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ShieldCheck className="h-3 w-3 mr-1" /> KYC</TabsTrigger>
           <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><Users className="h-3 w-3 mr-1" /> Ledger</TabsTrigger>
           <TabsTrigger value="service_requests" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ShoppingBag className="h-3 w-3 mr-1" /> Srv Req</TabsTrigger>
@@ -710,6 +768,75 @@ export default function AdminPage() {
           <TabsTrigger value="config" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><Settings2 className="h-3 w-3 mr-1" /> Dep-Cfg</TabsTrigger>
           <TabsTrigger value="withdraw_config" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><WalletCards className="h-3 w-3 mr-1" /> Wit-Cfg</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="chats" className="space-y-6">
+          <div className="glass-card p-6 rounded-[2rem] border-primary/10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center border", chatConfig?.isActive ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")}>
+                <CircleDot className={cn("h-5 w-5", chatConfig?.isActive && "animate-pulse")} />
+              </div>
+              <div>
+                <p className="text-[10px] font-headline font-bold uppercase">{chatConfig?.isActive ? "Live Support Online" : "Live Support Offline"}</p>
+                <p className="text-[7px] text-muted-foreground uppercase">{chatConfig?.isActive ? "Agents searching for sessions" : "Automated reply active"}</p>
+              </div>
+            </div>
+            <Switch checked={chatConfig?.isActive || false} onCheckedChange={toggleChatAvailability} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[600px]">
+            <div className="glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-white/5"><p className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">Active Sessions</p></div>
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                {chatSessions.length === 0 ? (
+                  <p className="text-center text-[8px] text-muted-foreground uppercase py-10">No active protocols</p>
+                ) : chatSessions.map((s: any) => (
+                  <button key={s.id} onClick={() => setActiveChat(s)} className={cn("w-full p-4 border-b border-white/5 text-left transition-all hover:bg-white/5", activeChat?.id === s.id && "bg-primary/10 border-primary/20")}>
+                    <p className="text-[10px] font-headline font-bold uppercase">@{s.username}</p>
+                    <p className="text-[8px] text-muted-foreground truncate uppercase">{s.lastMessage}</p>
+                    <p className="text-[6px] text-white/20 mt-1 uppercase">{new Date(s.updatedAt).toLocaleTimeString()}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="md:col-span-2 glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col">
+              {activeChat ? (
+                <>
+                  <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><UserIcon size={16} /></div>
+                      <div>
+                        <p className="text-[10px] font-headline font-bold uppercase">@{activeChat.username}</p>
+                        <p className="text-[7px] text-muted-foreground uppercase">{activeChat.email}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => updateDoc(doc(db, 'chat_sessions', activeChat.id), { status: 'closed' })} className="p-2 text-red-500/40 hover:text-red-500"><X size={16} /></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+                    {chatMessages.map((msg) => (
+                      <div key={msg.id} className={cn("flex flex-col max-w-[80%]", msg.isAdmin ? "self-end items-end" : "self-start items-start")}>
+                        <div className={cn("p-3 rounded-2xl text-[10px] font-headline", msg.isAdmin ? "bg-primary text-background rounded-tr-none shadow-lg" : "bg-muted text-foreground rounded-tl-none border border-white/10")}>
+                          {msg.text}
+                        </div>
+                        <span className="text-[6px] text-muted-foreground mt-1 uppercase">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    ))}
+                    <div ref={chatScrollRef} />
+                  </div>
+                  <form onSubmit={handleSendAdminReply} className="p-4 border-t border-white/5 bg-white/5 flex gap-2">
+                    <Input placeholder="TRANSMIT REPLY..." className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] font-headline" value={chatReply} onChange={(e) => setChatMessage(e.target.value)} />
+                    <button type="submit" disabled={!chatReply.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all"><SendHorizontal size={20} /></button>
+                  </form>
+                </>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-10 opacity-20">
+                  <MessageSquare size={64} className="mb-4" />
+                  <p className="text-sm font-headline font-bold uppercase tracking-widest">Select Protocol to Intercept</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
 
         <TabsContent value="service_requests" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
