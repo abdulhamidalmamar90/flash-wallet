@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState, useRef } from 'react';
@@ -607,8 +608,8 @@ export default function AdminPage() {
                   <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10"><Globe size={18} /></div>
-                      <div>
-                        <div className="text-[10px] font-headline font-bold uppercase mb-1 flex items-center gap-2">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-headline font-bold uppercase flex items-center gap-2 flex-wrap">
                           {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
                         <div className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</div>
@@ -630,8 +631,8 @@ export default function AdminPage() {
                   <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-secondary/5 flex items-center justify-center text-secondary border border-secondary/10"><DollarSign size={18} /></div>
-                      <div>
-                        <div className="text-[10px] font-headline font-bold uppercase mb-1 flex items-center gap-2">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-headline font-bold uppercase flex items-center gap-2 flex-wrap">
                           {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
                         <div className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</div>
@@ -689,7 +690,13 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
                     <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="avatar" /> : <UserIcon className="text-muted-foreground" />}</div>
-                    <div><div className="text-[10px] font-headline font-bold uppercase">@{u.username}</div><p className="text-[7px] text-muted-foreground font-black tracking-widest">{u.customId}</p></div>
+                    <div>
+                      <div className="text-[10px] font-headline font-bold uppercase">@{u.username}</div>
+                      <div className="text-[7px] text-muted-foreground font-black tracking-widest flex flex-col gap-0.5 mt-1">
+                        <span>ID: {u.customId}</span>
+                        <span className="lowercase opacity-60 truncate max-w-[120px]">{u.email}</span>
+                      </div>
+                    </div>
                   </div>
                   <button onClick={() => { setEditingUserId(u.id); setEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
                 </div>
@@ -826,24 +833,25 @@ export default function AdminPage() {
               </Select>
             </div>
             
-            {/* Improved Verified Entity Switch */}
             <div className="flex items-center justify-between p-5 bg-card/40 rounded-2xl border border-white/10 shadow-inner group transition-all hover:border-primary/20">
               <div className="space-y-1">
                 <Label className="text-[10px] font-headline font-bold uppercase tracking-widest group-hover:text-primary transition-colors">Verified Entity</Label>
                 <p className="text-[7px] text-muted-foreground uppercase">Enable high-authority status</p>
               </div>
-              <Switch 
-                checked={editForm.verified} 
-                onCheckedChange={(val) => setEditForm({...editForm, verified: val})} 
-                className="data-[state=checked]:bg-green-500"
-              />
+              <div dir="ltr">
+                <Switch 
+                  checked={editForm.verified} 
+                  onCheckedChange={(val) => setEditForm({...editForm, verified: val})} 
+                  className="data-[state=checked]:bg-green-500"
+                />
+              </div>
             </div>
 
             <div className="pt-4 space-y-3">
               <Button onClick={async () => { try { await updateDoc(doc(db, 'users', editingUserId!), { balance: parseFloat(editForm.balance), role: editForm.role, verified: editForm.verified }); toast({ title: "SYNCED" }); setEditingUserId(null); } catch (e) {} }} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
               
-              {/* Purge User Action */}
               <button 
+                type="button"
                 onClick={handleDeleteUserEntity}
                 className="w-full py-3 flex items-center justify-center gap-2 text-red-500/60 hover:text-red-500 transition-all text-[8px] font-headline font-bold uppercase tracking-[0.2em] hover:bg-red-500/10 rounded-xl"
               >
