@@ -36,7 +36,8 @@ import {
   PlusCircle,
   Banknote,
   ClipboardList,
-  Store
+  Store,
+  AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -352,6 +353,19 @@ export default function AdminPage() {
       const snap = await getDocs(q);
       setArchiveMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { }
+  };
+
+  const handleDeleteUserEntity = async () => {
+    if (!editingUserId || !db) return;
+    if (!confirm("CRITICAL WARNING: This will permanently purge this entity and all associated vault credentials from the global ledger. This action cannot be reversed. Proceed?")) return;
+    
+    try {
+      await deleteDoc(doc(db, 'users', editingUserId));
+      toast({ title: "ENTITY PURGED", description: "The user has been removed from all database records." });
+      setEditingUserId(null);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "PURGE FAILED", description: e.message });
+    }
   };
 
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
@@ -796,7 +810,7 @@ export default function AdminPage() {
 
       {/* User Edit Modal */}
       <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
           <div className="mt-6 space-y-6">
             <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Adjust Balance ($)</Label><Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-lg text-primary text-center" value={editForm.balance} onChange={(e) => setEditForm({...editForm, balance: e.target.value})} /></div>
@@ -811,8 +825,31 @@ export default function AdminPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5"><Label className="text-[10px] font-headline uppercase">Verified Entity</Label><Switch checked={editForm.verified} onCheckedChange={(val) => setEditForm({...editForm, verified: val})} /></div>
-            <Button onClick={async () => { try { await updateDoc(doc(db, 'users', editingUserId!), { balance: parseFloat(editForm.balance), role: editForm.role, verified: editForm.verified }); toast({ title: "SYNCED" }); setEditingUserId(null); } catch (e) {} }} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
+            
+            {/* Improved Verified Entity Switch */}
+            <div className="flex items-center justify-between p-5 bg-card/40 rounded-2xl border border-white/10 shadow-inner group transition-all hover:border-primary/20">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-headline font-bold uppercase tracking-widest group-hover:text-primary transition-colors">Verified Entity</Label>
+                <p className="text-[7px] text-muted-foreground uppercase">Enable high-authority status</p>
+              </div>
+              <Switch 
+                checked={editForm.verified} 
+                onCheckedChange={(val) => setEditForm({...editForm, verified: val})} 
+                className="data-[state=checked]:bg-green-500"
+              />
+            </div>
+
+            <div className="pt-4 space-y-3">
+              <Button onClick={async () => { try { await updateDoc(doc(db, 'users', editingUserId!), { balance: parseFloat(editForm.balance), role: editForm.role, verified: editForm.verified }); toast({ title: "SYNCED" }); setEditingUserId(null); } catch (e) {} }} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
+              
+              {/* Purge User Action */}
+              <button 
+                onClick={handleDeleteUserEntity}
+                className="w-full py-3 flex items-center justify-center gap-2 text-red-500/60 hover:text-red-500 transition-all text-[8px] font-headline font-bold uppercase tracking-[0.2em] hover:bg-red-500/10 rounded-xl"
+              >
+                <AlertTriangle size={14} /> Purge Entity from Ledger
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
