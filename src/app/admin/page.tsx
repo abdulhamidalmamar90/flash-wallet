@@ -37,6 +37,7 @@ import {
   Store as StoreIcon,
   AlertTriangle,
   Keyboard,
+  Edit3,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -128,6 +129,7 @@ export default function AdminPage() {
   });
 
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState<any>({
     name: '',
     category: '',
@@ -284,9 +286,15 @@ export default function AdminPage() {
   const handleSaveProduct = async () => {
     if (!db) return;
     try {
-      await addDoc(collection(db, 'marketplace_services'), newProduct);
-      toast({ title: "PRODUCT SECURED" });
+      if (editingProductId) {
+        await updateDoc(doc(db, 'marketplace_services', editingProductId), newProduct);
+        toast({ title: "PRODUCT UPDATED" });
+      } else {
+        await addDoc(collection(db, 'marketplace_services'), newProduct);
+        toast({ title: "PRODUCT SECURED" });
+      }
       setIsAddingProduct(false);
+      setEditingProductId(null);
       setNewProduct({
         name: '',
         category: '',
@@ -299,7 +307,13 @@ export default function AdminPage() {
         imageUrl: '',
         color: 'bg-primary'
       });
-    } catch (e) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
+    } catch (e) { toast({ variant: "destructive", title: "SAVE FAILED" }); }
+  };
+
+  const handleEditProduct = (product: any) => {
+    setEditingProductId(product.id);
+    setNewProduct({ ...product });
+    setIsAddingProduct(true);
   };
 
   const toggleStatus = async (coll: string, id: string, status: boolean) => {
@@ -642,7 +656,7 @@ export default function AdminPage() {
                       <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10"><Globe size={18} /></div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-headline font-bold uppercase">{m.name}</span>
+                          <div className="text-[10px] font-headline font-bold uppercase">{m.name}</div>
                           <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
                         <div className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</div>
@@ -666,7 +680,7 @@ export default function AdminPage() {
                       <div className="w-10 h-10 rounded-xl bg-secondary/5 flex items-center justify-center text-secondary border border-secondary/10"><DollarSign size={18} /></div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-headline font-bold uppercase">{m.name}</span>
+                          <div className="text-[10px] font-headline font-bold uppercase">{m.name}</div>
                           <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
                         <div className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</div>
@@ -687,15 +701,16 @@ export default function AdminPage() {
         <TabsContent value="store" className="space-y-8">
           <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
             <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
-            <Button onClick={() => setIsAddingProduct(true)} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
+            <Button onClick={() => { setEditingProductId(null); setIsAddingProduct(true); setNewProduct({ name: '', category: '', price: 0, type: 'fixed', variants: [{ label: '', price: 0 }], requiresInput: false, inputLabel: '', isActive: true, imageUrl: '', color: 'bg-primary' }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {products.map((p: any) => (
-              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group">
+              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group relative">
                 <div className="aspect-video relative bg-white/5">
                   {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
                   <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
+                  <button onClick={() => handleEditProduct(p)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Edit3 size={14} /></button>
                 </div>
                 <div className="p-5 space-y-4">
                   <div>
@@ -757,7 +772,7 @@ export default function AdminPage() {
                 </div>
                 {v.status === 'pending' && (
                   <div className="flex gap-2">
-                    <button onClick={() => handleAction('kyc', v.id, 'approve')} className="h-8 px-4 bg-secondary text-background font-headline font-8px uppercase rounded-lg hover:scale-105 transition-all">Verify</button>
+                    <button onClick={() => handleAction('kyc', v.id, 'approve')} className="h-8 px-4 bg-secondary text-background font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Verify</button>
                     <button onClick={() => handleAction('kyc', v.id, 'reject')} className="h-8 px-4 bg-red-600 text-white font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Invalidate</button>
                   </div>
                 )}
@@ -811,17 +826,16 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Asset Foundry (Redesigned matching previous flexible style) */}
+      {/* Asset Foundry */}
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
-              <ShoppingBag size={14} className="text-primary" /> Asset Foundry
+              <ShoppingBag size={14} className="text-primary" /> {editingProductId ? "Modify Asset" : "Asset Foundry"}
             </DialogTitle>
           </DialogHeader>
           
           <div className="mt-6 space-y-6">
-            {/* 1. Basic Info */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-[8px] uppercase text-muted-foreground font-black tracking-widest">Asset Identifier</Label>
@@ -833,7 +847,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 2. Pricing Architecture */}
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
                 <div className="space-y-1">
@@ -841,14 +854,8 @@ export default function AdminPage() {
                   <p className="text-[7px] text-muted-foreground uppercase">{newProduct.type === 'fixed' ? 'Single Fixed Price' : 'Multiple Pricing Tiers'}</p>
                 </div>
                 <div className="flex bg-background p-1 rounded-lg border border-white/5">
-                  <button 
-                    onClick={() => setNewProduct({...newProduct, type: 'fixed'})}
-                    className={cn("px-3 py-1.5 rounded-md text-[8px] font-headline uppercase transition-all", newProduct.type === 'fixed' ? "bg-primary text-background" : "text-muted-foreground")}
-                  >Fixed</button>
-                  <button 
-                    onClick={() => setNewProduct({...newProduct, type: 'variable'})}
-                    className={cn("px-3 py-1.5 rounded-md text-[8px] font-headline uppercase transition-all", newProduct.type === 'variable' ? "bg-primary text-background" : "text-muted-foreground")}
-                  >Packages</button>
+                  <button onClick={() => setNewProduct({...newProduct, type: 'fixed'})} className={cn("px-3 py-1.5 rounded-md text-[8px] font-headline uppercase transition-all", newProduct.type === 'fixed' ? "bg-primary text-background" : "text-muted-foreground")}>Fixed</button>
+                  <button onClick={() => setNewProduct({...newProduct, type: 'variable'})} className={cn("px-3 py-1.5 rounded-md text-[8px] font-headline uppercase transition-all", newProduct.type === 'variable' ? "bg-primary text-background" : "text-muted-foreground")}>Packages</button>
                 </div>
               </div>
 
@@ -859,17 +866,11 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-[8px] uppercase text-primary font-black tracking-widest">Pricing Tiers (Quantity & Price)</Label>
-                    <button onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, { label: '', price: 0 }]})} className="text-[8px] font-headline text-primary border border-primary/20 px-3 py-1.5 rounded-lg hover:bg-primary/10">+ Add Tier</button>
-                  </div>
+                  <div className="flex justify-between items-center"><Label className="text-[8px] uppercase text-primary font-black tracking-widest">Pricing Tiers (Quantity & Price)</Label><button onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, { label: '', price: 0 }]})} className="text-[8px] font-headline text-primary border border-primary/20 px-3 py-1.5 rounded-lg hover:bg-primary/10">+ Add Tier</button></div>
                   {newProduct.variants.map((v: any, i: number) => (
                     <div key={i} className="flex gap-2 items-center group animate-in slide-in-from-right-2">
                       <Input placeholder="Package (e.g. 600 UC)" className="flex-1 bg-background/50 border-white/5 h-10 text-[10px] font-headline" value={v.label} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].label = e.target.value; setNewProduct({...newProduct, variants: vs}); }} />
-                      <div className="relative w-24">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground">$</span>
-                        <Input type="number" placeholder="Price" className="pl-5 bg-background/50 border-white/5 h-10 text-[10px] font-headline" value={v.price} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].price = parseFloat(e.target.value); setNewProduct({...newProduct, variants: vs}); }} />
-                      </div>
+                      <div className="relative w-24"><span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground">$</span><Input type="number" placeholder="Price" className="pl-5 bg-background/50 border-white/5 h-10 text-[10px] font-headline" value={v.price} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].price = parseFloat(e.target.value); setNewProduct({...newProduct, variants: vs}); }} /></div>
                       <button onClick={() => { const vs = newProduct.variants.filter((_: any, idx: number) => i !== idx); setNewProduct({...newProduct, variants: vs}); }} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><X size={14} /></button>
                     </div>
                   ))}
@@ -877,34 +878,26 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* 3. User Intel Capture */}
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-headline font-bold uppercase">Required User Intel</Label>
-                  <p className="text-[7px] text-muted-foreground uppercase">Enable to request ID or account info from purchaser</p>
-                </div>
+                <div className="space-y-1"><Label className="text-[10px] font-headline font-bold uppercase">Required User Intel</Label><p className="text-[7px] text-muted-foreground uppercase">Enable to request ID or account info from purchaser</p></div>
                 <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
               </div>
-
               {newProduct.requiresInput && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                   <Label className="text-[8px] uppercase text-primary font-black tracking-widest">Input Field Descriptor</Label>
-                  <div className="relative">
-                    <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
-                    <Input placeholder="e.g. ENTER PLAYER ID / ACCOUNT LINK" className="pl-10 bg-background/50 border-white/10 h-12 text-[10px] font-headline uppercase" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} />
-                  </div>
+                  <div className="relative"><Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" /><Input placeholder="e.g. ENTER PLAYER ID / ACCOUNT LINK" className="pl-10 bg-background/50 border-white/10 h-12 text-[10px] font-headline uppercase" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} /></div>
                 </div>
               )}
             </div>
 
-            {/* 4. Visual Evidence */}
             <div className="space-y-2">
               <Label className="text-[8px] uppercase text-muted-foreground font-black tracking-widest">Asset Visual URL</Label>
               <Input placeholder="https://image-hosting.com/asset.png" className="bg-background/50 border-white/10 h-12 text-xs font-headline" value={newProduct.imageUrl} onChange={(e) => setNewProduct({...newProduct, imageUrl: e.target.value})} />
+              {newProduct.imageUrl && <div className="mt-2 w-full aspect-video rounded-xl overflow-hidden border border-white/10 bg-black/20"><img src={newProduct.imageUrl} className="w-full h-full object-cover" alt="preview" /></div>}
             </div>
             
-            <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-[0.2em] rounded-xl gold-glow uppercase shadow-2xl">Authorize Asset Deployment</Button>
+            <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-[0.2em] rounded-xl gold-glow uppercase shadow-2xl">{editingProductId ? "Authorize Updates" : "Authorize Asset Deployment"}</Button>
           </div>
         </DialogContent>
       </Dialog>
