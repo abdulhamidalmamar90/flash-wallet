@@ -3,74 +3,37 @@
 
 import { useMemo, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { 
-  ShieldAlert, 
   Check, 
   X, 
-  Building2, 
   Loader2, 
   Users, 
   Search, 
-  Save, 
   User as UserIcon,
   ArrowUpCircle,
   ArrowDownCircle,
   LayoutDashboard,
   ShieldCheck,
-  FileCheck,
-  Camera,
-  Globe,
   FileText,
+  Globe,
   DollarSign,
   Trash2,
   Settings2,
   Plus,
-  Database,
-  UserCheck,
-  WalletCards,
-  MessageSquare,
-  Shield,
-  Type,
-  AlignLeft,
-  ListFilter,
-  ImageIcon,
-  Percent,
-  Coins,
-  Edit2,
-  Copy,
-  Calendar,
-  Gamepad2,
-  Gift,
-  LayoutGrid,
-  ShoppingBag,
-  Ticket,
-  ChevronDown,
-  Layers,
-  Keyboard,
-  Eye,
-  EyeOff,
-  Hash,
-  Filter,
-  Unlock,
-  Briefcase,
-  Contact,
-  SendHorizontal,
   CircleDot,
-  Play,
+  SendHorizontal,
   LogOut,
   Star,
   History,
   Info,
-  Clock,
   ArrowRight,
-  MessageCircle,
+  MessageSquare,
+  ShoppingBag,
+  Ticket,
+  ChevronDown,
   Trash,
-  AlertCircle,
   CheckCircle2,
-  MoreVertical,
-  Store,
   PlusCircle,
   Banknote,
   ClipboardList
@@ -91,17 +54,17 @@ import {
   addDoc, 
   onSnapshot, 
   where, 
-  getDocs, 
-  limit 
+  getDocs 
 } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import Link from 'next/link';
 
 const COUNTRIES = [
   { code: 'GL', name: 'Global' },
@@ -443,7 +406,7 @@ export default function AdminPage() {
             deposits.map((d: any) => (
               <div key={d.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={d.proofUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={d.proofUrl} className="w-full h-auto" /></DialogContent></Dialog>
+                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={d.proofUrl} className="w-full h-full object-cover" alt="proof" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={d.proofUrl} className="w-full h-auto" alt="proof enlarged" /></DialogContent></Dialog>
                   <div>
                     <p className="text-[10px] font-headline font-bold uppercase">@{d.username} <span className="text-white/20 ml-2">via {d.method}</span></p>
                     <p className="text-[12px] font-headline font-black text-primary">${d.amount}</p>
@@ -509,7 +472,7 @@ export default function AdminPage() {
                   <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
                     <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><UserIcon size={16} /></div><div><p className="text-[10px] font-headline font-bold uppercase">@{activeChat.username} <span className="text-[7px] text-primary ml-2">[{activeChat.caseId}]</span></p><p className="text-[7px] text-muted-foreground uppercase">{activeChat.email}</p></div></div>
                     <div className="flex gap-2">
-                      {activeChat.status === 'open' && <Button onClick={handleJoinChat} disabled={isJoiningChat} size="sm" className="h-8 bg-green-600 text-white rounded-lg text-[8px] font-headline uppercase tracking-widest"><Play size={12} className="mr-1" /> Join Chat</Button>}
+                      {activeChat.status === 'open' && <Button onClick={handleJoinChat} disabled={isJoiningChat} size="sm" className="h-8 bg-green-600 text-white rounded-lg text-[8px] font-headline uppercase tracking-widest"><CircleDot size={12} className="mr-1" /> Join Chat</Button>}
                       <Button onClick={handleEndChat} disabled={isClosingChat} size="sm" className="h-8 bg-red-600 text-white rounded-lg text-[8px] font-headline uppercase tracking-widest"><LogOut size={12} className="mr-1" /> End Case</Button>
                     </div>
                   </div>
@@ -539,7 +502,7 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
                     {t.imageUrl ? (
-                      <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-blue-500/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={t.imageUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={t.imageUrl} className="w-full h-auto" /></DialogContent></Dialog>
+                      <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-blue-500/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={t.imageUrl} className="w-full h-full object-cover" alt="attachment" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={t.imageUrl} className="w-full h-auto" alt="attachment enlarged" /></DialogContent></Dialog>
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20"><FileText size={24} /></div>
                     )}
@@ -625,7 +588,12 @@ export default function AdminPage() {
                   <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10"><Globe size={18} /></div>
-                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p></div>
+                      <div>
+                        <div className="text-[10px] font-headline font-bold uppercase mb-1 flex items-center gap-2">
+                          {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
+                        </div>
+                        <p className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('deposit_methods', m.id, val)} />
@@ -643,7 +611,12 @@ export default function AdminPage() {
                   <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-secondary/5 flex items-center justify-center text-secondary border border-secondary/10"><DollarSign size={18} /></div>
-                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</p></div>
+                      <div>
+                        <div className="text-[10px] font-headline font-bold uppercase mb-1 flex items-center gap-2">
+                          {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
+                        </div>
+                        <p className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('withdrawal_methods', m.id, val)} />
@@ -667,7 +640,7 @@ export default function AdminPage() {
             {products.map((p: any) => (
               <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group">
                 <div className="aspect-video relative bg-white/5">
-                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
+                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
                   <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
                 </div>
                 <div className="p-5 space-y-4">
@@ -696,7 +669,7 @@ export default function AdminPage() {
               <div key={u.id} className="glass-card p-5 rounded-[2rem] border-white/5 hover:border-primary/20 transition-all group">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="text-muted-foreground" />}</div>
+                    <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="avatar" /> : <UserIcon className="text-muted-foreground" />}</div>
                     <div><p className="text-[10px] font-headline font-bold uppercase">@{u.username}</p><p className="text-[7px] text-muted-foreground font-black tracking-widest">{u.customId}</p></div>
                   </div>
                   <button onClick={() => { setEditingUserId(u.id); setEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
@@ -713,7 +686,7 @@ export default function AdminPage() {
             verifications.map((v: any) => (
               <div key={v.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={v.docImageUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={v.docImageUrl} className="w-full h-auto" /></DialogContent></Dialog>
+                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={v.docImageUrl} className="w-full h-full object-cover" alt="KYC document" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={v.docImageUrl} className="w-full h-auto" alt="KYC enlarged" /></DialogContent></Dialog>
                   <div><p className="text-[10px] font-headline font-bold uppercase">@{v.username}</p><p className="text-[7px] text-muted-foreground uppercase">IDENTITY SCAN: {v.status}</p></div>
                 </div>
                 {v.status === 'pending' && (
@@ -762,7 +735,7 @@ export default function AdminPage() {
 
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Store size={14} className="text-primary" /> Asset Foundry</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><ShoppingBag size={14} className="text-primary" /> Asset Foundry</DialogTitle></DialogHeader>
           <div className="mt-6 space-y-5">
             <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Asset Name</Label><Input placeholder="PUBG Mobile 600 UC" className="bg-background border-white/10 h-12 text-xs" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} /></div>
             <div className="grid grid-cols-2 gap-4">
