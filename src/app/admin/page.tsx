@@ -36,6 +36,7 @@ import {
   ClipboardList,
   Store as StoreIcon,
   AlertTriangle,
+  Keyboard,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -129,7 +130,7 @@ export default function AdminPage() {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProduct, setNewProduct] = useState<any>({
     name: '',
-    category: 'GAMES',
+    category: '',
     price: 0,
     type: 'fixed',
     variants: [{ label: '', price: 0 }],
@@ -288,7 +289,7 @@ export default function AdminPage() {
       setIsAddingProduct(false);
       setNewProduct({
         name: '',
-        category: 'GAMES',
+        category: '',
         price: 0,
         type: 'fixed',
         variants: [{ label: '', price: 0 }],
@@ -767,7 +768,7 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Management Dialogs */}
+      {/* Gateway Configurator Dialog */}
       <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Banknote size={14} className="text-primary" /> Gateway Configurator</DialogTitle></DialogHeader>
@@ -810,58 +811,105 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Asset Foundry (Add Product) */}
+      {/* Asset Foundry (Redesigned matching previous flexible style) */}
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><ShoppingBag size={14} className="text-primary" /> Asset Foundry</DialogTitle></DialogHeader>
-          <div className="mt-6 space-y-5">
-            <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Asset Name</Label><Input placeholder="PUBG Mobile 600 UC" className="bg-background border-white/10 h-12 text-xs" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} /></div>
-            <div className="grid grid-cols-2 gap-4">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
+              <ShoppingBag size={14} className="text-primary" /> Asset Foundry
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="mt-6 space-y-6">
+            {/* 1. Basic Info */}
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-[8px] uppercase text-muted-foreground">Category</Label>
-                <Select value={newProduct.category} onValueChange={(v) => setNewProduct({...newProduct, category: v})}>
-                  <SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-card border-white/10 z-[1100]"><SelectItem value="GAMES">Games</SelectItem><SelectItem value="CARDS">Gift Cards</SelectItem><SelectItem value="SOFTWARE">Software</SelectItem><SelectItem value="SOCIAL">Social Media</SelectItem></SelectContent>
-                </Select>
+                <Label className="text-[8px] uppercase text-muted-foreground font-black tracking-widest">Asset Identifier</Label>
+                <Input placeholder="e.g. PUBG Mobile 600 UC" className="bg-background/50 border-white/10 h-12 text-xs font-headline" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} />
               </div>
-              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Price ($)</Label><Input type="number" disabled={newProduct.type === 'variable'} className="bg-background border-white/10 h-12 text-xs disabled:opacity-30" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} /></div>
-            </div>
-            
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-              <div className="space-y-1"><Label className="text-[9px] font-headline uppercase">Multiple Quantities</Label><p className="text-[7px] text-muted-foreground uppercase">Enable tiered pricing packages</p></div>
-              <Switch checked={newProduct.type === 'variable'} onCheckedChange={(val) => setNewProduct({...newProduct, type: val ? 'variable' : 'fixed'})} />
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase text-muted-foreground font-black tracking-widest">Category Identifier</Label>
+                <Input placeholder="e.g. GAMES / CARDS / SOCIAL" className="bg-background/50 border-white/10 h-12 text-xs font-headline uppercase" value={newProduct.category} onChange={(e) => setNewProduct({...newProduct, category: e.target.value.toUpperCase()})} />
+              </div>
             </div>
 
-            {newProduct.type === 'variable' && (
-              <div className="space-y-3 pt-2">
-                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase text-primary">Pricing Tiers</Label><button onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, { label: '', price: 0 }]})} className="text-[8px] font-headline text-primary border border-primary/20 px-2 py-1 rounded-md">+ Add Tier</button></div>
-                {newProduct.variants.map((v: any, i: number) => (
-                  <div key={i} className="flex gap-2">
-                    <Input placeholder="Package (e.g. 600 UC)" className="flex-1 bg-background/50 border-white/5 h-10 text-[10px]" value={v.label} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].label = e.target.value; setNewProduct({...newProduct, variants: vs}); }} />
-                    <Input type="number" placeholder="Price" className="w-24 bg-background/50 border-white/5 h-10 text-[10px]" value={v.price} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].price = parseFloat(e.target.value); setNewProduct({...newProduct, variants: vs}); }} />
-                    <button onClick={() => { const vs = newProduct.variants.filter((_: any, idx: number) => i !== idx); setNewProduct({...newProduct, variants: vs}); }} className="text-red-500/40"><X size={14} /></button>
+            {/* 2. Pricing Architecture */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-headline font-bold uppercase">Pricing Architecture</Label>
+                  <p className="text-[7px] text-muted-foreground uppercase">{newProduct.type === 'fixed' ? 'Single Fixed Price' : 'Multiple Pricing Tiers'}</p>
+                </div>
+                <div className="flex bg-background p-1 rounded-lg border border-white/5">
+                  <button 
+                    onClick={() => setNewProduct({...newProduct, type: 'fixed'})}
+                    className={cn("px-3 py-1.5 rounded-md text-[8px] font-headline uppercase transition-all", newProduct.type === 'fixed' ? "bg-primary text-background" : "text-muted-foreground")}
+                  >Fixed</button>
+                  <button 
+                    onClick={() => setNewProduct({...newProduct, type: 'variable'})}
+                    className={cn("px-3 py-1.5 rounded-md text-[8px] font-headline uppercase transition-all", newProduct.type === 'variable' ? "bg-primary text-background" : "text-muted-foreground")}
+                  >Packages</button>
+                </div>
+              </div>
+
+              {newProduct.type === 'fixed' ? (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                  <Label className="text-[8px] uppercase text-muted-foreground font-black tracking-widest">Asset Value ($)</Label>
+                  <Input type="number" placeholder="0.00" className="bg-background/50 border-white/10 h-12 text-lg font-headline text-primary" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} />
+                </div>
+              ) : (
+                <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-[8px] uppercase text-primary font-black tracking-widest">Pricing Tiers (Quantity & Price)</Label>
+                    <button onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, { label: '', price: 0 }]})} className="text-[8px] font-headline text-primary border border-primary/20 px-3 py-1.5 rounded-lg hover:bg-primary/10">+ Add Tier</button>
                   </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-              <div className="space-y-1"><Label className="text-[9px] font-headline uppercase">Require User Input</Label><p className="text-[7px] text-muted-foreground uppercase">e.g. Game ID or Account Link</p></div>
-              <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
+                  {newProduct.variants.map((v: any, i: number) => (
+                    <div key={i} className="flex gap-2 items-center group animate-in slide-in-from-right-2">
+                      <Input placeholder="Package (e.g. 600 UC)" className="flex-1 bg-background/50 border-white/5 h-10 text-[10px] font-headline" value={v.label} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].label = e.target.value; setNewProduct({...newProduct, variants: vs}); }} />
+                      <div className="relative w-24">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground">$</span>
+                        <Input type="number" placeholder="Price" className="pl-5 bg-background/50 border-white/5 h-10 text-[10px] font-headline" value={v.price} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].price = parseFloat(e.target.value); setNewProduct({...newProduct, variants: vs}); }} />
+                      </div>
+                      <button onClick={() => { const vs = newProduct.variants.filter((_: any, idx: number) => i !== idx); setNewProduct({...newProduct, variants: vs}); }} className="p-2 text-red-500/40 hover:text-red-500 transition-colors"><X size={14} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {newProduct.requiresInput && (
-              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Input Label</Label><Input placeholder="Enter Player ID" className="bg-background border-white/10 h-12 text-xs" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} /></div>
-            )}
+            {/* 3. User Intel Capture */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-headline font-bold uppercase">Required User Intel</Label>
+                  <p className="text-[7px] text-muted-foreground uppercase">Enable to request ID or account info from purchaser</p>
+                </div>
+                <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
+              </div>
 
-            <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Image URL</Label><Input placeholder="https://..." className="bg-background border-white/10 h-12 text-xs" value={newProduct.imageUrl} onChange={(e) => setNewProduct({...newProduct, imageUrl: e.target.value})} /></div>
+              {newProduct.requiresInput && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                  <Label className="text-[8px] uppercase text-primary font-black tracking-widest">Input Field Descriptor</Label>
+                  <div className="relative">
+                    <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
+                    <Input placeholder="e.g. ENTER PLAYER ID / ACCOUNT LINK" className="pl-10 bg-background/50 border-white/10 h-12 text-[10px] font-headline uppercase" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. Visual Evidence */}
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase text-muted-foreground font-black tracking-widest">Asset Visual URL</Label>
+              <Input placeholder="https://image-hosting.com/asset.png" className="bg-background/50 border-white/10 h-12 text-xs font-headline" value={newProduct.imageUrl} onChange={(e) => setNewProduct({...newProduct, imageUrl: e.target.value})} />
+            </div>
             
-            <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Authorize Asset</Button>
+            <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-[0.2em] rounded-xl gold-glow uppercase shadow-2xl">Authorize Asset Deployment</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* User Edit Modal */}
+      {/* Entity Edit Modal */}
       <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
