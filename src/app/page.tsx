@@ -8,13 +8,10 @@ import { useStore } from '@/app/lib/store';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { 
   signInWithEmailAndPassword, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithRedirect, 
   getRedirectResult,
   signOut 
 } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
@@ -94,7 +91,7 @@ export default function LoginPage() {
     if (!auth || !db) return;
     
     const input = identifier.trim().toLowerCase();
-    const cleanPassword = password.trim();
+    const cleanPassword = password; // DO NOT TRIM password to avoid mismatches
     if (!input || !cleanPassword) return;
 
     setLoading(true);
@@ -160,6 +157,7 @@ export default function LoginPage() {
                 <UserIcon className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
                 <input 
                   type="text" 
+                  autoComplete="username"
                   placeholder={t.identifier} 
                   className={cn("w-full bg-white/5 border border-white/5 h-16 text-[14px] font-body text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
                   value={identifier}
@@ -171,6 +169,7 @@ export default function LoginPage() {
                 <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
                 <input 
                   type={showPassword ? "text" : "password"} 
+                  autoComplete="current-password"
                   placeholder={t.password} 
                   className={cn("w-full bg-white/5 border border-white/5 h-16 text-[14px] font-body text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
                   value={password}
