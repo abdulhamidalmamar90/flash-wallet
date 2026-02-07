@@ -160,6 +160,16 @@ input[type="number"]::-webkit-outer-spin-button {
   font-family: inherit;
 }
 
+/* Autofill fix to prevent white background */
+.futuristic-input:-webkit-autofill,
+.futuristic-input:-webkit-autofill:hover,
+.futuristic-input:-webkit-autofill:focus,
+.futuristic-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #010201 inset !important;
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .futuristic-poda {
   display: flex;
   align-items: center;
