@@ -33,7 +33,12 @@ import {
   ChevronLeft,
   Smartphone,
   ShieldCheck,
-  MailCheck
+  MailCheck,
+  Headset,
+  MessageSquare,
+  FileText,
+  ImageIcon,
+  SendHorizontal
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -52,12 +57,17 @@ import {
   increment, 
   updateDoc, 
   deleteDoc, 
-  addDoc 
+  addDoc,
+  setDoc 
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Html5Qrcode } from "html5-qrcode";
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { sendTelegramNotification, sendTelegramPhoto } from '@/lib/telegram';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -72,6 +82,8 @@ export default function Dashboard() {
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isPinVerificationOpen, setIsPinVerificationOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [supportStep, setSupportStep] = useState<'options' | 'form'>('options');
   
   const [recipient, setRecipient] = useState(''); 
   const [recipientName, setRecipientName] = useState<string | null>(null);
@@ -80,6 +92,13 @@ export default function Dashboard() {
   const [isSending, setIsSending] = useState(false);
   const [pinEntry, setPinEntry] = useState('');
   const [mounted, setMounted] = useState(false);
+
+  // Support Form State
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportImage, setSupportImage] = useState<string | null>(null);
+  const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
+  const supportFileInputRef = useRef<HTMLInputElement>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isStartingScanner = useRef(false);
@@ -254,6 +273,61 @@ export default function Dashboard() {
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); } finally { setIsSending(false); }
   };
 
+  const handleSupportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !db || !supportSubject.trim() || !supportMessage.trim()) return;
+
+    setIsSubmittingSupport(true);
+    try {
+      const ticketRef = await addDoc(collection(db, 'support_tickets'), {
+        userId: user.uid,
+        username: profile?.username || 'unknown',
+        email: profile?.email || 'unknown',
+        subject: supportSubject.trim(),
+        message: supportMessage.trim(),
+        imageUrl: supportImage,
+        status: 'open',
+        date: new Date().toISOString()
+      });
+
+      const telegramMsg = `
+🎫 <b>New Support Ticket</b>
+━━━━━━━━━━━━━━━━
+<b>From:</b> @${profile?.username}
+<b>Email:</b> ${profile?.email}
+<b>Subject:</b> ${supportSubject}
+<b>Message:</b>
+${supportMessage}
+      `;
+
+      if (supportImage) {
+        await sendTelegramPhoto(supportImage, telegramMsg);
+      } else {
+        await sendTelegramNotification(telegramMsg);
+      }
+
+      toast({ title: language === 'ar' ? "تم إرسال طلبك" : "Ticket Submitted", description: language === 'ar' ? "سنقوم بالرد عليك في أقرب وقت." : "We will get back to you soon." });
+      setIsSupportOpen(false);
+      setSupportSubject('');
+      setSupportMessage('');
+      setSupportImage(null);
+      setSupportStep('options');
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Error", description: err.message });
+    } finally {
+      setIsSubmittingSupport(false);
+    }
+  };
+
+  const handleSupportImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setSupportImage(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const markNotificationsAsRead = async () => {
     if (!user || !db || unreadCount === 0) return;
     notifications.forEach(async (n: any) => {
@@ -383,6 +457,224 @@ export default function Dashboard() {
         </section>
       </main>
 
+      {/* Settings Modal */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-10 duration-500">
+          <DialogHeader className="relative mb-4">
+            <button 
+              onClick={() => setIsSettingsOpen(false)} 
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-primary",
+                language === 'ar' ? "right-[-10px]" : "left-[-10px]"
+              )}
+            >
+              <ChevronLeft className={cn("h-6 w-6", language === 'ar' && "rotate-180")} />
+            </button>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center w-full">
+              {language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 sm:space-y-8 mt-4">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className={cn(
+                "w-20 h-20 rounded-2xl border-2 flex items-center justify-center relative overflow-hidden shadow-xl",
+                profile?.verified ? "border-green-500" : "border-red-500"
+              )}>
+                {profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={32} />}
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-md font-headline font-bold tracking-tight">@{profile?.username}</h3>
+                <button onClick={copyId} className="px-4 py-2 bg-muted text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-border/40 flex items-center gap-2 hover:bg-muted/80 transition-all">
+                  ID: {profile?.customId} <Copy size={12} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="space-y-3 pb-4">
+              <ThemeToggle />
+              <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
+                <QrCode size={18} className="text-primary" />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'المعرف الرقمي الخاص بي' : 'My Flash Identifier'}</span>
+              </button>
+              <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
+                <Settings size={18} className="text-muted-foreground" />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تعديل الحساب' : 'Configure Account'}</span>
+              </Link>
+              <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-muted/20 transition-all">
+                <Languages size={18} />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'اللغة: العربية' : 'Language: EN'}</span>
+              </button>
+              
+              {/* Support Button */}
+              <button onClick={() => { setIsSettingsOpen(false); setIsSupportOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-secondary transition-all">
+                <Headset size={18} className="text-secondary" />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'الدعم الفني' : 'Support Center'}</span>
+              </button>
+
+              <button onClick={() => signOut(auth)} className="w-full h-14 glass-card rounded-2xl border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all">
+                <LogOut size={18} />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تسجيل الخروج' : 'Terminate Access'}</span>
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Support Modal */}
+      <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2.5rem] z-[1001] max-h-[90vh] overflow-y-auto no-scrollbar">
+          <DialogHeader className="relative mb-6">
+            <button 
+              onClick={() => supportStep === 'form' ? setSupportStep('options') : setIsSupportOpen(false)} 
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-secondary",
+                language === 'ar' ? "right-[-10px]" : "left-[-10px]"
+              )}
+            >
+              <ChevronLeft className={cn("h-6 w-6", language === 'ar' && "rotate-180")} />
+            </button>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center w-full">
+              {language === 'ar' ? 'مركز الدعم والمساعدة' : 'Support Command Center'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {supportStep === 'options' ? (
+            <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+              <button onClick={() => setSupportStep('form')} className="w-full p-6 glass-card rounded-3xl border-secondary/20 flex items-center gap-5 hover:border-secondary transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform"><MessageSquare size={24} /></div>
+                <div className="text-left">
+                  <p className="text-[11px] font-headline font-bold uppercase">{language === 'ar' ? 'مراسلة الدعم' : 'Contact Support'}</p>
+                  <p className="text-[8px] text-muted-foreground uppercase">{language === 'ar' ? 'افتح تذكرة دعم فني جديدة' : 'Open a new encrypted ticket'}</p>
+                </div>
+              </button>
+              
+              <a href="https://t.me/flash_support" target="_blank" className="w-full p-6 glass-card rounded-3xl border-blue-500/20 flex items-center gap-5 hover:border-blue-500 transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform"><SendHorizontal size={24} /></div>
+                <div className="text-left">
+                  <p className="text-[11px] font-headline font-bold uppercase">Telegram Support</p>
+                  <p className="text-[8px] text-muted-foreground uppercase">Direct immediate connection</p>
+                </div>
+              </a>
+
+              <a href="https://wa.me/message/YOUR_LINK" target="_blank" className="w-full p-6 glass-card rounded-3xl border-green-500/20 flex items-center gap-5 hover:border-green-500 transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
+                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.353-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.13.57-.074 1.758-.706 2.003-1.388.245-.682.245-1.265.172-1.388-.073-.123-.27-.197-.568-.346zM12 0C5.373 0 0 5.373 0 12c0 2.123.55 4.118 1.512 5.859L0 24l6.337-1.663C7.935 23.33 9.904 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-[11px] font-headline font-bold uppercase">WhatsApp Official</p>
+                  <p className="text-[8px] text-muted-foreground uppercase">Connect with authorized agent</p>
+                </div>
+              </a>
+            </div>
+          ) : (
+            <form onSubmit={handleSupportSubmit} className="space-y-5 animate-in slide-in-from-right-4 duration-300">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'الاسم' : 'ID NAME'}</Label>
+                    <Input value={`${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || profile?.username} disabled className="h-10 bg-white/5 border-white/10 text-[10px] font-headline opacity-60" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'البريد' : 'AUTHORITY MAIL'}</Label>
+                    <Input value={profile?.email} disabled className="h-10 bg-white/5 border-white/10 text-[10px] font-headline opacity-60" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[8px] uppercase tracking-widest text-secondary">{language === 'ar' ? 'الموضوع' : 'PROTOCOL SUBJECT'}</Label>
+                  <Input 
+                    placeholder={language === 'ar' ? 'ما هي مشكلتك؟' : 'DESCRIBE ISSUE TYPE'} 
+                    className="h-12 bg-background/50 border-white/10 text-[10px] font-headline uppercase focus:border-secondary/50" 
+                    value={supportSubject}
+                    onChange={(e) => setSupportSubject(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[8px] uppercase tracking-widest text-secondary">{language === 'ar' ? 'الرسالة' : 'DETAILED INTEL'}</Label>
+                  <Textarea 
+                    placeholder={language === 'ar' ? 'اشرح بالتفصيل...' : 'PROVIDE FULL CONTEXT'} 
+                    className="min-h-[120px] bg-background/50 border-white/10 text-[10px] font-headline uppercase focus:border-secondary/50 pt-3" 
+                    value={supportMessage}
+                    onChange={(e) => setSupportMessage(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'إرفاق صورة (اختياري)' : 'ATTACH VISUAL EVIDENCE (OPTIONAL)'}</Label>
+                  <div 
+                    onClick={() => supportFileInputRef.current?.click()}
+                    className="w-full h-24 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-secondary/5 transition-all group overflow-hidden"
+                  >
+                    {supportImage ? (
+                      <img src={supportImage} className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <ImageIcon size={20} className="text-muted-foreground group-hover:text-secondary transition-colors" />
+                        <span className="text-[7px] font-headline uppercase text-muted-foreground">Upload Protocol Evidence</span>
+                      </>
+                    )}
+                    <input type="file" ref={supportFileInputRef} className="hidden" accept="image/*" onChange={handleSupportImageUpload} />
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isSubmittingSupport}
+                className="w-full h-14 bg-secondary text-background font-headline font-black text-[10px] tracking-widest rounded-2xl cyan-glow flex items-center justify-center gap-2 hover:scale-[1.02] transition-all"
+              >
+                {isSubmittingSupport ? <Loader2 className="animate-spin" /> : (language === 'ar' ? 'إرسال التذكرة' : 'DEPLOY SUPPORT TICKET')}
+              </button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Modal */}
+      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader>
+          <div className="space-y-8 mt-6">
+            <div className="p-6 bg-white rounded-3xl inline-block shadow-lg">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p>
+              <p className="text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p>
+            </div>
+            <button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notification Modal */}
+      <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] max-h-[80vh] overflow-y-auto z-[1000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center mb-4">{language === 'ar' ? 'شريط الحماية' : 'Security Feed'}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {notifications.length === 0 ? (
+              <p className="text-center text-[10px] text-muted-foreground uppercase font-headline py-10">{language === 'ar' ? 'النظام خالي من التنبيهات' : 'System is clear'}</p>
+            ) : (
+              notifications.map((n: any) => (
+                <div key={n.id} className={cn("p-4 rounded-2xl border transition-all relative group", n.read ? "bg-muted/20 border-border/40" : "bg-primary/5 border-primary/20 shadow-lg")}>
+                  <button onClick={() => deleteNotification(n.id)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-red-500"><Trash2 size={12} /></button>
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-[10px] font-headline font-bold uppercase text-primary">{n.title}</p>
+                    <p className="text-[7px] text-muted-foreground uppercase">{new Date(n.date).toLocaleTimeString()}</p>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground leading-relaxed">{n.message}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Scanner Modal */}
       <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}>
         <DialogContent className="max-w-sm glass-card border-border/40 p-4 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader>
@@ -408,136 +700,6 @@ export default function Dashboard() {
             <X size={16} />
             <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إلغاء' : 'CANCEL'}</span>
           </button>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-10 duration-500 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-10">
-          <DialogHeader className="relative mb-4">
-            <button 
-              onClick={() => setIsSettingsOpen(false)} 
-              className={cn(
-                "absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-primary",
-                language === 'ar' ? "right-[-10px]" : "left-[-10px]"
-              )}
-            >
-              <ChevronLeft className={cn("h-6 w-6", language === 'ar' && "rotate-180")} />
-            </button>
-            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center w-full">
-              {language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6 sm:space-y-8 mt-4">
-            <div className="flex flex-col items-center gap-4 text-center animate-in fade-in zoom-in-95 duration-700 delay-100 fill-mode-both">
-              <div className={cn(
-                "w-20 h-20 rounded-2xl border-2 flex items-center justify-center relative overflow-hidden shadow-xl",
-                profile?.verified ? "border-green-500" : "border-red-500"
-              )}>
-                {profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={32} />}
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-md font-headline font-bold tracking-tight">@{profile?.username}</h3>
-                <div className="flex flex-wrap justify-center gap-2 mb-2">
-                  <div className={cn(
-                    "px-2 py-0.5 rounded-full text-[7px] font-bold uppercase border",
-                    profile?.verified ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
-                  )}>
-                    {profile?.verified ? (language === 'ar' ? "هوية موثقة" : "ID Verified") : (language === 'ar' ? "هوية معلقة" : "ID Pending")}
-                  </div>
-                  <div className={cn(
-                    "px-2 py-0.5 rounded-full text-[7px] font-bold uppercase border",
-                    profile?.emailVerified ? "bg-primary/10 border-primary/20 text-primary" : "bg-white/5 border-white/10 text-white/30"
-                  )}>
-                    {profile?.emailVerified ? (language === 'ar' ? "بريد موثق" : "Email Verified") : (language === 'ar' ? "بريد معلق" : "Email Pending")}
-                  </div>
-                  <div className={cn(
-                    "px-2 py-0.5 rounded-full text-[7px] font-bold uppercase border",
-                    profile?.phoneVerified ? "bg-blue-500/10 border-blue-500/20 text-blue-500" : "bg-white/5 border-white/10 text-white/30"
-                  )}>
-                    {profile?.phoneVerified ? (language === 'ar' ? "رقم موثق" : "Phone Verified") : (language === 'ar' ? "رقم غير مؤكد" : "Phone Pending")}
-                  </div>
-                </div>
-                <button onClick={copyId} className="px-4 py-2 bg-muted text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-border/40 flex items-center gap-2 hover:bg-muted/80 transition-all">
-                  ID: {profile?.customId} <Copy size={12} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both pb-4">
-              <ThemeToggle />
-              <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
-                <QrCode size={18} className="text-primary" />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'المعرف الرقمي الخاص بي' : 'My Flash Identifier'}</span>
-              </button>
-              <Link href="/orders" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
-                <ShoppingBag size={18} className="text-primary" />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'طلباتي' : 'Asset Orders'}</span>
-              </Link>
-              <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all">
-                <Settings size={18} className="text-muted-foreground" />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تعديل الحساب' : 'Configure Account'}</span>
-              </Link>
-              {profile?.role === 'admin' && (
-                <Link href="/admin" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 border-primary/40 hover:bg-primary/10 transition-all">
-                  <ShieldAlert size={18} className="text-primary" />
-                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">{language === 'ar' ? 'لوحة التحكم (أدمن)' : 'Admin Command'}</span>
-                </Link>
-              )}
-              {profile?.role === 'agent' && (
-                <Link href="/agent" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 border-secondary/40 hover:bg-secondary/10 transition-all">
-                  <Briefcase size={18} className="text-secondary" />
-                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary">{language === 'ar' ? 'لوحة الوكالة' : 'Agent Command'}</span>
-                </Link>
-              )}
-              <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-muted/20 transition-all">
-                <Languages size={18} />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'اللغة: العربية' : 'Language: EN'}</span>
-              </button>
-              <button onClick={() => signOut(auth)} className="w-full h-14 glass-card rounded-2xl border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all">
-                <LogOut size={18} />
-                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تسجيل الخروج' : 'Terminate Access'}</span>
-              </button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-        <DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader>
-          <div className="space-y-8 mt-6">
-            <div className="p-6 bg-white rounded-3xl inline-block shadow-lg">
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" />
-            </div>
-            <div className="space-y-2">
-              <p className="text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p>
-              <p className="text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p>
-            </div>
-            <button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
-        <DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] max-h-[80vh] overflow-y-auto z-[1000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center mb-4">{language === 'ar' ? 'شريط الحماية' : 'Security Feed'}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            {notifications.length === 0 ? (
-              <p className="text-center text-[10px] text-muted-foreground uppercase font-headline py-10">{language === 'ar' ? 'النظام خالي من التنبيهات' : 'System is clear'}</p>
-            ) : (
-              notifications.map((n: any) => (
-                <div key={n.id} className={cn("p-4 rounded-2xl border transition-all relative group", n.read ? "bg-muted/20 border-border/40" : "bg-primary/5 border-primary/20 shadow-lg")}>
-                  <button onClick={() => deleteNotification(n.id)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-red-500"><Trash2 size={12} /></button>
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="text-[10px] font-headline font-bold uppercase text-primary">{n.title}</p>
-                    <p className="text-[7px] text-muted-foreground uppercase">{new Date(n.date).toLocaleTimeString()}</p>
-                  </div>
-                  <p className="text-[9px] text-muted-foreground leading-relaxed">{n.message}</p>
-                </div>
-              ))
-            )}
-          </div>
         </DialogContent>
       </Dialog>
 
