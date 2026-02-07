@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useEffect, useState, useRef } from 'react';
@@ -75,7 +74,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/AlertDialog";
 import Link from 'next/link';
 
 const COUNTRIES = [
@@ -146,7 +145,7 @@ export default function AdminPage() {
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
-  // Queries - Processed Client-side to avoid Index Errors
+  // Queries
   const allWithdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals')), [db]);
   const { data: allWithdrawals = [] } = useCollection(allWithdrawalsQuery);
   const withdrawals = useMemo(() => [...allWithdrawals].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allWithdrawals]);
@@ -436,7 +435,13 @@ export default function AdminPage() {
             deposits.map((d: any) => (
               <div key={d.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={d.proofUrl} className="w-full h-full object-cover" alt="proof" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={d.proofUrl} className="w-full h-auto" alt="proof enlarged" /></DialogContent></Dialog>
+                  <Dialog>
+                    <DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={d.proofUrl} className="w-full h-full object-cover" alt="proof" /></div></DialogTrigger>
+                    <DialogContent className="max-w-2xl bg-black/90 p-0">
+                      <DialogHeader className="sr-only"><DialogTitle>Proof of Payment Preview</DialogTitle></DialogHeader>
+                      <img src={d.proofUrl} className="w-full h-auto" alt="proof enlarged" />
+                    </DialogContent>
+                  </Dialog>
                   <div>
                     <div className="text-[10px] font-headline font-bold uppercase">@{d.username} <span className="text-white/20 ml-2">via {d.method}</span></div>
                     <div className="text-[12px] font-headline font-black text-primary">${d.amount}</div>
@@ -532,7 +537,13 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-4">
                     {t.imageUrl ? (
-                      <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-blue-500/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={t.imageUrl} className="w-full h-full object-cover" alt="attachment" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={t.imageUrl} className="w-full h-auto" alt="attachment enlarged" /></DialogContent></Dialog>
+                      <Dialog>
+                        <DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-blue-500/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={t.imageUrl} className="w-full h-full object-cover" alt="attachment" /></div></DialogTrigger>
+                        <DialogContent className="max-w-2xl bg-black/90 p-0">
+                          <DialogHeader className="sr-only"><DialogTitle>Ticket Attachment Preview</DialogTitle></DialogHeader>
+                          <img src={t.imageUrl} className="w-full h-auto" alt="attachment enlarged" />
+                        </DialogContent>
+                      </Dialog>
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20"><FileText size={24} /></div>
                     )}
@@ -701,7 +712,7 @@ export default function AdminPage() {
               <div key={u.id} className="glass-card p-5 rounded-[2rem] border-white/5 hover:border-primary/20 transition-all group">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="avatar" /> : <UserIcon className="text-muted-foreground" />}</div>
+                    <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="avatar" /> : <UserIcon className="text-muted-foreground" />}</div>
                     <div>
                       <div className="text-[10px] font-headline font-bold uppercase">@{u.username}</div>
                       <div className="text-[7px] text-muted-foreground font-black tracking-widest flex flex-col gap-0.5 mt-1">
@@ -724,7 +735,13 @@ export default function AdminPage() {
             verifications.map((v: any) => (
               <div key={v.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={v.docImageUrl} className="w-full h-full object-cover" alt="KYC document" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={v.docImageUrl} className="w-full h-auto" alt="KYC enlarged" /></DialogContent></Dialog>
+                  <Dialog>
+                    <DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={v.docImageUrl} className="w-full h-full object-cover" alt="KYC document" /></div></DialogTrigger>
+                    <DialogContent className="max-w-2xl bg-black/90 p-0">
+                      <DialogHeader className="sr-only"><DialogTitle>Identity Scan Preview</DialogTitle></DialogHeader>
+                      <img src={v.docImageUrl} className="w-full h-auto" alt="KYC enlarged" />
+                    </DialogContent>
+                  </Dialog>
                   <div><div className="text-[10px] font-headline font-bold uppercase">@{v.username}</div><p className="text-[7px] text-muted-foreground uppercase">IDENTITY SCAN: {v.status}</p></div>
                 </div>
                 {v.status === 'pending' && (
