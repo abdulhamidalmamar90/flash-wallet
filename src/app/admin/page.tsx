@@ -67,12 +67,32 @@ import {
   ArrowRight,
   MessageCircle,
   Trash,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  MoreVertical,
+  Store,
+  PlusCircle,
+  Banknote
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, query, orderBy, runTransaction, setDoc, increment, deleteDoc, addDoc, onSnapshot, where, getDocs, limit } from 'firebase/firestore';
+import { 
+  collection, 
+  doc, 
+  updateDoc, 
+  query, 
+  orderBy, 
+  runTransaction, 
+  setDoc, 
+  increment, 
+  deleteDoc, 
+  addDoc, 
+  onSnapshot, 
+  where, 
+  getDocs, 
+  limit 
+} from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -82,6 +102,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 
+const COUNTRIES = [
+  { code: 'GL', name: 'Global' },
+  { code: 'CR', name: 'Crypto' },
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'EG', name: 'Egypt' },
+  { code: 'AE', name: 'UAE' },
+  { code: 'KW', name: 'Kuwait' },
+  { code: 'QA', name: 'Qatar' },
+  { code: 'JO', name: 'Jordan' },
+  { code: 'IQ', name: 'Iraq' },
+];
+
 export default function AdminPage() {
   const router = useRouter();
   const db = useFirestore();
@@ -90,7 +122,7 @@ export default function AdminPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editForm, setEditEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<any>({});
   
   // Chat Admin States
   const [chatConfig, setChatConfig] = useState<any>(null);
@@ -106,9 +138,38 @@ export default function AdminPage() {
   const [archiveMessages, setArchiveMessages] = useState<any[]>([]);
   const [showFullArchive, setShowFullArchive] = useState(false);
 
+  // Management States
+  const [isAddingMethod, setIsAddingMethod] = useState(false);
+  const [methodType, setMethodType] = useState<'deposit' | 'withdraw'>('deposit');
+  const [newMethod, setNewMethod] = useState<any>({
+    name: '',
+    country: 'GL',
+    currencyCode: 'USD',
+    exchangeRate: 1,
+    feeType: 'fixed',
+    feeValue: 0,
+    isActive: true,
+    fields: [{ label: '', value: '', type: 'text' }]
+  });
+
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState<any>({
+    name: '',
+    category: 'GAMES',
+    price: 0,
+    type: 'fixed',
+    variants: [{ label: '', price: 0 }],
+    requiresInput: false,
+    inputLabel: '',
+    isActive: true,
+    imageUrl: '',
+    color: 'bg-primary'
+  });
+
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
+  // Queries
   const withdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals'), orderBy('date', 'desc')), [db]);
   const { data: withdrawals = [] } = useCollection(withdrawalsQuery);
 
@@ -124,6 +185,16 @@ export default function AdminPage() {
   const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions')), [db]);
   const { data: allChatSessions = [] } = useCollection(chatSessionsQuery);
 
+  const depositMethodsQuery = useMemo(() => query(collection(db, 'deposit_methods')), [db]);
+  const { data: depositMethods = [] } = useCollection(depositMethodsQuery);
+
+  const withdrawalMethodsQuery = useMemo(() => query(collection(db, 'withdrawal_methods')), [db]);
+  const { data: withdrawalMethods = [] } = useCollection(withdrawalMethodsQuery);
+
+  const productsQuery = useMemo(() => query(collection(db, 'marketplace_services')), [db]);
+  const { data: products = [] } = useCollection(productsQuery);
+
+  // Processed Data
   const chatSessions = useMemo(() => {
     return allChatSessions
       .filter((s: any) => ['open', 'active', 'closed'].includes(s.status))
@@ -159,13 +230,6 @@ export default function AdminPage() {
     return () => unsub();
   }, [db]);
 
-  const toggleChatAvailability = async (isActive: boolean) => {
-    try {
-      await setDoc(doc(db, 'system_settings', 'chat_config'), { isActive });
-      toast({ title: isActive ? "Chat Protocols Online" : "Chat Protocols Offline" });
-    } catch (e) { toast({ variant: "destructive", title: "Config Failed" }); }
-  };
-
   useEffect(() => {
     if (!db || !activeChat) return;
     const qMsg = query(collection(db, 'chat_sessions', activeChat.id, 'messages'), orderBy('timestamp', 'asc'));
@@ -176,81 +240,7 @@ export default function AdminPage() {
     return () => unsub();
   }, [db, activeChat]);
 
-  const handleJoinChat = async () => {
-    if (!activeChat || !user || !profile) return;
-    setIsJoiningChat(true);
-    try {
-      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
-        status: 'active',
-        joinedBy: profile.username,
-        updatedAt: new Date().toISOString()
-      });
-      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
-        text: `تم العثور على موظف. مرحباً، معك ${profile.username}. من فضلك أعطني ثانية لمراجعة تفاصيل مشكلتك.`,
-        senderId: 'system',
-        isAdmin: true,
-        timestamp: new Date().toISOString()
-      });
-    } catch (e) { toast({ variant: "destructive", title: "Join Failed" }); } finally { setIsJoiningChat(false); }
-  };
-
-  const handleEndChat = async () => {
-    if (!activeChat || !db) return;
-    setIsClosingChat(true);
-    try {
-      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
-        text: "تم إنهاء البروتوكول بنجاح. اضغط على الزر أدناه لتقييم الخدمة وإغلاق الحالة.",
-        senderId: 'system',
-        isAdmin: true,
-        timestamp: new Date().toISOString()
-      });
-      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
-        status: 'closed',
-        updatedAt: new Date().toISOString()
-      });
-      toast({ title: "CHAT CLOSED" });
-      setActiveChat(null);
-    } catch (e) { toast({ variant: "destructive", title: "Close Failed" }); } finally { setIsClosingChat(false); }
-  };
-
-  const handleDeleteArchive = async (e: React.MouseEvent, sessionId: string) => {
-    e.stopPropagation();
-    if (!confirm("Confirm permanent deletion of this protocol log?")) return;
-    try {
-      await deleteDoc(doc(db, 'chat_sessions', sessionId));
-      toast({ title: "PROTOCOL PURGED" });
-      if (selectedArchive?.id === sessionId) setSelectedArchive(null);
-    } catch (e) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
-  };
-
-  const handleOpenArchive = async (session: any) => {
-    setSelectedArchive(session);
-    setShowFullArchive(false);
-    try {
-      const q = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
-      const snap = await getDocs(q);
-      setArchiveMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) { toast({ variant: "destructive", title: "Failed to load archive" }); }
-  };
-
-  const handleSendAdminReply = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatReply.trim() || !activeChat || !user) return;
-    try {
-      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
-        text: chatReply.trim(),
-        senderId: user.uid,
-        isAdmin: true,
-        timestamp: new Date().toISOString()
-      });
-      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
-        lastMessage: chatReply.trim(),
-        updatedAt: new Date().toISOString()
-      });
-      setChatMessage('');
-    } catch (e) { toast({ variant: "destructive", title: "Reply Failed" }); }
-  };
-
+  // Handlers
   const handleAction = async (type: 'deposit' | 'withdraw' | 'kyc', id: string, action: 'approve' | 'reject') => {
     if (!db) return;
     try {
@@ -292,39 +282,130 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "FAILED", description: e.message }); }
   };
 
-  const handleSaveUser = async () => {
-    if (!editingUserId || !db) return;
+  const handleSaveMethod = async () => {
+    if (!db) return;
     try {
-      await updateDoc(doc(db, 'users', editingUserId), {
-        balance: parseFloat(editForm.balance),
-        role: editForm.role,
-        verified: editForm.verified
+      const collectionName = methodType === 'deposit' ? 'deposit_methods' : 'withdrawal_methods';
+      await addDoc(collection(db, collectionName), newMethod);
+      toast({ title: "METHOD DEPLOYED" });
+      setIsAddingMethod(false);
+    } catch (e) { toast({ variant: "destructive", title: "DEPLOY FAILED" }); }
+  };
+
+  const handleSaveProduct = async () => {
+    if (!db) return;
+    try {
+      await addDoc(collection(db, 'marketplace_services'), newProduct);
+      toast({ title: "PRODUCT SECURED" });
+      setIsAddingProduct(false);
+    } catch (e) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
+  };
+
+  const toggleMethodStatus = async (coll: string, id: string, status: boolean) => {
+    try { await updateDoc(doc(db, coll, id), { isActive: status }); toast({ title: "STATUS SYNCED" }); } catch (e) { }
+  };
+
+  const handleJoinChat = async () => {
+    if (!activeChat || !user || !profile) return;
+    setIsJoiningChat(true);
+    try {
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        status: 'active',
+        joinedBy: profile.username,
+        updatedAt: new Date().toISOString()
       });
-      toast({ title: "USER SYNCED" });
-      setEditingUserId(null);
-    } catch (e: any) { toast({ variant: "destructive", title: "SYNC FAILED" }); }
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: `تم العثور على موظف. مرحباً، معك ${profile.username}. من فضلك أعطني ثانية لمراجعة تفاصيل مشكلتك.`,
+        senderId: 'system',
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) { toast({ variant: "destructive", title: "Join Failed" }); } finally { setIsJoiningChat(false); }
+  };
+
+  const handleEndChat = async () => {
+    if (!activeChat || !db) return;
+    setIsClosingChat(true);
+    try {
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: "تم إنهاء البروتوكول بنجاح. اضغط على الزر أدناه لتقييم الخدمة وإغلاق الحالة.",
+        senderId: 'system',
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        status: 'closed',
+        updatedAt: new Date().toISOString()
+      });
+      toast({ title: "CHAT CLOSED" });
+      setActiveChat(null);
+    } catch (e) { toast({ variant: "destructive", title: "Close Failed" }); } finally { setIsClosingChat(false); }
+  };
+
+  const handleSendAdminReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatReply.trim() || !activeChat || !user) return;
+    try {
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: chatReply.trim(),
+        senderId: user.uid,
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        lastMessage: chatReply.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      setChatMessage('');
+    } catch (e) { toast({ variant: "destructive", title: "Reply Failed" }); }
+  };
+
+  const handleDeleteArchive = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (!confirm("Purge this protocol log?")) return;
+    try { await deleteDoc(doc(db, 'chat_sessions', sessionId)); toast({ title: "PURGED" }); if (selectedArchive?.id === sessionId) setSelectedArchive(null); } catch (e) { }
+  };
+
+  const handleOpenArchive = async (session: any) => {
+    setSelectedArchive(session);
+    setShowFullArchive(false);
+    try {
+      const q = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
+      const snap = await getDocs(q);
+      setArchiveMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) { }
   };
 
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
       <header className="flex justify-between items-center p-5 glass-card rounded-[2rem] border-primary/20 gold-glow">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="p-2 hover:bg-primary/10 rounded-xl transition-all text-primary group"><LayoutDashboard className="h-6 w-6 group-hover:scale-110" /></Link>
-          <div><h1 className="text-xs font-headline font-bold tracking-widest uppercase">Admin Command</h1><p className="text-[8px] text-muted-foreground uppercase font-black">Authorized Shell v3.0</p></div>
+          <div><h1 className="text-xs font-headline font-bold tracking-widest uppercase">Admin Command</h1><p className="text-[8px] text-muted-foreground uppercase font-black">Authorized Shell v4.0</p></div>
         </div>
-        <Badge variant="outline" className="text-[8px] tracking-[0.2em] font-black uppercase text-primary border-primary/30 py-1">Superuser</Badge>
+        <div className="flex gap-4 items-center">
+          <div className="hidden sm:block text-right">
+            <p className="text-[7px] text-muted-foreground uppercase font-black">System Liquidity</p>
+            <p className="text-sm font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p>
+          </div>
+          <Badge variant="outline" className="text-[8px] tracking-[0.2em] font-black uppercase text-primary border-primary/30 py-1">Superuser</Badge>
+        </div>
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-auto bg-card/40 border border-white/5 rounded-2xl mb-8 p-1 gap-1 overflow-x-auto">
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ArrowUpCircle className="h-3 w-3 mr-1" /> Withdrawals</TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ArrowDownCircle className="h-3 w-3 mr-1" /> Deposits</TabsTrigger>
-          <TabsTrigger value="chats" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><MessageSquare className="h-3 w-3 mr-1" /> Chats</TabsTrigger>
-          <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><Users className="h-3 w-3 mr-1" /> Ledger</TabsTrigger>
-          <TabsTrigger value="verifications" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-2"><ShieldCheck className="h-3 w-3 mr-1" /> KYC</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto no-scrollbar pb-4">
+          <TabsList className="flex w-max h-auto bg-card/40 border border-white/5 rounded-2xl p-1 gap-1">
+            <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraws</TabsTrigger>
+            <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ArrowDownCircle className="h-3 w-3 mr-1" /> Deposits</TabsTrigger>
+            <TabsTrigger value="chats" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><MessageSquare className="h-3 w-3 mr-1" /> Support</TabsTrigger>
+            <TabsTrigger value="gateways" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Banknote className="h-3 w-3 mr-1" /> Gateways</TabsTrigger>
+            <TabsTrigger value="store" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Store className="h-3 w-3 mr-1" /> Store</TabsTrigger>
+            <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Users className="h-3 w-3 mr-1" /> Entities</TabsTrigger>
+            <TabsTrigger value="kyc" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ShieldCheck className="h-3 w-3 mr-1" /> KYC</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="withdrawals" className="space-y-4">
           {withdrawals.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">CLEAN RECORD</p></div> : 
@@ -332,7 +413,10 @@ export default function AdminPage() {
               <div key={w.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500"><ArrowUpCircle size={20} /></div>
-                  <div><p className="text-[10px] font-headline font-bold uppercase">@{w.username}</p><p className="text-[12px] font-headline font-black text-white">${w.amount}</p></div>
+                  <div>
+                    <p className="text-[10px] font-headline font-bold uppercase">@{w.username} <span className="text-white/20 ml-2">({w.methodName})</span></p>
+                    <p className="text-[12px] font-headline font-black text-white">${w.amountUsd} <ArrowRight className="inline mx-1 h-3 w-3 text-muted-foreground" /> {w.netAmount} {w.currencyCode}</p>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={() => handleAction('withdraw', w.id, 'approve')} size="sm" className="h-8 bg-green-600 hover:bg-green-700 text-[8px] font-headline uppercase">Approve</Button>
@@ -348,8 +432,11 @@ export default function AdminPage() {
             deposits.map((d: any) => (
               <div key={d.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in"><img src={d.proofUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={d.proofUrl} className="w-full h-auto" /></DialogContent></Dialog>
-                  <div><p className="text-[10px] font-headline font-bold uppercase">@{d.username}</p><p className="text-[12px] font-headline font-black text-primary">${d.amount}</p></div>
+                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={d.proofUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={d.proofUrl} className="w-full h-auto" /></DialogContent></Dialog>
+                  <div>
+                    <p className="text-[10px] font-headline font-bold uppercase">@{d.username} <span className="text-white/20 ml-2">via {d.method}</span></p>
+                    <p className="text-[12px] font-headline font-black text-primary">${d.amount}</p>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={() => handleAction('deposit', d.id, 'approve')} size="sm" className="h-8 bg-primary text-background font-headline text-[8px] uppercase">Verify Assets</Button>
@@ -358,6 +445,82 @@ export default function AdminPage() {
               </div>
             ))
           }
+        </TabsContent>
+
+        <TabsContent value="gateways" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest">Gateway Architect</h2><p className="text-[8px] text-muted-foreground uppercase">Configure Global Payment Entry/Exit Points</p></div>
+            <div className="flex gap-3">
+              <Button onClick={() => { setMethodType('deposit'); setIsAddingMethod(true); }} className="bg-primary/10 border border-primary/20 text-primary h-10 rounded-xl font-headline text-[8px] uppercase"><Plus size={14} className="mr-1" /> New Deposit Gateway</Button>
+              <Button onClick={() => { setMethodType('withdraw'); setIsAddingMethod(true); }} className="bg-secondary/10 border border-secondary/20 text-secondary h-10 rounded-xl font-headline text-[8px] uppercase"><Plus size={14} className="mr-1" /> New Withdraw Gateway</Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase text-primary tracking-widest flex items-center gap-2"><ArrowDownCircle size={14} /> Deposit Routes</h3>
+              <div className="space-y-3">
+                {depositMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10"><Globe size={18} /></div>
+                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p></div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleMethodStatus('deposit_methods', m.id, val)} />
+                      <button onClick={async () => { if(confirm("Delete gateway?")) await deleteDoc(doc(db, 'deposit_methods', m.id)); }} className="text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase text-secondary tracking-widest flex items-center gap-2"><ArrowUpCircle size={14} /> Withdrawal Routes</h3>
+              <div className="space-y-3">
+                {withdrawalMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-secondary/5 flex items-center justify-center text-secondary border border-secondary/10"><DollarSign size={18} /></div>
+                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</p></div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleMethodStatus('withdrawal_methods', m.id, val)} />
+                      <button onClick={async () => { if(confirm("Delete gateway?")) await deleteDoc(doc(db, 'withdrawal_methods', m.id)); }} className="text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="store" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
+            <Button onClick={() => setIsAddingProduct(true)} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {products.map((p: any) => (
+              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group">
+                <div className="aspect-video relative bg-white/5">
+                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
+                  <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
+                    <p className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</p>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <Switch checked={p.isActive} onCheckedChange={(val) => toggleMethodStatus('marketplace_services', p.id, val)} />
+                    <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="chats" className="space-y-6">
@@ -371,42 +534,27 @@ export default function AdminPage() {
                 <p className="text-[7px] text-muted-foreground uppercase">{chatConfig?.isActive ? "Agents searching for sessions" : "Automated reply active"}</p>
               </div>
             </div>
-            <Switch checked={chatConfig?.isActive || false} onCheckedChange={toggleChatAvailability} />
+            <Switch checked={chatConfig?.isActive || false} onCheckedChange={(isActive) => setDoc(doc(db, 'system_settings', 'chat_config'), { isActive })} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[600px]">
             <div className="glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-white/5 flex items-center gap-2">
-                <CircleDot size={12} className="text-primary animate-pulse" />
-                <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">Active Protocols</p>
-              </div>
+              <div className="p-4 border-b border-white/5 flex items-center gap-2"><CircleDot size={12} className="text-primary animate-pulse" /><p className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">Active Protocols</p></div>
               <div className="flex-1 overflow-y-auto no-scrollbar">
-                {chatSessions.length === 0 ? (
-                  <p className="text-center text-[8px] text-muted-foreground uppercase py-10">No active protocols</p>
-                ) : chatSessions.map((s: any) => (
+                {chatSessions.length === 0 ? <p className="text-center text-[8px] text-muted-foreground uppercase py-10">No active protocols</p> : chatSessions.map((s: any) => (
                   <button key={s.id} onClick={() => setActiveChat(s)} className={cn("w-full p-4 border-b border-white/5 text-left transition-all hover:bg-white/5", activeChat?.id === s.id && "bg-primary/10 border-primary/20")}>
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-[10px] font-headline font-bold uppercase">@{s.username}</p>
-                      <p className="text-[6px] text-primary font-black">{s.caseId}</p>
-                    </div>
+                    <div className="flex justify-between items-center mb-1"><p className="text-[10px] font-headline font-bold uppercase">@{s.username}</p><p className="text-[6px] text-primary font-black">{s.caseId}</p></div>
                     <p className="text-[8px] text-muted-foreground truncate uppercase">{s.lastMessage}</p>
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-[6px] text-white/20 uppercase">{new Date(s.updatedAt).toLocaleTimeString()}</p>
-                      <Badge variant="outline" className="text-[5px] h-3 uppercase border-white/10">{s.status}</Badge>
-                    </div>
+                    <div className="flex justify-between items-center mt-1"><p className="text-[6px] text-white/20 uppercase">{new Date(s.updatedAt).toLocaleTimeString()}</p><Badge variant="outline" className="text-[5px] h-3 uppercase border-white/10">{s.status}</Badge></div>
                   </button>
                 ))}
               </div>
-
               <div className="mt-auto border-t border-white/10 bg-black/20">
                 <div className="p-4 border-b border-white/5 flex items-center gap-2"><History size={12} className="text-muted-foreground" /><p className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">Archive Ledger</p></div>
                 <div className="h-[200px] overflow-y-auto no-scrollbar">
                   {archivedSessions.length === 0 ? <p className="text-center text-[7px] text-muted-foreground uppercase py-6 opacity-40">Ledger is clean</p> : archivedSessions.map((s: any) => (
                     <div key={s.id} onClick={() => handleOpenArchive(s)} className="w-full p-3 border-b border-white/5 text-left transition-all hover:bg-white/5 flex justify-between items-center group cursor-pointer">
-                      <div className="flex-1">
-                        <p className="text-[9px] font-headline font-bold uppercase text-white/60 group-hover:text-primary transition-colors">{s.caseId}</p>
-                        <p className="text-[6px] text-muted-foreground uppercase">{new Date(s.updatedAt).toLocaleDateString()}</p>
-                      </div>
+                      <div className="flex-1"><p className="text-[9px] font-headline font-bold uppercase text-white/60 group-hover:text-primary transition-colors">{s.caseId}</p><p className="text-[6px] text-muted-foreground uppercase">{new Date(s.updatedAt).toLocaleDateString()}</p></div>
                       <div className="flex items-center gap-2">
                         {s.rating && <div className="flex gap-0.5">{[...Array(5)].map((_, i) => <Star key={i} size={6} className={cn(i < s.rating ? "text-primary fill-primary" : "text-white/10")} />)}</div>}
                         <button onClick={(e) => handleDeleteArchive(e, s.id)} className="p-1.5 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash size={10} /></button>
@@ -416,18 +564,11 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-
             <div className="md:col-span-2 glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col">
               {activeChat ? (
                 <>
                   <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><UserIcon size={16} /></div>
-                      <div>
-                        <p className="text-[10px] font-headline font-bold uppercase">@{activeChat.username} <span className="text-[7px] text-primary ml-2">[{activeChat.caseId}]</span></p>
-                        <p className="text-[7px] text-muted-foreground uppercase">{activeChat.email}</p>
-                      </div>
-                    </div>
+                    <div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><UserIcon size={16} /></div><div><p className="text-[10px] font-headline font-bold uppercase">@{activeChat.username} <span className="text-[7px] text-primary ml-2">[{activeChat.caseId}]</span></p><p className="text-[7px] text-muted-foreground uppercase">{activeChat.email}</p></div></div>
                     <div className="flex gap-2">
                       {activeChat.status === 'open' && <Button onClick={handleJoinChat} disabled={isJoiningChat} size="sm" className="h-8 bg-green-600 text-white rounded-lg text-[8px] font-headline uppercase tracking-widest"><Play size={12} className="mr-1" /> Join Chat</Button>}
                       <Button onClick={handleEndChat} disabled={isClosingChat} size="sm" className="h-8 bg-red-600 text-white rounded-lg text-[8px] font-headline uppercase tracking-widest"><LogOut size={12} className="mr-1" /> End Case</Button>
@@ -454,7 +595,7 @@ export default function AdminPage() {
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
             <div className="relative w-full sm:max-w-md group"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" /><Input placeholder="SEARCH INTEL LEDGER..." className="pl-12 h-12 bg-card/40 border-white/10 rounded-2xl text-[10px] font-headline uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-            <div className="flex gap-4"><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Active Entities</p><p className="text-lg font-headline font-black text-white">{allUsers.length}</p></div><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Global Liquidity</p><p className="text-lg font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p></div></div>
+            <div className="flex gap-4"><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Active Entities</p><p className="text-lg font-headline font-black text-white">{allUsers.length}</p></div><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Managed Liquidity</p><p className="text-lg font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p></div></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredUsers.map((u: any) => (
@@ -464,7 +605,7 @@ export default function AdminPage() {
                     <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <UserIcon className="text-muted-foreground" />}</div>
                     <div><p className="text-[10px] font-headline font-bold uppercase">@{u.username}</p><p className="text-[7px] text-muted-foreground font-black tracking-widest">{u.customId}</p></div>
                   </div>
-                  <button onClick={() => { setEditingUserId(u.id); setEditEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
+                  <button onClick={() => { setEditingUserId(u.id); setEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
                 </div>
                 <div className="space-y-3"><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Vault Status:</span><span className="text-sm font-headline font-black text-primary">${u.balance?.toLocaleString()}</span></div><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Role:</span><Badge variant="outline" className="text-[6px] uppercase border-primary/20 text-primary">{u.role}</Badge></div></div>
               </div>
@@ -472,17 +613,17 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="verifications" className="space-y-4">
+        <TabsContent value="kyc" className="space-y-4">
           {verifications.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">CLEAN PROTOCOL</p></div> : 
             verifications.map((v: any) => (
               <div key={v.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
-                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in"><img src={v.docImageUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={v.docImageUrl} className="w-full h-auto" /></DialogContent></Dialog>
+                  <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={v.docImageUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={v.docImageUrl} className="w-full h-auto" /></DialogContent></Dialog>
                   <div><p className="text-[10px] font-headline font-bold uppercase">@{v.username}</p><p className="text-[7px] text-muted-foreground uppercase">IDENTITY SCAN: {v.status}</p></div>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => handleAction('kyc', v.id, 'approve')} size="sm" className="h-8 bg-secondary text-background font-headline text-[8px] uppercase">Verify</Button>
-                  <Button onClick={() => handleAction('kyc', v.id, 'reject')} size="sm" variant="destructive" className="h-8 text-[8px] font-headline uppercase">Invalidate</Button>
+                  <button onClick={() => handleAction('kyc', v.id, 'approve')} className="h-8 px-4 bg-secondary text-background font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Verify</button>
+                  <button onClick={() => handleAction('kyc', v.id, 'reject')} className="h-8 px-4 bg-red-600 text-white font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Invalidate</button>
                 </div>
               </div>
             ))
@@ -490,15 +631,84 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Management Dialogs */}
+      <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
+        <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Banknote size={14} className="text-primary" /> Gateway Configurator</DialogTitle></DialogHeader>
+          <div className="mt-6 space-y-5">
+            <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Gateway Name</Label><Input placeholder="e.g. STC Pay / Binance" className="bg-background border-white/10 h-12 text-xs" value={newMethod.name} onChange={(e) => setNewMethod({...newMethod, name: e.target.value})} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Region</Label><Select value={newMethod.country} onValueChange={(v) => setNewMethod({...newMethod, country: v})}><SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Exchange Rate (vs USD)</Label><Input type="number" className="bg-background border-white/10 h-12 text-xs" value={newMethod.exchangeRate} onChange={(e) => setNewMethod({...newMethod, exchangeRate: parseFloat(e.target.value)})} /></div>
+            </div>
+            {methodType === 'withdraw' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Fee Mode</Label><Select value={newMethod.feeType} onValueChange={(v) => setNewMethod({...newMethod, feeType: v})}><SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10"><SelectItem value="fixed">Fixed USD</SelectItem><SelectItem value="percent">Percentage</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Fee Value</Label><Input type="number" className="bg-background border-white/10 h-12 text-xs" value={newMethod.feeValue} onChange={(e) => setNewMethod({...newMethod, feeValue: parseFloat(e.target.value)})} /></div>
+              </div>
+            )}
+            <div className="space-y-4 pt-2">
+              <div className="flex justify-between items-center"><Label className="text-[8px] uppercase text-primary">Required Meta-Fields</Label><button onClick={() => setNewMethod({...newMethod, fields: [...newMethod.fields, { label: '', value: '', type: 'text' }]})} className="text-[8px] font-headline text-primary border border-primary/20 px-2 py-1 rounded-md">+ Add Field</button></div>
+              {newMethod.fields.map((f: any, i: number) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <Input placeholder="Label (e.g. Account No)" className="bg-background/50 border-white/5 h-10 text-[10px]" value={f.label} onChange={(e) => { const fs = [...newMethod.fields]; fs[i].label = e.target.value; setNewMethod({...newMethod, fields: fs}); }} />
+                  {methodType === 'deposit' && <Input placeholder="Value (e.g. 123456)" className="bg-background/50 border-white/5 h-10 text-[10px]" value={f.value} onChange={(e) => { const fs = [...newMethod.fields]; fs[i].value = e.target.value; setNewMethod({...newMethod, fields: fs}); }} />}
+                  <button onClick={() => { const fs = newMethod.fields.filter((_: any, idx: number) => i !== idx); setNewMethod({...newMethod, fields: fs}); }} className="text-red-500/40 hover:text-red-500"><X size={14} /></button>
+                </div>
+              ))}
+            </div>
+            <Button onClick={handleSaveMethod} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Deploy Gateway</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
+        <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Store size={14} className="text-primary" /> Asset Foundry</DialogTitle></DialogHeader>
+          <div className="mt-6 space-y-5">
+            <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Asset Name</Label><Input placeholder="PUBG Mobile 600 UC" className="bg-background border-white/10 h-12 text-xs" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Category</Label><Select value={newProduct.category} onValueChange={(v) => setNewProduct({...newProduct, category: v})}><SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10"><SelectItem value="GAMES">Games</SelectItem><SelectItem value="CARDS">Gift Cards</SelectItem><SelectItem value="SOFTWARE">Software</SelectItem><SelectItem value="SOCIAL">Social Media</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Price ($)</Label><Input type="number" disabled={newProduct.type === 'variable'} className="bg-background border-white/10 h-12 text-xs disabled:opacity-30" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} /></div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+              <div className="space-y-1"><Label className="text-[9px] font-headline uppercase">Multiple Quantities</Label><p className="text-[7px] text-muted-foreground uppercase">Enable tiered pricing packages</p></div>
+              <Switch checked={newProduct.type === 'variable'} onCheckedChange={(val) => setNewProduct({...newProduct, type: val ? 'variable' : 'fixed'})} />
+            </div>
+            {newProduct.type === 'variable' && (
+              <div className="space-y-3 pt-2">
+                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase text-primary">Pricing Tiers</Label><button onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, { label: '', price: 0 }]})} className="text-[8px] font-headline text-primary border border-primary/20 px-2 py-1 rounded-md">+ Add Tier</button></div>
+                {newProduct.variants.map((v: any, i: number) => (
+                  <div key={i} className="flex gap-2">
+                    <Input placeholder="Package (e.g. 600 UC)" className="flex-1 bg-background/50 border-white/5 h-10 text-[10px]" value={v.label} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].label = e.target.value; setNewProduct({...newProduct, variants: vs}); }} />
+                    <Input type="number" placeholder="Price" className="w-24 bg-background/50 border-white/5 h-10 text-[10px]" value={v.price} onChange={(e) => { const vs = [...newProduct.variants]; vs[i].price = parseFloat(e.target.value); setNewProduct({...newProduct, variants: vs}); }} />
+                    <button onClick={() => { const vs = newProduct.variants.filter((_: any, idx: number) => i !== idx); setNewProduct({...newProduct, variants: vs}); }} className="text-red-500/40"><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
+              <div className="space-y-1"><Label className="text-[9px] font-headline uppercase">Require User Input</Label><p className="text-[7px] text-muted-foreground uppercase">e.g. Game ID or Account Link</p></div>
+              <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
+            </div>
+            {newProduct.requiresInput && (
+              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Input Label</Label><Input placeholder="Enter Player ID" className="bg-background border-white/10 h-12 text-xs" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} /></div>
+            )}
+            <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Image URL</Label><Input placeholder="https://..." className="bg-background border-white/10 h-12 text-xs" value={newProduct.imageUrl} onChange={(e) => setNewProduct({...newProduct, imageUrl: e.target.value})} /></div>
+            <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Authorize Asset</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* User Edit Modal */}
       <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
           <div className="mt-6 space-y-6">
-            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Adjust Balance ($)</Label><Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-lg text-primary text-center" value={editForm.balance} onChange={(e) => setEditEditForm({...editForm, balance: e.target.value})} /></div>
-            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority Role</Label><Select value={editForm.role} onValueChange={(val) => setEditEditForm({...editForm, role: val})}><SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10"><SelectItem value="user">User (Standard)</SelectItem><SelectItem value="agent">Agent (Intermediate)</SelectItem><SelectItem value="admin">Admin (Full Control)</SelectItem></SelectContent></Select></div>
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5"><Label className="text-[10px] font-headline uppercase">Verified Entity</Label><Switch checked={editForm.verified} onCheckedChange={(val) => setEditEditForm({...editForm, verified: val})} /></div>
-            <Button onClick={handleSaveUser} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
+            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Adjust Balance ($)</Label><Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-lg text-primary text-center" value={editForm.balance} onChange={(e) => setEditForm({...editForm, balance: e.target.value})} /></div>
+            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority Role</Label><Select value={editForm.role} onValueChange={(val) => setEditForm({...editForm, role: val})}><SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10"><SelectItem value="user">User (Standard)</SelectItem><SelectItem value="agent">Agent (Intermediate)</SelectItem><SelectItem value="admin">Admin (Full Control)</SelectItem></SelectContent></Select></div>
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5"><Label className="text-[10px] font-headline uppercase">Verified Entity</Label><Switch checked={editForm.verified} onCheckedChange={(val) => setEditForm({...editForm, verified: val})} /></div>
+            <Button onClick={async () => { try { await updateDoc(doc(db, 'users', editingUserId!), { balance: parseFloat(editForm.balance), role: editForm.role, verified: editForm.verified }); toast({ title: "SYNCED" }); setEditingUserId(null); } catch (e) {} }} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
           </div>
         </DialogContent>
       </Dialog>
