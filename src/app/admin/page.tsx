@@ -72,7 +72,8 @@ import {
   MoreVertical,
   Store,
   PlusCircle,
-  Banknote
+  Banknote,
+  ClipboardList
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -182,6 +183,12 @@ export default function AdminPage() {
   const verificationsQuery = useMemo(() => query(collection(db, 'verifications'), orderBy('date', 'desc')), [db]);
   const { data: verifications = [] } = useCollection(verificationsQuery);
 
+  const ticketsQuery = useMemo(() => query(collection(db, 'support_tickets'), orderBy('date', 'desc')), [db]);
+  const { data: tickets = [] } = useCollection(ticketsQuery);
+
+  const ordersQuery = useMemo(() => query(collection(db, 'service_requests'), orderBy('date', 'desc')), [db]);
+  const { data: orders = [] } = useCollection(ordersQuery);
+
   const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions')), [db]);
   const { data: allChatSessions = [] } = useCollection(chatSessionsQuery);
 
@@ -194,7 +201,7 @@ export default function AdminPage() {
   const productsQuery = useMemo(() => query(collection(db, 'marketplace_services')), [db]);
   const { data: products = [] } = useCollection(productsQuery);
 
-  // Processed Data
+  // Processed Chat Data
   const chatSessions = useMemo(() => {
     return allChatSessions
       .filter((s: any) => ['open', 'active', 'closed'].includes(s.status))
@@ -241,11 +248,12 @@ export default function AdminPage() {
   }, [db, activeChat]);
 
   // Handlers
-  const handleAction = async (type: 'deposit' | 'withdraw' | 'kyc', id: string, action: 'approve' | 'reject') => {
+  const handleAction = async (type: 'deposit' | 'withdraw' | 'kyc' | 'order', id: string, action: 'approve' | 'reject', extra?: any) => {
     if (!db) return;
     try {
-      const collectionName = type === 'kyc' ? 'verifications' : type === 'deposit' ? 'deposits' : 'withdrawals';
+      const collectionName = type === 'kyc' ? 'verifications' : type === 'deposit' ? 'deposits' : type === 'withdraw' ? 'withdrawals' : 'service_requests';
       const docRef = doc(db, collectionName, id);
+      
       const snap = await getDocs(query(collection(db, collectionName), where('__name__', '==', id)));
       if (snap.empty) return;
       const data = snap.docs[0].data();
@@ -253,7 +261,8 @@ export default function AdminPage() {
       if (action === 'approve') {
         await runTransaction(db, async (transaction) => {
           const userRef = doc(db, 'users', data.userId);
-          transaction.update(docRef, { status: 'approved' });
+          transaction.update(docRef, { status: 'approved', ...extra });
+          
           if (type === 'deposit') {
             transaction.update(userRef, { balance: increment(data.amount) });
             const txRef = doc(collection(db, 'users', data.userId, 'transactions'));
@@ -261,20 +270,21 @@ export default function AdminPage() {
           } else if (type === 'kyc') {
             transaction.update(userRef, { verified: true });
           }
+          
           const notifRef = doc(collection(db, 'users', data.userId, 'notifications'));
           transaction.set(notifRef, {
-            title: type === 'deposit' ? "Vault Shipped" : type === 'kyc' ? "Authority Verified" : "Withdrawal Secured",
-            message: type === 'deposit' ? `Success! $${data.amount} added to your assets.` : type === 'kyc' ? "Your identity protocol is now verified." : `Your $${data.amount} request has been processed.`,
+            title: type === 'deposit' ? "Assets Credited" : type === 'kyc' ? "Authority Verified" : type === 'order' ? "Order Fulfilled" : "Withdrawal Success",
+            message: type === 'deposit' ? `$${data.amount} added to vault.` : type === 'order' ? `${data.serviceName} is now ready.` : "Protocol executed successfully.",
             read: false,
             date: new Date().toISOString()
           });
         });
       } else {
         await runTransaction(db, async (transaction) => {
-          transaction.update(docRef, { status: 'rejected' });
-          if (type === 'withdraw') {
+          transaction.update(docRef, { status: 'rejected', rejectionReason: extra?.reason || 'Protocol Denied' });
+          if (type === 'withdraw' || type === 'order') {
             const userRef = doc(db, 'users', data.userId);
-            transaction.update(userRef, { balance: increment(data.amount) });
+            transaction.update(userRef, { balance: increment(data.amountUsd || data.price) });
           }
         });
       }
@@ -301,7 +311,7 @@ export default function AdminPage() {
     } catch (e) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
   };
 
-  const toggleMethodStatus = async (coll: string, id: string, status: boolean) => {
+  const toggleStatus = async (coll: string, id: string, status: boolean) => {
     try { await updateDoc(doc(db, coll, id), { isActive: status }); toast({ title: "STATUS SYNCED" }); } catch (e) { }
   };
 
@@ -383,15 +393,9 @@ export default function AdminPage() {
       <header className="flex justify-between items-center p-5 glass-card rounded-[2rem] border-primary/20 gold-glow">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="p-2 hover:bg-primary/10 rounded-xl transition-all text-primary group"><LayoutDashboard className="h-6 w-6 group-hover:scale-110" /></Link>
-          <div><h1 className="text-xs font-headline font-bold tracking-widest uppercase">Admin Command</h1><p className="text-[8px] text-muted-foreground uppercase font-black">Authorized Shell v4.0</p></div>
+          <div><h1 className="text-xs font-headline font-bold tracking-widest uppercase">Admin Command</h1><p className="text-[8px] text-muted-foreground uppercase font-black">Authorized Shell v4.5.0</p></div>
         </div>
-        <div className="flex gap-4 items-center">
-          <div className="hidden sm:block text-right">
-            <p className="text-[7px] text-muted-foreground uppercase font-black">System Liquidity</p>
-            <p className="text-sm font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p>
-          </div>
-          <Badge variant="outline" className="text-[8px] tracking-[0.2em] font-black uppercase text-primary border-primary/30 py-1">Superuser</Badge>
-        </div>
+        <Badge variant="outline" className="text-[8px] tracking-[0.2em] font-black uppercase text-primary border-primary/30 py-1">System Master</Badge>
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
@@ -399,7 +403,9 @@ export default function AdminPage() {
           <TabsList className="flex w-max h-auto bg-card/40 border border-white/5 rounded-2xl p-1 gap-1">
             <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraws</TabsTrigger>
             <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ArrowDownCircle className="h-3 w-3 mr-1" /> Deposits</TabsTrigger>
-            <TabsTrigger value="chats" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><MessageSquare className="h-3 w-3 mr-1" /> Support</TabsTrigger>
+            <TabsTrigger value="chats" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><MessageSquare className="h-3 w-3 mr-1" /> Chats</TabsTrigger>
+            <TabsTrigger value="tickets" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Ticket className="h-3 w-3 mr-1" /> Tickets</TabsTrigger>
+            <TabsTrigger value="orders" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ClipboardList className="h-3 w-3 mr-1" /> Orders</TabsTrigger>
             <TabsTrigger value="gateways" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Banknote className="h-3 w-3 mr-1" /> Gateways</TabsTrigger>
             <TabsTrigger value="store" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Store className="h-3 w-3 mr-1" /> Store</TabsTrigger>
             <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Users className="h-3 w-3 mr-1" /> Entities</TabsTrigger>
@@ -407,6 +413,7 @@ export default function AdminPage() {
           </TabsList>
         </div>
 
+        {/* 1. Withdrawals */}
         <TabsContent value="withdrawals" className="space-y-4">
           {withdrawals.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">CLEAN RECORD</p></div> : 
             withdrawals.map((w: any) => (
@@ -418,15 +425,19 @@ export default function AdminPage() {
                     <p className="text-[12px] font-headline font-black text-white">${w.amountUsd} <ArrowRight className="inline mx-1 h-3 w-3 text-muted-foreground" /> {w.netAmount} {w.currencyCode}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => handleAction('withdraw', w.id, 'approve')} size="sm" className="h-8 bg-green-600 hover:bg-green-700 text-[8px] font-headline uppercase">Approve</Button>
-                  <Button onClick={() => handleAction('withdraw', w.id, 'reject')} size="sm" variant="destructive" className="h-8 text-[8px] font-headline uppercase">Reject</Button>
-                </div>
+                {w.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleAction('withdraw', w.id, 'approve')} size="sm" className="h-8 bg-green-600 hover:bg-green-700 text-[8px] font-headline uppercase">Approve</Button>
+                    <Button onClick={() => handleAction('withdraw', w.id, 'reject')} size="sm" variant="destructive" className="h-8 text-[8px] font-headline uppercase">Reject</Button>
+                  </div>
+                )}
+                {w.status !== 'pending' && <Badge className="uppercase text-[8px]">{w.status}</Badge>}
               </div>
             ))
           }
         </TabsContent>
 
+        {/* 2. Deposits */}
         <TabsContent value="deposits" className="space-y-4">
           {deposits.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">CLEAN RECORD</p></div> : 
             deposits.map((d: any) => (
@@ -438,91 +449,19 @@ export default function AdminPage() {
                     <p className="text-[12px] font-headline font-black text-primary">${d.amount}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => handleAction('deposit', d.id, 'approve')} size="sm" className="h-8 bg-primary text-background font-headline text-[8px] uppercase">Verify Assets</Button>
-                  <Button onClick={() => handleAction('deposit', d.id, 'reject')} size="sm" variant="outline" className="h-8 text-[8px] font-headline uppercase border-white/10">Purge</Button>
-                </div>
+                {d.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleAction('deposit', d.id, 'approve')} size="sm" className="h-8 bg-primary text-background font-headline text-[8px] uppercase">Verify Assets</Button>
+                    <Button onClick={() => handleAction('deposit', d.id, 'reject')} size="sm" variant="outline" className="h-8 text-[8px] font-headline uppercase border-white/10">Purge</Button>
+                  </div>
+                )}
+                {d.status !== 'pending' && <Badge className="uppercase text-[8px]">{d.status}</Badge>}
               </div>
             ))
           }
         </TabsContent>
 
-        <TabsContent value="gateways" className="space-y-8">
-          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
-            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest">Gateway Architect</h2><p className="text-[8px] text-muted-foreground uppercase">Configure Global Payment Entry/Exit Points</p></div>
-            <div className="flex gap-3">
-              <Button onClick={() => { setMethodType('deposit'); setIsAddingMethod(true); }} className="bg-primary/10 border border-primary/20 text-primary h-10 rounded-xl font-headline text-[8px] uppercase"><Plus size={14} className="mr-1" /> New Deposit Gateway</Button>
-              <Button onClick={() => { setMethodType('withdraw'); setIsAddingMethod(true); }} className="bg-secondary/10 border border-secondary/20 text-secondary h-10 rounded-xl font-headline text-[8px] uppercase"><Plus size={14} className="mr-1" /> New Withdraw Gateway</Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-headline font-bold uppercase text-primary tracking-widest flex items-center gap-2"><ArrowDownCircle size={14} /> Deposit Routes</h3>
-              <div className="space-y-3">
-                {depositMethods.map((m: any) => (
-                  <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10"><Globe size={18} /></div>
-                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p></div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleMethodStatus('deposit_methods', m.id, val)} />
-                      <button onClick={async () => { if(confirm("Delete gateway?")) await deleteDoc(doc(db, 'deposit_methods', m.id)); }} className="text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-headline font-bold uppercase text-secondary tracking-widest flex items-center gap-2"><ArrowUpCircle size={14} /> Withdrawal Routes</h3>
-              <div className="space-y-3">
-                {withdrawalMethods.map((m: any) => (
-                  <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-secondary/5 flex items-center justify-center text-secondary border border-secondary/10"><DollarSign size={18} /></div>
-                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</p></div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleMethodStatus('withdrawal_methods', m.id, val)} />
-                      <button onClick={async () => { if(confirm("Delete gateway?")) await deleteDoc(doc(db, 'withdrawal_methods', m.id)); }} className="text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="store" className="space-y-8">
-          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
-            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
-            <Button onClick={() => setIsAddingProduct(true)} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {products.map((p: any) => (
-              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group">
-                <div className="aspect-video relative bg-white/5">
-                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
-                  <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
-                    <p className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <Switch checked={p.isActive} onCheckedChange={(val) => toggleMethodStatus('marketplace_services', p.id, val)} />
-                    <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
-
+        {/* 3. Chats */}
         <TabsContent value="chats" className="space-y-6">
           <div className="glass-card p-6 rounded-[2rem] border-primary/10 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -592,6 +531,161 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
+        {/* 4. Tickets (Support Forms) */}
+        <TabsContent value="tickets" className="space-y-4">
+          {tickets.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">NO TICKETS</p></div> : 
+            tickets.map((t: any) => (
+              <div key={t.id} className="glass-card p-6 rounded-3xl border-white/5 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    {t.imageUrl ? (
+                      <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-blue-500/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={t.imageUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={t.imageUrl} className="w-full h-auto" /></DialogContent></Dialog>
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20"><FileText size={24} /></div>
+                    )}
+                    <div>
+                      <p className="text-[10px] font-headline font-bold uppercase">@{t.username} <span className="text-white/20 ml-2">[{t.subject}]</span></p>
+                      <p className="text-[8px] text-muted-foreground uppercase">{new Date(t.date).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="uppercase text-[7px] border-blue-500/30 text-blue-500">{t.status}</Badge>
+                </div>
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-[10px] font-headline leading-relaxed text-white/80 italic">"{t.message}"</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), { status: 'resolved' }); toast({ title: "RESOLVED" }); }} size="sm" className="h-8 bg-blue-600 text-white text-[8px] font-headline uppercase">Mark Resolved</Button>
+                  <Button onClick={async () => { if(confirm("Purge?")) await deleteDoc(doc(db, 'support_tickets', t.id)); }} size="sm" variant="ghost" className="h-8 text-red-500 text-[8px] font-headline uppercase">Purge</Button>
+                </div>
+              </div>
+            ))
+          }
+        </TabsContent>
+
+        {/* 5. Orders (Store Requests) */}
+        <TabsContent value="orders" className="space-y-4">
+          {orders.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">NO ORDERS</p></div> : 
+            orders.map((o: any) => (
+              <div key={o.id} className="glass-card p-6 rounded-3xl border-white/5 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20"><ShoppingBag size={20} /></div>
+                    <div>
+                      <p className="text-[10px] font-headline font-bold uppercase">@{o.username} <span className="text-white/20 ml-2"> ordered {o.serviceName}</span></p>
+                      <p className="text-[12px] font-headline font-black text-primary">${o.price} <span className="text-[8px] text-muted-foreground font-black ml-2">{o.selectedVariant}</span></p>
+                    </div>
+                  </div>
+                  <Badge className="uppercase text-[7px]">{o.status}</Badge>
+                </div>
+                {o.userInput && (
+                  <div className="p-3 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center">
+                    <span className="text-[8px] text-muted-foreground uppercase font-black">User Data:</span>
+                    <span className="text-[10px] font-headline font-bold text-primary select-all">{o.userInput}</span>
+                  </div>
+                )}
+                {o.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild><Button size="sm" className="h-8 bg-green-600 text-white text-[8px] font-headline uppercase">Complete Order</Button></DialogTrigger>
+                      <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem]">
+                        <DialogHeader><DialogTitle className="text-xs font-headline font-bold uppercase">Deliver Asset</DialogTitle></DialogHeader>
+                        <div className="mt-4 space-y-4">
+                          <Label className="text-[8px] uppercase">Asset Key / Result Code</Label>
+                          <Input id={`code-${o.id}`} placeholder="ENTER CODE..." className="h-12 bg-background border-white/10" />
+                          <Button onClick={() => {
+                            const val = (document.getElementById(`code-${o.id}`) as HTMLInputElement).value;
+                            handleAction('order', o.id, 'approve', { resultCode: val });
+                          }} className="w-full h-12 bg-primary text-background font-headline font-bold text-[9px] uppercase">Authorize Delivery</Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <Button onClick={() => handleAction('order', o.id, 'reject', { reason: 'System Failure' })} size="sm" variant="destructive" className="h-8 text-[8px] font-headline uppercase">Refund & Reject</Button>
+                  </div>
+                )}
+              </div>
+            ))
+          }
+        </TabsContent>
+
+        {/* 6. Gateways */}
+        <TabsContent value="gateways" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest">Gateway Architect</h2><p className="text-[8px] text-muted-foreground uppercase">Configure Global Payment Entry/Exit Points</p></div>
+            <div className="flex gap-3">
+              <Button onClick={() => { setMethodType('deposit'); setIsAddingMethod(true); }} className="bg-primary/10 border border-primary/20 text-primary h-10 rounded-xl font-headline text-[8px] uppercase"><Plus size={14} className="mr-1" /> New Deposit Gateway</Button>
+              <Button onClick={() => { setMethodType('withdraw'); setIsAddingMethod(true); }} className="bg-secondary/10 border border-secondary/20 text-secondary h-10 rounded-xl font-headline text-[8px] uppercase"><Plus size={14} className="mr-1" /> New Withdraw Gateway</Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase text-primary tracking-widest flex items-center gap-2"><ArrowDownCircle size={14} /> Deposit Routes</h3>
+              <div className="space-y-3">
+                {depositMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10"><Globe size={18} /></div>
+                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p></div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('deposit_methods', m.id, val)} />
+                      <button onClick={async () => { if(confirm("Delete gateway?")) await deleteDoc(doc(db, 'deposit_methods', m.id)); }} className="text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase text-secondary tracking-widest flex items-center gap-2"><ArrowUpCircle size={14} /> Withdrawal Routes</h3>
+              <div className="space-y-3">
+                {withdrawalMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-secondary/5 flex items-center justify-center text-secondary border border-secondary/10"><DollarSign size={18} /></div>
+                      <div><p className="text-[10px] font-headline font-bold uppercase">{m.name} <Badge variant="outline" className="text-[6px] ml-2 border-white/10 uppercase">{m.country}</Badge></p><p className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</p></div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('withdrawal_methods', m.id, val)} />
+                      <button onClick={async () => { if(confirm("Delete gateway?")) await deleteDoc(doc(db, 'withdrawal_methods', m.id)); }} className="text-red-500/40 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* 7. Store */}
+        <TabsContent value="store" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
+            <Button onClick={() => setIsAddingProduct(true)} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {products.map((p: any) => (
+              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group">
+                <div className="aspect-video relative bg-white/5">
+                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
+                  <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
+                    <p className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</p>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <Switch checked={p.isActive} onCheckedChange={(val) => toggleStatus('marketplace_services', p.id, val)} />
+                    <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* 8. Users */}
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
             <div className="relative w-full sm:max-w-md group"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" /><Input placeholder="SEARCH INTEL LEDGER..." className="pl-12 h-12 bg-card/40 border-white/10 rounded-2xl text-[10px] font-headline uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
@@ -613,6 +707,7 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
+        {/* 9. KYC */}
         <TabsContent value="kyc" className="space-y-4">
           {verifications.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">CLEAN PROTOCOL</p></div> : 
             verifications.map((v: any) => (
@@ -621,10 +716,13 @@ export default function AdminPage() {
                   <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={v.docImageUrl} className="w-full h-full object-cover" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={v.docImageUrl} className="w-full h-auto" /></DialogContent></Dialog>
                   <div><p className="text-[10px] font-headline font-bold uppercase">@{v.username}</p><p className="text-[7px] text-muted-foreground uppercase">IDENTITY SCAN: {v.status}</p></div>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleAction('kyc', v.id, 'approve')} className="h-8 px-4 bg-secondary text-background font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Verify</button>
-                  <button onClick={() => handleAction('kyc', v.id, 'reject')} className="h-8 px-4 bg-red-600 text-white font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Invalidate</button>
-                </div>
+                {v.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button onClick={() => handleAction('kyc', v.id, 'approve')} className="h-8 px-4 bg-secondary text-background font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Verify</button>
+                    <button onClick={() => handleAction('kyc', v.id, 'reject')} className="h-8 px-4 bg-red-600 text-white font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Invalidate</button>
+                  </div>
+                )}
+                {v.status !== 'pending' && <Badge className="uppercase text-[8px]">{v.status}</Badge>}
               </div>
             ))
           }
