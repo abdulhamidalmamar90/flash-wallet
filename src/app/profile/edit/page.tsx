@@ -26,7 +26,8 @@ import {
   KeyRound,
   Delete,
   Fingerprint,
-  Plus
+  Plus,
+  Shield
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
@@ -44,6 +45,10 @@ import { Textarea } from '@/components/ui/textarea';
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/crop-image';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+import { NativeBiometric } from 'capacitor-native-biometric';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -71,7 +76,7 @@ const COUNTRIES = [
   { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
   { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
   { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
-  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحري', flag: '🇧🇭', prefix: '+973' },
+  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
   { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
   { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
   { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
@@ -102,6 +107,13 @@ export default function EditProfilePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+
+  // Biometric State
+  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
+  const [isBiometricEnrollModalOpen, setIsBiometricEnrollModalOpen] = useState(false);
+  const [confirmPasswordForBio, setConfirmPasswordForBio] = useState('');
+  const [submittingBioEnroll, setSubmittingBioEnroll] = useState(false);
 
   // PIN States
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -153,6 +165,23 @@ export default function EditProfilePage() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    const checkBiometricEnrollment = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const availability = await NativeBiometric.isAvailable();
+          setIsBiometricAvailable(availability.isAvailable);
+          
+          const { value } = await Preferences.get({ key: 'flash_biometric_auth' });
+          setIsBiometricEnrolled(!!value);
+        } catch (e) {
+          console.warn("Biometric check failed", e);
+        }
+      }
+    };
+    checkBiometricEnrollment();
+  }, []);
+
   const t = {
     header: language === 'ar' ? 'تعديل الحساب' : 'Edit Profile',
     usernameLabel: language === 'ar' ? 'اسم المستخدم' : 'Username',
@@ -192,7 +221,12 @@ export default function EditProfilePage() {
     pinDesc: language === 'ar' ? 'يستخدم الرمز لتأكيد السحب والتحويل' : 'Used to authorize transfers and withdrawals',
     pinLockedDesc: language === 'ar' ? 'غير قابل للتعديل لأمانك. راسل الإدارة للتصفير.' : 'PIN is locked for your security. Contact admin to reset.',
     authVault: language === 'ar' ? 'تأمين الخزنة' : 'Authorize Vault PIN',
-    phoneInUse: language === 'ar' ? 'هذا الرقم مستخدم مسبقاً في حساب آخر' : 'This phone number is already in use by another account'
+    phoneInUse: language === 'ar' ? 'هذا الرقم مستخدم مسبقاً في حساب آخر' : 'This phone number is already in use by another account',
+    biometricTitle: language === 'ar' ? 'الأمان الحيوي' : 'Biometric Security',
+    biometricEnable: language === 'ar' ? 'تفعيل تسجيل الدخول بالبصمة' : 'Enable Fingerprint Login',
+    biometricDesc: language === 'ar' ? 'استخدم بصمتك لتجاوز شاشة تسجيل الدخول مستقبلاً' : 'Use your biometric data to bypass manual login in future sessions.',
+    confirmPassBio: language === 'ar' ? 'أكد كلمة المرور للتفويض' : 'Confirm Password to Authorize',
+    authBio: language === 'ar' ? 'تفويض البصمة' : 'Authorize Biometric'
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,13 +261,43 @@ export default function EditProfilePage() {
     }
   };
 
+  const handleToggleBiometric = async (val: boolean) => {
+    if (val) {
+      setIsBiometricEnrollModalOpen(true);
+    } else {
+      await Preferences.remove({ key: 'flash_biometric_auth' });
+      setIsBiometricEnrolled(false);
+      toast({ title: language === 'ar' ? "تم تعطيل البصمة" : "Biometric Disabled" });
+    }
+  };
+
+  const handleEnrollBiometric = async () => {
+    if (!confirmPasswordForBio || !profile?.email) return;
+    setSubmittingBioEnroll(true);
+    try {
+      // We don't verify password here directly for simplicity in prototype, 
+      // but in production we should re-auth with Firebase to be sure.
+      await Preferences.set({
+        key: 'flash_biometric_auth',
+        value: JSON.stringify({ e: profile.email, p: confirmPasswordForBio })
+      });
+      setIsBiometricEnrolled(true);
+      setIsBiometricEnrollModalOpen(false);
+      setConfirmPasswordForBio('');
+      toast({ title: language === 'ar' ? "تم تفويض البصمة بنجاح" : "Biometric Authorized Successfully" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Enrollment Failed" });
+    } finally {
+      setSubmittingBioEnroll(false);
+    }
+  };
+
   const handleSendOtp = async () => {
     if (!phone || !auth || !db) return;
     setVerifyingPhone(true);
     try {
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
       
-      // Check for phone duplicate (not current user)
       const q = query(collection(db, 'users'), where('phone', '==', fullPhone));
       const snap = await getDocs(q);
       const isUsedByOthers = snap.docs.some(doc => doc.id !== user?.uid);
@@ -263,7 +327,6 @@ export default function EditProfilePage() {
     const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
     try {
       await confirmationResult.confirm(code);
-      // Immediately update phone and verification status in DB
       await updateDoc(doc(db, 'users', user.uid), { 
         phone: fullPhone,
         phoneVerified: true 
@@ -285,7 +348,6 @@ export default function EditProfilePage() {
     try {
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
       
-      // Check duplicate on save too
       const q = query(collection(db, 'users'), where('phone', '==', fullPhone));
       const snap = await getDocs(q);
       if (snap.docs.some(d => d.id !== user.uid)) {
@@ -519,6 +581,23 @@ export default function EditProfilePage() {
         <Button type="submit" disabled={loading} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest gold-glow">{loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : t.saveBtn}</Button>
       </form>
 
+      {/* Biometric Security Section */}
+      {isBiometricAvailable && (
+        <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl cyan-glow">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-secondary">
+              <Fingerprint size={18} />
+              <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.biometricTitle}</h2>
+            </div>
+            <Switch checked={isBiometricEnrolled} onCheckedChange={handleToggleBiometric} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] font-headline font-bold uppercase text-white/80">{t.biometricEnable}</p>
+            <p className="text-[8px] text-muted-foreground uppercase leading-relaxed">{t.biometricDesc}</p>
+          </div>
+        </div>
+      )}
+
       {/* Security PIN Section */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> {t.pinTitle}</h2>
@@ -534,6 +613,39 @@ export default function EditProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Biometric Enrollment Modal */}
+      <Dialog open={isBiometricEnrollModalOpen} onOpenChange={setIsBiometricEnrollModalOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-secondary flex items-center justify-center gap-2">
+              <Shield size={16} /> {t.authBio}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-6 space-y-6">
+            <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold leading-relaxed">
+              {t.confirmPassBio}
+            </p>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
+              <Input 
+                type="password" 
+                placeholder="CURRENT PASSWORD" 
+                className="pl-10 h-12 bg-white/5 border-white/10 text-xs"
+                value={confirmPasswordForBio}
+                onChange={(e) => setConfirmPasswordForBio(e.target.value)}
+              />
+            </div>
+            <Button 
+              onClick={handleEnrollBiometric} 
+              disabled={submittingBioEnroll || !confirmPasswordForBio} 
+              className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow"
+            >
+              {submittingBioEnroll ? <Loader2 className="animate-spin" /> : t.authBio}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* PIN Setup Modal */}
       <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>

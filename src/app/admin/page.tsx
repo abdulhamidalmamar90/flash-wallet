@@ -146,20 +146,17 @@ export default function AdminPage() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newBalance, setNewBalance] = useState<string>('');
 
-  // Rejection Dialog State
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [activeKycRequest, setActiveKycRequest] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
 
-  // Service Request Modal States
   const [activeServiceRequest, setActiveServiceRequest] = useState<any>(null);
   const [serviceAction, setServiceAction] = useState<'complete' | 'reject' | null>(null);
   const [serviceResult, setServiceResult] = useState('');
   const [serviceRejectReason, setServiceRejectReason] = useState('');
   const [isSubmittingService, setIsSubmittingService] = useState(false);
 
-  // Deposit Method Config State
   const [editingDepositId, setEditingDepositId] = useState<string | null>(null);
   const [newMethodCountry, setNewMethodCountry] = useState('');
   const [newMethodName, setNewMethodName] = useState('');
@@ -168,7 +165,6 @@ export default function AdminPage() {
   const [newMethodRate, setNewMethodRate] = useState('1');
   const [depositFields, setDepositFields] = useState<Array<{ label: string, value: string }>>([]);
 
-  // Withdrawal Method Dynamic Config State
   const [editingWithdrawId, setEditingWithdrawId] = useState<string | null>(null);
   const [newWithdrawCountry, setNewWithdrawCountry] = useState('');
   const [newWithdrawName, setNewWithdrawName] = useState('');
@@ -179,7 +175,6 @@ export default function AdminPage() {
   const [newWithdrawFeeValue, setNewWithdrawFeeValue] = useState('0');
   const [withdrawFields, setWithdrawFields] = useState<Array<{ label: string, type: 'text' | 'textarea' | 'select', options?: string }>>([]);
 
-  // Advanced Marketplace Services Config State
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
@@ -220,7 +215,6 @@ export default function AdminPage() {
   const serviceRequestsQuery = useMemo(() => query(collection(db, 'service_requests'), orderBy('date', 'desc')), [db]);
   const { data: serviceRequests = [] } = useCollection(serviceRequestsQuery);
 
-  // Derived categories for filtering
   const existingCategories = useMemo(() => {
     const categories = new Set(marketplaceServices.map((s: any) => s.category?.toUpperCase() || 'UNCATEGORIZED'));
     return Array.from(categories).sort();
@@ -367,7 +361,6 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "RESET FAILED" }); }
   };
 
-  // Service Management Handlers
   const handleProcessServiceRequest = async () => {
     if (!activeServiceRequest || !serviceAction) return;
     setIsSubmittingService(true);
@@ -391,14 +384,12 @@ export default function AdminPage() {
             date: new Date().toISOString()
           });
         } else {
-          // Reject and Refund
           transaction.update(reqRef, { 
             status: 'rejected', 
             rejectionReason: serviceRejectReason.trim() 
           });
           transaction.update(userRef, { balance: increment(activeServiceRequest.price) });
           
-          // Transaction log for refund
           const txRef = doc(collection(db, 'users', activeServiceRequest.userId, 'transactions'));
           transaction.set(txRef, {
             type: 'refund',
@@ -408,7 +399,6 @@ export default function AdminPage() {
             date: new Date().toISOString()
           });
 
-          // Notification for refund
           const notifRef = doc(collection(db, 'users', activeServiceRequest.userId, 'notifications'));
           transaction.set(notifRef, {
             title: "Order Rejected & Refunded",
@@ -695,7 +685,9 @@ export default function AdminPage() {
     u.customId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
+  if (authLoading || profileLoading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
@@ -785,7 +777,7 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest">Category (Write Manually)</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Category</Label>
                     <Input placeholder="E.G. GAMES" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newServiceCategory} onChange={(e) => setNewServiceCategory(e.target.value)} />
                   </div>
                   <div className="space-y-2">
@@ -841,12 +833,12 @@ export default function AdminPage() {
                 <div className="p-5 bg-white/5 border border-white/5 rounded-[1.5rem] space-y-4">
                   <div className="flex items-center space-x-2 space-x-reverse">
                     <Checkbox id="requiresInput" checked={requiresUserInput} onCheckedChange={(val: boolean) => setRequiresUserInput(val)} />
-                    <Label htmlFor="requiresInput" className="text-[9px] font-headline font-bold uppercase tracking-tight">Require Data from User (e.g. ID)</Label>
+                    <Label htmlFor="requiresInput" className="text-[9px] font-headline font-bold uppercase tracking-tight">Require Data from User</Label>
                   </div>
                   {requiresUserInput && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                       <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Input Field Label</Label>
-                      <Input placeholder="E.G. PLAYER ID OR PHONE" className="h-10 bg-background/50 border-white/10 text-[9px] uppercase" value={userInputLabel} onChange={(e) => setUserInputLabel(e.target.value)} />
+                      <Input placeholder="E.G. PLAYER ID" className="h-10 bg-background/50 border-white/10 text-[9px] uppercase" value={userInputLabel} onChange={(e) => setUserInputLabel(e.target.value)} />
                     </div>
                   )}
                 </div>
@@ -854,7 +846,7 @@ export default function AdminPage() {
                 <div className="p-5 bg-white/5 border border-white/5 rounded-[1.5rem] flex items-center justify-between">
                   <div className="space-y-1">
                     <Label className="text-[9px] font-headline font-bold uppercase tracking-tight">Product Visibility</Label>
-                    <p className="text-[7px] text-muted-foreground uppercase">Enable or Disable (Out of Stock)</p>
+                    <p className="text-[7px] text-muted-foreground uppercase">Enable or Disable</p>
                   </div>
                   <Switch checked={isServiceActive} onCheckedChange={setIsServiceActive} />
                 </div>
@@ -891,7 +883,6 @@ export default function AdminPage() {
                         {!s.isActive && <Badge variant="destructive" className="text-[6px] h-3 px-1">OOS</Badge>}
                       </div>
                       <p className="text-[8px] text-muted-foreground uppercase">{s.category} - {s.type === 'variable' ? `${s.variants?.length} Options` : `$${s.price}`}</p>
-                      {s.requiresInput && <Badge variant="secondary" className="text-[6px] h-4 mt-1">DATA REQUIRED</Badge>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -971,10 +962,10 @@ export default function AdminPage() {
                     <DialogTrigger asChild><button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-secondary group-hover:scale-110" /><span className="text-[8px] font-headline font-bold uppercase">View Proof</span></button></DialogTrigger>
                     <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]">
                       <DialogHeader>
-                        <DialogTitle className="sr-only">Deposit Proof Evidence</DialogTitle>
+                        <DialogTitle className="sr-only">Deposit Proof</DialogTitle>
                       </DialogHeader>
                       <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black">
-                        <img src={req.proofUrl} alt="Deposit Proof" className="w-full h-full object-contain" />
+                        <img src={req.proofUrl} alt="Proof" className="w-full h-full object-contain" />
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -995,7 +986,7 @@ export default function AdminPage() {
             <div className="flex justify-between items-center">
               <h3 className="text-[10px] font-headline font-bold uppercase tracking-widest flex items-center gap-2 text-primary"><Database size={14} /> {editingDepositId ? "Modify Deposit Gateway" : "Deposit Infrastructure"}</h3>
               {editingDepositId && (
-                <button onClick={resetDepositForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel Editing</button>
+                <button onClick={resetDepositForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel</button>
               )}
             </div>
 
@@ -1003,7 +994,7 @@ export default function AdminPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest">Target Country</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Country</Label>
                     <Select value={newMethodCountry} onValueChange={(val) => handleCountryChange(val, 'deposit')}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT" /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
@@ -1017,7 +1008,7 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Currency Code</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Currency</Label>
                     <Select value={newMethodCurrency} onValueChange={setNewMethodCurrency}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="CURRENCY" /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">
@@ -1029,13 +1020,13 @@ export default function AdminPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Ex. Rate (1 USD = ?)</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Rate (1 USD = ?)</Label>
                     <Input type="number" placeholder="1.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newMethodRate} onChange={(e) => setNewMethodRate(e.target.value)} />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Method Icon</Label>
+                  <Label className="text-[8px] uppercase tracking-widest">Method Icon</Label>
                   <div onClick={() => methodIconInputRef.current?.click()} className="h-12 bg-background/50 border-dashed border border-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-primary/5 transition-all overflow-hidden">
                     {newMethodIcon ? <img src={newMethodIcon} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-muted-foreground" />}
                     <input type="file" ref={methodIconInputRef} className="hidden" accept="image/*" onChange={(e) => handleIconUpload(e, 'deposit')} />
@@ -1044,15 +1035,15 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Payment Data Fields</Label><button onClick={addDepositField} className="p-1.5 bg-primary/20 text-primary rounded-lg hover:bg-primary hover:text-background transition-all"><Plus size={14} /></button></div>
+                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest">Data Fields</Label><button onClick={addDepositField} className="p-1.5 bg-primary/20 text-primary rounded-lg hover:bg-primary hover:text-background transition-all"><Plus size={14} /></button></div>
                 <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
                   {depositFields.map((field, idx) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-white/5 border border-white/5 rounded-2xl">
                       <div className="flex gap-2 items-center">
-                        <Input placeholder="LABEL (E.G. IBAN)" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateDepositField(idx, 'label', e.target.value)} />
+                        <Input placeholder="LABEL" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.label} onChange={(e) => updateDepositField(idx, 'label', e.target.value)} />
                         <button onClick={() => removeDepositField(idx)} className="p-2 text-red-500/40 hover:text-red-500"><Trash2 size={14} /></button>
                       </div>
-                      <Input placeholder="VALUE (E.G. ACCOUNT NUMBER)" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.value} onChange={(e) => updateDepositField(idx, 'value', e.target.value)} />
+                      <Input placeholder="VALUE" className="h-10 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase" value={field.value} onChange={(e) => updateDepositField(idx, 'value', e.target.value)} />
                     </div>
                   ))}
                 </div>
@@ -1089,14 +1080,14 @@ export default function AdminPage() {
                 <WalletCards size={14} /> {editingWithdrawId ? "Modify Global Gateway" : "Global Gateway Architect"}
               </h3>
               {editingWithdrawId && (
-                <button onClick={resetWithdrawForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel Editing</button>
+                <button onClick={resetWithdrawForm} className="text-[8px] font-headline font-bold uppercase tracking-widest text-red-500 hover:underline">Cancel</button>
               )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Target Country</Label>
+                  <Label className="text-[8px] uppercase tracking-widest">Country</Label>
                   <Select value={newWithdrawCountry} onValueChange={(val) => handleCountryChange(val, 'withdraw')}>
                     <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="SELECT REGION" /></SelectTrigger>
                     <SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{c.name}</SelectItem>))}</SelectContent>
@@ -1105,11 +1096,11 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Method Name</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Method Name</Label>
                     <Input placeholder="EX: BARAKA BANK" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawName} onChange={(e) => setNewWithdrawName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Method Icon</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Icon</Label>
                     <div onClick={() => iconInputRef.current?.click()} className="h-12 bg-background/50 border-dashed border border-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-secondary/5 transition-all overflow-hidden">
                       {newWithdrawIcon ? <img src={newWithdrawIcon} className="w-full h-full object-cover" /> : <ImageIcon size={18} className="text-muted-foreground" />}
                       <input type="file" ref={iconInputRef} className="hidden" accept="image/*" onChange={(e) => handleIconUpload(e, 'withdraw')} />
@@ -1119,7 +1110,7 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                    <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Currency Code</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Currency</Label>
                     <Select value={newWithdrawCurrency} onValueChange={setNewWithdrawCurrency}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue placeholder="CURRENCY" /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">
@@ -1131,14 +1122,14 @@ export default function AdminPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Ex. Rate (1 USD = ?)</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Ex. Rate (1 USD = ?)</Label>
                     <Input type="number" placeholder="1.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawRate} onChange={(e) => setNewWithdrawRate(e.target.value)} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Commission Type</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Fee Type</Label>
                     <Select value={newWithdrawFeeType} onValueChange={(val: any) => setNewWithdrawFeeType(val)}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">
@@ -1148,14 +1139,14 @@ export default function AdminPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Fee Value</Label>
+                    <Label className="text-[8px] uppercase tracking-widest">Fee Value</Label>
                     <Input type="number" placeholder="0.00" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={newWithdrawFeeValue} onChange={(e) => setNewWithdrawFeeValue(e.target.value)} />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">P2P Form Structure</Label><button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button></div>
+                <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest">P2P Structure</Label><button onClick={addField} className="p-1.5 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary hover:text-background transition-all"><Plus size={14} /></button></div>
                 <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
                   {withdrawFields.map((field, idx) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-white/5 border border-white/5 rounded-2xl">
@@ -1219,7 +1210,7 @@ export default function AdminPage() {
                 </div>
                 <div className="space-y-3 pt-2 border-t border-white/5">
                   <div className="flex items-center justify-between gap-2">
-                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Access Authority:</Label>
+                    <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority:</Label>
                     <Select defaultValue={u.role || 'user'} onValueChange={(val) => handleUpdateRole(u.id, val)}>
                       <SelectTrigger className="h-8 bg-background/50 border-white/10 rounded-lg text-[9px] uppercase w-[120px] font-headline"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-card border-white/10">
@@ -1265,10 +1256,10 @@ export default function AdminPage() {
                     <DialogTrigger asChild><button className="w-full h-10 bg-white/5 border border-white/5 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all group"><Camera className="h-3 w-3 text-primary group-hover:scale-110" /><span className="text-[8px] font-headline font-bold uppercase">View Document</span></button></DialogTrigger>
                     <DialogContent className="max-w-sm glass-card border-white/10 p-4 rounded-[2rem]">
                       <DialogHeader>
-                        <DialogTitle className="sr-only">KYC Document Evidence</DialogTitle>
+                        <DialogTitle className="sr-only">KYC Document</DialogTitle>
                       </DialogHeader>
                       <div className="relative aspect-[4/3] w-full rounded-2xl overflow-hidden border border-white/10 bg-black">
-                        <img src={req.documentUrl} alt="KYC Proof" className="w-full h-full object-contain" />
+                        <img src={req.documentUrl} alt="KYC" className="w-full h-full object-contain" />
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -1285,38 +1276,33 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* KYC Rejection Dialog */}
       <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-6 rounded-[2rem]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><ShieldAlert className="text-red-500 h-4 w-4" /> Reject Identity Request</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><ShieldAlert className="text-red-500 h-4 w-4" /> Reject Identity</DialogTitle></DialogHeader>
           <div className="space-y-6 mt-4">
-            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2"><MessageSquare size={12} /> Specify Reason</Label><Textarea placeholder="EX: DOCUMENT EXPIRED..." className="min-h-[120px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /></div>
-            <div className="flex gap-3"><Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase">Abort</Button><Button onClick={handleRejectKyc} disabled={!rejectionReason.trim() || isSubmittingRejection} className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-headline uppercase">{isSubmittingRejection ? <Loader2 className="animate-spin" /> : "Confirm Rejection"}</Button></div>
+            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Reason</Label><Textarea placeholder="REASON..." className="min-h-[120px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} /></div>
+            <div className="flex gap-3"><Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase">Abort</Button><Button onClick={handleRejectKyc} disabled={!rejectionReason.trim() || isSubmittingRejection} className="flex-1 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-headline uppercase">{isSubmittingRejection ? <Loader2 className="animate-spin" /> : "Confirm"}</Button></div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Service Request Processing Dialog */}
       <Dialog open={!!activeServiceRequest} onOpenChange={() => !isSubmittingService && setActiveServiceRequest(null)}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem]">
           <DialogHeader>
-            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
-              {serviceAction === 'complete' ? <Check className="text-green-500 h-4 w-4" /> : <X className="text-red-500 h-4 w-4" />}
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">
               {serviceAction === 'complete' ? "Complete Order" : "Reject & Refund"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6 mt-4">
             {serviceAction === 'complete' ? (
               <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2"><Hash size={12} /> Voucher/Result Code</Label>
-                <Input placeholder="EX: ABCD-1234-EFGH" className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={serviceResult} onChange={(e) => setServiceResult(e.target.value)} />
-                <p className="text-[7px] text-muted-foreground uppercase mt-1">This code will be visible to the user in their order history.</p>
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Voucher Code</Label>
+                <Input placeholder="CODE..." className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase" value={serviceResult} onChange={(e) => setServiceResult(e.target.value)} />
               </div>
             ) : (
               <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest font-black text-muted-foreground flex items-center gap-2"><MessageSquare size={12} /> Rejection Reason</Label>
-                <Textarea placeholder="EX: INVALID ID PROVIDED" className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={serviceRejectReason} onChange={(e) => setServiceRejectReason(e.target.value)} />
-                <p className="text-[7px] text-red-500/60 uppercase mt-1">Funds (${activeServiceRequest?.price}) will be automatically returned to the user.</p>
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Reason</Label>
+                <Textarea placeholder="REASON..." className="min-h-[100px] bg-background/50 border-white/10 rounded-xl text-[10px] uppercase pt-3" value={serviceRejectReason} onChange={(e) => setServiceRejectReason(e.target.value)} />
               </div>
             )}
             <div className="flex gap-3">
@@ -1326,7 +1312,7 @@ export default function AdminPage() {
                 disabled={isSubmittingService || (serviceAction === 'complete' && !serviceResult.trim()) || (serviceAction === 'reject' && !serviceRejectReason.trim())} 
                 className={cn("flex-1 h-12 rounded-xl text-[10px] font-headline uppercase font-bold", serviceAction === 'complete' ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700")}
               >
-                {isSubmittingService ? <Loader2 className="animate-spin" /> : "Confirm Action"}
+                {isSubmittingService ? <Loader2 className="animate-spin" /> : "Confirm"}
               </Button>
             </div>
           </div>

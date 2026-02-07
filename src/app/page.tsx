@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, Eye, EyeOff, Fingerprint } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { 
@@ -22,6 +22,8 @@ import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { Capacitor } from '@capacitor/core';
+import { NativeBiometric } from 'capacitor-native-biometric';
+import { Preferences } from '@capacitor/preferences';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,9 +35,24 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
   const { language } = useStore();
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
+
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const result = await NativeBiometric.isAvailable();
+          setIsBiometricAvailable(result.isAvailable);
+        } catch (e) {
+          console.warn("Biometric check failed:", e);
+        }
+      }
+    };
+    checkBiometrics();
+  }, []);
 
   useEffect(() => {
     if (!auth || !db) return;
@@ -86,6 +103,7 @@ export default function LoginPage() {
     error: language === 'ar' ? 'فشل التحقق من الهوية' : 'Authorization failed',
     social: language === 'ar' ? 'أو الدخول بواسطة' : 'OR CONTINUE WITH',
     noAccountFound: language === 'ar' ? 'عذراً، هذا الحساب غير مسجل لدينا. يرجى إنشاء حساب أولاً.' : 'Account not found. Please register first.',
+    biometricError: language === 'ar' ? "لم يتم تفعيل البصمة لهذا الحساب" : "Biometric not enrolled for this device",
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -113,6 +131,39 @@ export default function LoginPage() {
         description: errorMessage
       });
       setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!isBiometricAvailable || !auth) return;
+
+    try {
+      const verified = await NativeBiometric.verifyIdentity({
+        reason: language === 'ar' ? "سجل دخولك إلى فلاش" : "Authorize login to FLASH",
+        title: language === 'ar' ? "تسجيل دخول بالبصمة" : "Biometric Login",
+        subtitle: language === 'ar' ? "امسح بصمتك للدخول للخزنة" : "Scan biometric to enter vault",
+        description: language === 'ar' ? "استخدم بصمتك المسجلة للوصول إلى حسابك بأمان." : "Use your device biometric to access your account securely.",
+      });
+
+      if (verified) {
+        const { value: storedCreds } = await Preferences.get({ key: 'flash_biometric_auth' });
+        if (storedCreds) {
+          const { e, p } = JSON.parse(storedCreds);
+          setLoading(true);
+          await signInWithEmailAndPassword(auth, e, p);
+        } else {
+          toast({ 
+            variant: "destructive",
+            title: language === 'ar' ? "غير مفعل" : "Not Enrolled", 
+            description: t.biometricError 
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Biometric Error:", error);
+      if (error.message !== "User canceled") {
+        toast({ variant: "destructive", title: "Biometric Failed", description: error.message });
+      }
     }
   };
 
@@ -229,15 +280,25 @@ export default function LoginPage() {
             <div className="relative flex justify-center"><span className="bg-[#0b0b0d] px-4 text-[8px] text-white/30 uppercase tracking-[0.3em] font-black">IDENTITY CONTROL</span></div>
           </div>
 
-          <button onClick={handleGoogleLogin} className="w-full h-16 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition-all group">
-            <svg className="w-6 h-6" viewBox="0 0 48 48">
-              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.13-.45-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"/>
-              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-            </svg>
-            <span className="text-[10px] font-headline font-bold text-white uppercase tracking-widest">Google Portal</span>
-          </button>
+          <div className="grid grid-cols-2 gap-4">
+            <button onClick={handleGoogleLogin} className="h-16 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition-all group">
+              <svg className="w-5 h-5" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.13-.45-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </svg>
+            </button>
+
+            {isBiometricAvailable && (
+              <button 
+                onClick={handleBiometricLogin} 
+                className="h-16 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center gap-3 hover:bg-primary/20 transition-all text-primary group"
+              >
+                <Fingerprint size={24} className="group-hover:scale-110 transition-transform" />
+              </button>
+            )}
+          </div>
         </div>
 
         <p className="text-center text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
