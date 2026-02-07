@@ -148,20 +148,19 @@ export default function LoginPage() {
           <p className="text-[10px] text-primary uppercase tracking-[0.5em] font-bold">{t.title}</p>
         </div>
 
-        <div className="glass-card p-10 rounded-[3rem] border-white/10 shadow-2xl backdrop-blur-3xl gold-glow overflow-visible">
-          <form onSubmit={handleLogin} className="space-y-10">
-            <div className="space-y-8">
+        <div className="glass-card p-8 sm:p-10 rounded-[3rem] border-white/10 shadow-2xl backdrop-blur-3xl gold-glow overflow-visible">
+          <form onSubmit={handleLogin} className="space-y-8">
+            <div className="space-y-6">
               {/* --- Futuristic Identifier Input --- */}
-              <div id="poda" className="scale-[0.9] sm:scale-100">
+              <div className="futuristic-poda scale-[0.9] sm:scale-100">
                 <div className="futuristic-glow"></div>
                 <div className="futuristic-darkBorderBg"></div>
                 <div className="futuristic-darkBorderBg"></div>
                 <div className="futuristic-darkBorderBg"></div>
-
                 <div className="futuristic-white"></div>
                 <div className="futuristic-border"></div>
 
-                <div id="futuristic-main">
+                <div className="futuristic-main-area">
                   <input 
                     placeholder={t.identifier} 
                     type="text" 
@@ -172,10 +171,10 @@ export default function LoginPage() {
                     required 
                     autoComplete="username"
                   />
-                  <div id="futuristic-input-mask"></div>
-                  <div id="futuristic-cyan-mask"></div>
+                  <div className="futuristic-input-mask"></div>
+                  <div className="futuristic-cyan-mask"></div>
                   <div className="futuristic-filterBorder"></div>
-                  <div id="futuristic-filter-icon">
+                  <div className="futuristic-filter-icon">
                     <svg
                       height="20"
                       width="20"
@@ -193,23 +192,62 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Password Input */}
-              <div className="relative group px-2">
-                <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-6" : "left-6")} size={18} />
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  autoComplete="current-password"
-                  placeholder={t.password} 
-                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[14px] font-body text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-12 text-right" : "pl-12 pr-12 text-left")}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required 
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 hover:text-primary", language === 'ar' ? "left-6" : "right-6")}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+              {/* --- Futuristic Password Input --- */}
+              <div className="futuristic-poda scale-[0.9] sm:scale-100">
+                <div className="futuristic-glow"></div>
+                <div className="futuristic-darkBorderBg"></div>
+                <div className="futuristic-darkBorderBg"></div>
+                <div className="futuristic-darkBorderBg"></div>
+                <div className="futuristic-white"></div>
+                <div className="futuristic-border"></div>
+
+                <div className="futuristic-main-area">
+                  <input 
+                    placeholder={t.password} 
+                    type={showPassword ? "text" : "password"} 
+                    name="password" 
+                    className="futuristic-input" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required 
+                    autoComplete="current-password"
+                  />
+                  
+                  {/* Password Toggle Button Integrated */}
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className={cn(
+                      "absolute top-1/2 -translate-y-1/2 text-white/30 hover:text-primary transition-all z-[10]",
+                      language === 'ar' ? "left-[60px]" : "right-[60px]"
+                    )}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+
+                  <div className="futuristic-input-mask"></div>
+                  <div className="futuristic-cyan-mask"></div>
+                  <div className="futuristic-filterBorder"></div>
+                  <div className="futuristic-filter-icon">
+                    <svg
+                      height="20"
+                      width="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#D4AE35"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="px-2">
+            <div className="px-2 pt-4">
               <button type="submit" disabled={loading} className="w-full h-16 bg-primary text-primary-foreground font-headline font-bold text-xs tracking-[0.2em] flex items-center justify-center gap-2 rounded-2xl gold-glow active:scale-95 hover:scale-[1.02] transition-all">
                 {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t.login} <ArrowRight size={16} className={cn(language === 'ar' && "rotate-180")} /></>}
               </button>
