@@ -392,17 +392,17 @@ export default function AdminPage() {
       </header>
 
       <Tabs defaultValue="withdrawals" className="w-full">
-        <div className="overflow-x-auto no-scrollbar pb-4">
-          <TabsList className="flex w-max h-auto bg-card/40 border border-white/5 rounded-2xl p-1 gap-1">
-            <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ArrowUpCircle className="h-3 w-3 mr-1" /> Withdraws</TabsTrigger>
-            <TabsTrigger value="deposits" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ArrowDownCircle className="h-3 w-3 mr-1" /> Deposits</TabsTrigger>
-            <TabsTrigger value="chats" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><MessageSquare className="h-3 w-3 mr-1" /> Chats</TabsTrigger>
-            <TabsTrigger value="tickets" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Ticket className="h-3 w-3 mr-1" /> Tickets</TabsTrigger>
-            <TabsTrigger value="orders" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ClipboardList className="h-3 w-3 mr-1" /> Orders</TabsTrigger>
-            <TabsTrigger value="gateways" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Banknote className="h-3 w-3 mr-1" /> Gateways</TabsTrigger>
-            <TabsTrigger value="store" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Store className="h-3 w-3 mr-1" /> Store</TabsTrigger>
-            <TabsTrigger value="users" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><Users className="h-3 w-3 mr-1" /> Entities</TabsTrigger>
-            <TabsTrigger value="kyc" className="rounded-xl font-headline text-[7px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-3 min-w-[100px]"><ShieldCheck className="h-3 w-3 mr-1" /> KYC</TabsTrigger>
+        <div className="pb-8">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto bg-card/40 border border-white/5 rounded-[2rem] p-2 gap-2">
+            <TabsTrigger value="withdrawals" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ArrowUpCircle className="h-4 w-4" /> Withdraws</TabsTrigger>
+            <TabsTrigger value="deposits" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ArrowDownCircle className="h-4 w-4" /> Deposits</TabsTrigger>
+            <TabsTrigger value="chats" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><MessageSquare className="h-4 w-4" /> Chats</TabsTrigger>
+            <TabsTrigger value="tickets" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Ticket className="h-4 w-4" /> Tickets</TabsTrigger>
+            <TabsTrigger value="orders" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ClipboardList className="h-4 w-4" /> Orders</TabsTrigger>
+            <TabsTrigger value="gateways" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Banknote className="h-4 w-4" /> Gateways</TabsTrigger>
+            <TabsTrigger value="store" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Store className="h-4 w-4" /> Store</TabsTrigger>
+            <TabsTrigger value="users" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Users className="h-4 w-4" /> Entities</TabsTrigger>
+            <TabsTrigger value="kyc" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2 sm:col-span-4"><ShieldCheck className="h-4 w-4" /> KYC Verification</TabsTrigger>
           </TabsList>
         </div>
 
@@ -619,8 +619,9 @@ export default function AdminPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary border border-primary/10"><Globe size={18} /></div>
                       <div className="space-y-1">
-                        <div className="text-[10px] font-headline font-bold uppercase flex items-center gap-2 flex-wrap">
-                          {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-headline font-bold uppercase">{m.name}</span>
+                          <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
                         <div className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</div>
                       </div>
@@ -642,8 +643,9 @@ export default function AdminPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-secondary/5 flex items-center justify-center text-secondary border border-secondary/10"><DollarSign size={18} /></div>
                       <div className="space-y-1">
-                        <div className="text-[10px] font-headline font-bold uppercase flex items-center gap-2 flex-wrap">
-                          {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-headline font-bold uppercase">{m.name}</span>
+                          <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
                         <div className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</div>
                       </div>
