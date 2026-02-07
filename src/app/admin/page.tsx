@@ -358,7 +358,9 @@ export default function AdminPage() {
 
   const handleDeleteUserEntity = async () => {
     if (!editingUserId || !db) return;
-    if (!confirm("CRITICAL WARNING: This will permanently purge this entity and all associated vault credentials from the global ledger. This action cannot be reversed. Proceed?")) return;
+    
+    const confirmPurge = window.confirm("CRITICAL WARNING: This will permanently purge this entity and all associated vault credentials from the global ledger. This action cannot be reversed. Proceed?");
+    if (!confirmPurge) return;
     
     try {
       await deleteDoc(doc(db, 'users', editingUserId));
@@ -838,7 +840,7 @@ export default function AdminPage() {
                 <Label className="text-[10px] font-headline font-bold uppercase tracking-widest group-hover:text-primary transition-colors">Verified Entity</Label>
                 <p className="text-[7px] text-muted-foreground uppercase">Enable high-authority status</p>
               </div>
-              <div dir="ltr">
+              <div dir="ltr" className="p-1">
                 <Switch 
                   checked={editForm.verified} 
                   onCheckedChange={(val) => setEditForm({...editForm, verified: val})} 
