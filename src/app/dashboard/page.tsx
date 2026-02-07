@@ -72,6 +72,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { sendTelegramNotification, sendTelegramPhoto } from '@/lib/telegram';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
   const router = useRouter();
