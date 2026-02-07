@@ -31,13 +31,11 @@ import {
   ShoppingBag,
   Ticket,
   ChevronDown,
-  CheckCircle2,
   PlusCircle,
   Banknote,
   ClipboardList,
-  Store,
+  Store as StoreIcon,
   AlertTriangle,
-  Trash
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -288,6 +286,18 @@ export default function AdminPage() {
       await addDoc(collection(db, 'marketplace_services'), newProduct);
       toast({ title: "PRODUCT SECURED" });
       setIsAddingProduct(false);
+      setNewProduct({
+        name: '',
+        category: 'GAMES',
+        price: 0,
+        type: 'fixed',
+        variants: [{ label: '', price: 0 }],
+        requiresInput: false,
+        inputLabel: '',
+        isActive: true,
+        imageUrl: '',
+        color: 'bg-primary'
+      });
     } catch (e) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
   };
 
@@ -399,7 +409,7 @@ export default function AdminPage() {
             <TabsTrigger value="tickets" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Ticket className="h-4 w-4" /> Tickets</TabsTrigger>
             <TabsTrigger value="orders" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ClipboardList className="h-4 w-4" /> Orders</TabsTrigger>
             <TabsTrigger value="gateways" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Banknote className="h-4 w-4" /> Gateways</TabsTrigger>
-            <TabsTrigger value="store" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Store className="h-4 w-4" /> Store</TabsTrigger>
+            <TabsTrigger value="store" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><StoreIcon className="h-4 w-4" /> Store</TabsTrigger>
             <TabsTrigger value="users" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Users className="h-4 w-4" /> Entities</TabsTrigger>
             <TabsTrigger value="kyc" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2 sm:col-span-4"><ShieldCheck className="h-4 w-4" /> KYC Verification</TabsTrigger>
           </TabsList>
@@ -467,8 +477,8 @@ export default function AdminPage() {
                 <CircleDot className={cn("h-5 w-5", chatConfig?.isActive && "animate-pulse")} />
               </div>
               <div>
-                <p className="text-[10px] font-headline font-bold uppercase">{chatConfig?.isActive ? "Live Support Online" : "Live Support Offline"}</p>
-                <p className="text-[7px] text-muted-foreground uppercase">{chatConfig?.isActive ? "Agents searching for sessions" : "Automated reply active"}</p>
+                <div className="text-[10px] font-headline font-bold uppercase">{chatConfig?.isActive ? "Live Support Online" : "Live Support Offline"}</div>
+                <div className="text-[7px] text-muted-foreground uppercase">{chatConfig?.isActive ? "Agents searching for sessions" : "Automated reply active"}</div>
               </div>
             </div>
             <Switch checked={chatConfig?.isActive || false} onCheckedChange={(isActive) => setDoc(doc(db, 'system_settings', 'chat_config'), { isActive })} />
@@ -476,7 +486,7 @@ export default function AdminPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[600px]">
             <div className="glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col">
-              <div className="p-4 border-b border-white/5 flex items-center gap-2"><CircleDot size={12} className="text-primary animate-pulse" /><p className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">Active Protocols</p></div>
+              <div className="p-4 border-b border-white/5 flex items-center gap-2"><CircleDot size={12} className="text-primary animate-pulse" /><div className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">Active Protocols</div></div>
               <div className="flex-1 overflow-y-auto no-scrollbar">
                 {chatSessions.length === 0 ? <p className="text-center text-[8px] text-muted-foreground uppercase py-10">No active protocols</p> : chatSessions.map((s: any) => (
                   <button key={s.id} onClick={() => setActiveChat(s)} className={cn("w-full p-4 border-b border-white/5 text-left transition-all hover:bg-white/5", activeChat?.id === s.id && "bg-primary/10 border-primary/20")}>
@@ -487,14 +497,14 @@ export default function AdminPage() {
                 ))}
               </div>
               <div className="mt-auto border-t border-white/10 bg-black/20">
-                <div className="p-4 border-b border-white/5 flex items-center gap-2"><History size={12} className="text-muted-foreground" /><p className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">Archive Ledger</p></div>
+                <div className="p-4 border-b border-white/5 flex items-center gap-2"><History size={12} className="text-muted-foreground" /><div className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">Archive Ledger</div></div>
                 <div className="h-[200px] overflow-y-auto no-scrollbar">
                   {archivedSessions.length === 0 ? <p className="text-center text-[7px] text-muted-foreground uppercase py-6 opacity-40">Ledger is clean</p> : archivedSessions.map((s: any) => (
                     <div key={s.id} onClick={() => handleOpenArchive(s)} className="w-full p-3 border-b border-white/5 text-left transition-all hover:bg-white/5 flex justify-between items-center group cursor-pointer">
                       <div className="flex-1"><p className="text-[9px] font-headline font-bold uppercase text-white/60 group-hover:text-primary transition-colors">{s.caseId}</p><p className="text-[6px] text-muted-foreground uppercase">{new Date(s.updatedAt).toLocaleDateString()}</p></div>
                       <div className="flex items-center gap-2">
                         {s.rating && <div className="flex gap-0.5">{[...Array(5)].map((_, i) => <Star key={i} size={6} className={cn(i < s.rating ? "text-primary fill-primary" : "text-white/10")} />)}</div>}
-                        <button onClick={(e) => handleDeleteArchive(e, s.id)} className="p-1.5 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash size={10} /></button>
+                        <button onClick={(e) => handleDeleteArchive(e, s.id)} className="p-1.5 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash2 size={10} /></button>
                       </div>
                     </div>
                   ))}
@@ -529,7 +539,7 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* 4. Tickets (Support Forms) */}
+        {/* 4. Tickets */}
         <TabsContent value="tickets" className="space-y-4">
           {tickets.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">NO TICKETS</p></div> : 
             tickets.map((t: any) => (
@@ -566,7 +576,7 @@ export default function AdminPage() {
           }
         </TabsContent>
 
-        {/* 5. Orders (Store Requests) */}
+        {/* 5. Orders */}
         <TabsContent value="orders" className="space-y-4">
           {orders.length === 0 ? <div className="py-20 text-center glass-card rounded-3xl opacity-20"><Info className="mx-auto mb-2" /><p className="text-[10px] font-headline">NO ORDERS</p></div> : 
             orders.map((o: any) => (
@@ -800,6 +810,7 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Asset Foundry (Add Product) */}
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><ShoppingBag size={14} className="text-primary" /> Asset Foundry</DialogTitle></DialogHeader>
@@ -815,10 +826,12 @@ export default function AdminPage() {
               </div>
               <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Price ($)</Label><Input type="number" disabled={newProduct.type === 'variable'} className="bg-background border-white/10 h-12 text-xs disabled:opacity-30" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} /></div>
             </div>
+            
             <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
               <div className="space-y-1"><Label className="text-[9px] font-headline uppercase">Multiple Quantities</Label><p className="text-[7px] text-muted-foreground uppercase">Enable tiered pricing packages</p></div>
               <Switch checked={newProduct.type === 'variable'} onCheckedChange={(val) => setNewProduct({...newProduct, type: val ? 'variable' : 'fixed'})} />
             </div>
+
             {newProduct.type === 'variable' && (
               <div className="space-y-3 pt-2">
                 <div className="flex justify-between items-center"><Label className="text-[8px] uppercase text-primary">Pricing Tiers</Label><button onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, { label: '', price: 0 }]})} className="text-[8px] font-headline text-primary border border-primary/20 px-2 py-1 rounded-md">+ Add Tier</button></div>
@@ -831,14 +844,18 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+
             <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
               <div className="space-y-1"><Label className="text-[9px] font-headline uppercase">Require User Input</Label><p className="text-[7px] text-muted-foreground uppercase">e.g. Game ID or Account Link</p></div>
               <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
             </div>
+
             {newProduct.requiresInput && (
               <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Input Label</Label><Input placeholder="Enter Player ID" className="bg-background border-white/10 h-12 text-xs" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} /></div>
             )}
+
             <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Image URL</Label><Input placeholder="https://..." className="bg-background border-white/10 h-12 text-xs" value={newProduct.imageUrl} onChange={(e) => setNewProduct({...newProduct, imageUrl: e.target.value})} /></div>
+            
             <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Authorize Asset</Button>
           </div>
         </DialogContent>
