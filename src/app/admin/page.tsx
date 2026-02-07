@@ -727,7 +727,7 @@ export default function AdminPage() {
                 </div>
                 {v.status === 'pending' && (
                   <div className="flex gap-2">
-                    <button onClick={() => handleAction('kyc', v.id, 'approve')} className="h-8 px-4 bg-secondary text-background font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Verify</button>
+                    <button onClick={() => handleAction('kyc', v.id, 'approve')} className="h-8 px-4 bg-secondary text-background font-headline font-8px uppercase rounded-lg hover:scale-105 transition-all">Verify</button>
                     <button onClick={() => handleAction('kyc', v.id, 'reject')} className="h-8 px-4 bg-red-600 text-white font-headline text-[8px] uppercase rounded-lg hover:scale-105 transition-all">Invalidate</button>
                   </div>
                 )}
@@ -848,7 +848,7 @@ export default function AdminPage() {
                 <Label className="text-[10px] font-headline font-bold uppercase tracking-widest group-hover:text-primary transition-colors">Verified Entity</Label>
                 <p className="text-[7px] text-muted-foreground uppercase">Enable high-authority status</p>
               </div>
-              <div dir="ltr" className="p-1">
+              <div dir="ltr" className="p-1.5 bg-background/20 rounded-full border border-white/5 flex items-center justify-center">
                 <Switch 
                   checked={editForm.verified} 
                   onCheckedChange={(val) => setEditForm({...editForm, verified: val})} 
@@ -874,7 +874,7 @@ export default function AdminPage() {
 
       {/* Delete User Confirmation Popup */}
       <AlertDialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
-        <AlertDialogContent className="glass-card border-white/10 rounded-[2rem] p-8 max-w-sm">
+        <AlertDialogContent className="glass-card border-white/10 rounded-[2rem] p-8 max-w-sm z-[2000]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xs font-headline font-bold uppercase text-red-500 flex items-center gap-2">
               <AlertTriangle size={16} /> Critical Warning
@@ -886,11 +886,11 @@ export default function AdminPage() {
           <AlertDialogFooter className="mt-6 flex flex-col gap-2">
             <AlertDialogAction 
               onClick={handleDeleteUserEntity}
-              className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 font-headline font-black text-[10px] uppercase tracking-widest"
+              className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 font-headline font-black text-[10px] uppercase tracking-widest w-full"
             >
               Confirm Purge
             </AlertDialogAction>
-            <AlertDialogCancel className="bg-white/5 border-white/10 text-white rounded-xl h-12 font-headline font-bold text-[9px] uppercase hover:bg-white/10 transition-all">
+            <AlertDialogCancel className="bg-white/5 border-white/10 text-white rounded-xl h-12 font-headline font-bold text-[9px] uppercase hover:bg-white/10 transition-all w-full">
               Abort Protocol
             </AlertDialogCancel>
           </AlertDialogFooter>
