@@ -217,8 +217,15 @@ export default function AdminPage() {
   const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
   const { data: allUsers = [] } = useCollection(allUsersQuery);
 
-  const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions'), where('status', 'in', ['open', 'active']), orderBy('updatedAt', 'desc')), [db]);
-  const { data: chatSessions = [] } = useCollection(chatSessionsQuery);
+  // Simplified query to avoid composite index requirement
+  const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions')), [db]);
+  const { data: allChatSessions = [] } = useCollection(chatSessionsQuery);
+
+  const chatSessions = useMemo(() => {
+    return allChatSessions
+      .filter((s: any) => ['open', 'active'].includes(s.status))
+      .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [allChatSessions]);
 
   const methodsQuery = useMemo(() => query(collection(db, 'deposit_methods')), [db]);
   const { data: depositMethods = [] } = useCollection(methodsQuery);
@@ -424,10 +431,10 @@ export default function AdminPage() {
     if (!newBalance || isNaN(amountNum)) return;
     try {
       await runTransaction(db, async (transaction) => {
-        const userRef = doc(targetUserId && doc(db, 'users', targetUserId) as any);
+        const userRef = doc(db, 'users', targetUserId);
         const diff = amountNum - currentBalance;
-        transaction.update(userRef as any, { balance: amountNum });
-        if (diff !== 0) {
+        transaction.update(userRef, { balance: amountNum });
+        if (targetUserId) {
           const txRef = doc(collection(db, 'users', targetUserId, 'transactions'));
           transaction.set(txRef, { 
             type: diff > 0 ? 'receive' : 'withdraw', 

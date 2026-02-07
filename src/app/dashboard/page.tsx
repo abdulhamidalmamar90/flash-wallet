@@ -139,22 +139,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!db || !user || supportStep !== 'chat') return;
+    // Simplified query to avoid composite index requirement
     const sessionsQuery = query(
       collection(db, 'chat_sessions'), 
-      where('userId', '==', user.uid), 
-      where('status', 'in', ['open', 'active', 'closed']), 
-      orderBy('updatedAt', 'desc'),
-      limit(1)
+      where('userId', '==', user.uid)
     );
+    
     const unsubSessions = onSnapshot(sessionsQuery, (snap) => {
       if (!snap.empty) {
-        const session = { id: snap.docs[0].id, ...snap.docs[0].data() };
-        setChatSession(session);
-        const msgsQuery = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
-        onSnapshot(msgsQuery, (mSnap) => {
-          setMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-          setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-        });
+        // Filter and sort client-side to avoid Index requirement
+        const relevantDocs = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter((s: any) => ['open', 'active', 'closed'].includes(s.status))
+          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+        if (relevantDocs.length > 0) {
+          const session = relevantDocs[0];
+          setChatSession(session);
+          
+          const msgsQuery = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
+          onSnapshot(msgsQuery, (mSnap) => {
+            setMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+          });
+        }
       } else {
         setChatSession(null);
         setMessages([]);
@@ -552,7 +560,7 @@ ${chatMessage.trim()}
       </Dialog>
 
       {/* QR Modal */}
-      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader><div className="space-y-8 mt-6"><div className="p-6 bg-white rounded-3xl inline-block shadow-lg"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" /></div><div className="space-y-2"><p className="text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p><p className="text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p></div><button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button></div></DialogContent></Dialog>
+      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader><div className="space-y-8 mt-6"><div className="p-6 bg-white rounded-3xl inline-block shadow-lg"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" /></div><div className="space-y-2"><p className="text-center text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p><p className="text-center text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p></div><button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button></div></DialogContent></Dialog>
 
       {/* Notification Modal */}
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] max-h-[80vh] overflow-y-auto z-[1000]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center mb-4">{language === 'ar' ? 'شريط الحماية' : 'Security Feed'}</DialogTitle></DialogHeader><div className="space-y-4">{notifications.length === 0 ? <p className="text-center text-[10px] text-muted-foreground uppercase font-headline py-10">{language === 'ar' ? 'النظام خالي من التنبيهات' : 'System is clear'}</p> : notifications.map((n: any) => (<div key={n.id} className={cn("p-4 rounded-2xl border transition-all relative group", n.read ? "bg-muted/20 border-border/40" : "bg-primary/5 border-primary/20 shadow-lg")}><button onClick={() => deleteNotification(n.id)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-red-500"><Trash2 size={12} /></button><div className="flex justify-between items-start mb-2"><p className="text-[10px] font-headline font-bold uppercase text-primary">{n.title}</p><p className="text-[7px] text-muted-foreground uppercase">{new Date(n.date).toLocaleTimeString()}</p></div><p className="text-[9px] text-muted-foreground leading-relaxed">{n.message}</p></div>))}</div></DialogContent></Dialog>
