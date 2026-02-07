@@ -36,7 +36,8 @@ import {
   CheckCircle2,
   PlusCircle,
   Banknote,
-  ClipboardList
+  ClipboardList,
+  Store
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -385,7 +386,7 @@ export default function AdminPage() {
                   <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500"><ArrowUpCircle size={20} /></div>
                   <div>
                     <p className="text-[10px] font-headline font-bold uppercase">@{w.username} <span className="text-white/20 ml-2">({w.methodName})</span></p>
-                    <p className="text-[12px] font-headline font-black text-white">${w.amountUsd} <ArrowRight className="inline mx-1 h-3 w-3 text-muted-foreground" /> {w.netAmount} {w.currencyCode}</p>
+                    <div className="text-[12px] font-headline font-black text-white">${w.amountUsd} <ArrowRight className="inline mx-1 h-3 w-3 text-muted-foreground" /> {w.netAmount} {w.currencyCode}</div>
                   </div>
                 </div>
                 {w.status === 'pending' && (
@@ -592,7 +593,7 @@ export default function AdminPage() {
                         <div className="text-[10px] font-headline font-bold uppercase mb-1 flex items-center gap-2">
                           {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
-                        <p className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p>
+                        <div className="text-[8px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -615,7 +616,7 @@ export default function AdminPage() {
                         <div className="text-[10px] font-headline font-bold uppercase mb-1 flex items-center gap-2">
                           {m.name} <Badge variant="outline" className="text-[6px] border-white/10 uppercase">{m.country}</Badge>
                         </div>
-                        <p className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</p>
+                        <div className="text-[8px] text-muted-foreground uppercase">Fee: {m.feeValue}{m.feeType === 'percent' ? '%' : ' Fixed'}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -646,7 +647,7 @@ export default function AdminPage() {
                 <div className="p-5 space-y-4">
                   <div>
                     <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
-                    <p className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</p>
+                    <div className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</div>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
                     <Switch checked={p.isActive} onCheckedChange={(val) => toggleStatus('marketplace_services', p.id, val)} />
@@ -799,12 +800,12 @@ export default function AdminPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-[8px] uppercase tracking-widest text-muted-foreground flex items-center gap-1"><Info size={10} /> Problem Description</Label>
-                      <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl"><p className="text-[11px] font-headline text-white italic leading-relaxed">"{archiveMessages.find(m => !m.isAdmin && m.senderId !== 'system')?.text || "No description found."}"</p></div>
+                      <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl"><div className="text-[11px] font-headline text-white italic leading-relaxed">"{archiveMessages.find(m => !m.isAdmin && m.senderId !== 'system')?.text || "No description found."}"</div></div>
                     </div>
                     {(selectedArchive.rating || selectedArchive.feedback) && (
                       <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-2xl space-y-3">
-                        <div className="flex justify-between items-center"><span className="text-[8px] text-green-500 uppercase font-black">User Feedback:</span><div className="flex gap-1">{[...Array(5)].map((_, i) => <Star key={i} size={12} className={cn(i < selectedArchive.rating ? "text-primary fill-primary" : "text-white/10")} />)}</div></div>
-                        {selectedArchive.feedback && <p className="text-[10px] font-headline text-white/60 italic leading-relaxed border-t border-white/5 pt-2">"{selectedArchive.feedback}"</p>}
+                        <div className="flex justify-between items-center"><span className="text-[8px] text-green-500 uppercase font-black">User Feedback:</span><div className="flex gap-1">{[...Array(5)].map((_, i) => <Star key={i} size={6} className={cn(i < selectedArchive.rating ? "text-primary fill-primary" : "text-white/10")} />)}</div></div>
+                        {selectedArchive.feedback && <div className="text-[10px] font-headline text-white/60 italic leading-relaxed border-t border-white/5 pt-2">"{selectedArchive.feedback}"</div>}
                       </div>
                     )}
                     <Button onClick={() => setShowFullArchive(true)} className="w-full h-14 bg-white/5 border border-white/10 rounded-xl font-headline text-[9px] uppercase tracking-widest hover:bg-primary hover:text-background transition-all">Open Full Protocol Log <ArrowRight size={14} className="ml-2" /></Button>
