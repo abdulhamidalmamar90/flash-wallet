@@ -98,7 +98,9 @@ export default function Dashboard() {
   const [messages, setMessages] = useState<any[]>([]);
   const [isStartingChat, setIsStartingChat] = useState(false);
   const [userRating, setUserRating] = useState(0);
+  const [userFeedback, setUserFeedback] = useState('');
   const [showRatingUI, setShowRatingUI] = useState(false);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [recipient, setRecipient] = useState(''); 
@@ -147,7 +149,7 @@ export default function Dashboard() {
       if (!snap.empty) {
         const relevantDocs = snap.docs
           .map(d => ({ id: d.id, ...d.data() }))
-          .filter((s: any) => ['open', 'active', 'closed'].includes(s.status))
+          .filter((s: any) => ['open', 'active', 'closed', 'archived'].includes(s.status))
           .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
         if (relevantDocs.length > 0) {
@@ -174,6 +176,8 @@ export default function Dashboard() {
     if (!user || !profile || !db) return;
     setIsStartingChat(true);
     setShowRatingUI(false);
+    setUserRating(0);
+    setUserFeedback('');
     try {
       const caseId = generateCaseId();
       const newSessionRef = await addDoc(collection(db, 'chat_sessions'), {
@@ -222,19 +226,23 @@ export default function Dashboard() {
     }
   };
 
-  const submitRating = async (rating: number) => {
-    if (!chatSession || !db) return;
-    setUserRating(rating);
+  const submitRating = async () => {
+    if (!chatSession || !db || userRating === 0) return;
+    setIsSubmittingRating(true);
     try {
       await updateDoc(doc(db, 'chat_sessions', chatSession.id), {
-        rating: rating,
+        rating: userRating,
+        feedback: userFeedback.trim(),
         status: 'archived',
         updatedAt: new Date().toISOString()
       });
       toast({ title: language === 'ar' ? "شكراً لتقييمك" : "Thank you for rating" });
-      setSupportStep('options');
       setShowRatingUI(false);
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      toast({ variant: "destructive", title: "Rating failed" });
+    } finally {
+      setIsSubmittingRating(false);
+    }
   };
 
   useEffect(() => {
@@ -305,49 +313,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleInitiateTransfer = () => {
-    if (!profile?.pin) {
-      toast({ variant: "destructive", title: language === 'ar' ? "يرجى إعداد PIN أولاً" : "Please setup PIN first" });
-      router.push('/profile/edit');
-      return;
-    }
-    setPinEntry('');
-    setIsPinVerificationOpen(true);
-  };
-
-  const handleSendMoney = async () => {
-    if (pinEntry !== profile?.pin) {
-      toast({ variant: "destructive", title: language === 'ar' ? "رمز PIN غير صحيح" : "Incorrect PIN" });
-      setPinEntry('');
-      return;
-    }
-    if (!user || !recipient || !sendAmount || !profile || !db) return;
-    const amountNum = parseFloat(sendAmount);
-    if (amountNum <= 0 || (profile.balance || 0) < amountNum) return;
-    setIsSending(true);
-    try {
-      const q = query(collection(db, 'users'), where('customId', '==', recipient.trim()));
-      const snap = await getDocs(q);
-      if (snap.empty) { setIsSending(false); return; }
-      const recipientId = snap.docs[0].id;
-      const recipientName = snap.docs[0].data().username;
-      await runTransaction(db, async (transaction) => {
-        const senderRef = doc(db, 'users', user.uid);
-        const receiverRef = doc(db, 'users', recipientId);
-        transaction.update(senderRef, { balance: increment(-amountNum) });
-        transaction.update(receiverRef, { balance: increment(amountNum) });
-        transaction.set(doc(collection(db, 'users', user.uid, 'transactions')), { type: 'send', amount: amountNum, recipient: recipientName, status: 'completed', date: new Date().toISOString() });
-        transaction.set(doc(collection(db, 'users', recipientId, 'transactions')), { type: 'receive', amount: amountNum, sender: profile.username, status: 'completed', date: new Date().toISOString() });
-        transaction.set(doc(collection(db, 'users', recipientId, 'notifications')), { title: "Incoming Transfer", message: `Success! Received $${amountNum} from @${profile.username}`, type: 'transaction', read: false, date: new Date().toISOString() });
-      });
-      toast({ title: "TRANSACTION SUCCESSFUL" });
-      setIsPinVerificationOpen(false);
-      setIsSendModalOpen(false);
-      setSendAmount('');
-      setRecipient('');
-    } catch (e: any) { toast({ variant: "destructive", title: "FAILED" }); } finally { setIsSending(false); }
-  };
-
   const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !db || !supportSubject.trim() || !supportMessage.trim()) return;
@@ -393,33 +358,12 @@ export default function Dashboard() {
     await deleteDoc(doc(db, 'users', user.uid, 'notifications', id));
   };
 
-  const VirtualPad = ({ value, onChange, onComplete }: any) => {
-    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
-    const handleClear = () => onChange(value.slice(0, -1));
-    return (
-      <div className="space-y-8" dir="ltr">
-        <div className="flex justify-center gap-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
-          ))}
-          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
-          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
-          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
-        </div>
-      </div>
-    );
-  };
-
   if (!mounted) return null;
   if (authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
+      {/* ... existing dashboard content ... */}
       <header className="flex justify-between items-center px-8 py-10">
         <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-4 group">
           <div className={cn("w-14 h-14 rounded-2xl border-2 transition-all duration-500 flex items-center justify-center relative overflow-hidden", profile?.verified ? "border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]" : "border-red-500 shadow-lg")}>{profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground" />}</div>
@@ -466,23 +410,6 @@ export default function Dashboard() {
         </section>
       </main>
 
-      {/* Settings Modal */}
-      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-10 duration-500">
-          <DialogHeader className="relative mb-4"><button onClick={() => setIsSettingsOpen(false)} className={cn("absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-primary", language === 'ar' ? "right-[-10px]" : "left-[-10px]")}><ChevronLeft className={cn("h-6 w-6", language === 'ar' && "rotate-180")} /></button><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center w-full">{language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}</DialogTitle></DialogHeader>
-          <div className="space-y-6 sm:space-y-8 mt-4">
-            <div className="flex flex-col items-center gap-4 text-center"><div className={cn("w-20 h-20 rounded-2xl border-2 flex items-center justify-center relative overflow-hidden shadow-xl", profile?.verified ? "border-green-500" : "border-red-500")}>{profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={32} />}</div><div className="space-y-2"><h3 className="text-md font-headline font-bold tracking-tight">@{profile?.username}</h3><button onClick={copyId} className="px-4 py-2 bg-muted text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-border/40 flex items-center gap-2 hover:bg-muted/80 transition-all">ID: {profile?.customId} <Copy size={12} /></button></div></div>
-            <div className="space-y-3 pb-4">
-              <ThemeToggle /><button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><QrCode size={18} className="text-primary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'المعرف الرقمي الخاص بي' : 'My Flash Identifier'}</span></button>
-              <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><Settings size={18} className="text-muted-foreground" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تعديل الحساب' : 'Configure Account'}</span></Link>
-              <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-muted/20 transition-all"><Languages size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'اللغة: العربية' : 'Language: EN'}</span></button>
-              <button onClick={() => { setIsSettingsOpen(false); setIsSupportOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-secondary transition-all"><Headset size={18} className="text-secondary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'الدعم الفني' : 'Support Center'}</span></button>
-              <button onClick={() => signOut(auth)} className="w-full h-14 glass-card rounded-2xl border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all"><LogOut size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تسجيل الخروج' : 'Terminate Access'}</span></button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Support Modal */}
       <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
         <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2.5rem] z-[1001] max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -515,35 +442,6 @@ export default function Dashboard() {
                   <div className="space-y-2"><h3 className="text-xs font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'ابدأ محادثة جديدة' : 'Initialize Protocol'}</h3><p className="text-[8px] text-muted-foreground uppercase">{language === 'ar' ? 'تواصل فوري مع خبراء فلاش' : 'Direct link to Flash Authority'}</p></div>
                   <Button onClick={handleStartChat} disabled={isStartingChat} className="w-full h-14 bg-primary text-background rounded-2xl font-headline font-black text-[10px] tracking-widest gold-glow">{isStartingChat ? <Loader2 className="animate-spin" /> : (language === 'ar' ? 'بدء الدردشة الآن' : 'START NEW CONVERSATION')}</Button>
                 </div>
-              ) : chatSession.status === 'closed' ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-8 animate-in zoom-in-95">
-                  <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 border border-green-500/20"><CheckCircle2 size={40} /></div>
-                  
-                  {!showRatingUI ? (
-                    <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-4 w-full">
-                      <div className="space-y-1">
-                        <h3 className="text-xs font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تم إنهاء المحادثة' : 'Protocol Terminated'}</h3>
-                        <p className="text-[8px] text-muted-foreground uppercase">{language === 'ar' ? 'شكراً لتواصلك معنا. يرجى الضغط على الزر أدناه لتقييم الخدمة.' : 'Case complete. Please authorize service evaluation via the button below.'}</p>
-                      </div>
-                      <Button onClick={() => setShowRatingUI(true)} className="w-full h-14 bg-primary text-background rounded-2xl font-headline font-black text-[10px] tracking-widest gold-glow shadow-lg shadow-primary/20">
-                        {language === 'ar' ? 'بدء التقييم الآن' : 'BEGIN EVALUATION'}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-6 animate-in slide-in-from-bottom-2 w-full">
-                      <div className="space-y-1">
-                        <p className="text-[10px] text-primary font-black uppercase tracking-widest">{language === 'ar' ? 'كيف كانت تجربتك؟' : 'Rate your authority experience'}</p>
-                        <p className="text-[7px] text-muted-foreground uppercase">Evaluation for Case: {chatSession.caseId}</p>
-                      </div>
-                      <div className="flex justify-center gap-3">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <button key={s} onClick={() => submitRating(s)} className={cn("p-2 transition-all hover:scale-125", userRating >= s ? "text-primary" : "text-white/10")}><Star fill={userRating >= s ? "currentColor" : "none"} size={32} /></button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <Button variant="ghost" onClick={() => { setChatSession(null); setShowRatingUI(false); }} className="text-[8px] font-headline uppercase text-muted-foreground hover:text-white">{language === 'ar' ? 'إغلاق الأرشيف' : 'CLOSE ARCHIVE'}</Button>
-                </div>
               ) : (
                 <>
                   <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
@@ -557,12 +455,68 @@ export default function Dashboard() {
                         <span className="text-[6px] text-muted-foreground mt-1 uppercase">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     ))}
+
+                    {chatSession.status === 'closed' && (
+                      <div className="animate-in fade-in zoom-in-95 duration-500 py-4">
+                        {!showRatingUI ? (
+                          <div className="glass-card p-6 rounded-3xl border-primary/20 bg-primary/5 space-y-4 text-center">
+                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto border border-primary/20"><CheckCircle2 size={24} /></div>
+                            <div className="space-y-1">
+                              <p className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تم إنهاء البروتوكول' : 'Protocol Terminated'}</p>
+                              <p className="text-[7px] text-muted-foreground uppercase">{language === 'ar' ? 'تم حل المشكلة. نرجو منك تقييم الخدمة.' : 'Issue resolved. Please authorize service evaluation.'}</p>
+                            </div>
+                            <Button onClick={() => setShowRatingUI(true)} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-black text-[9px] tracking-widest gold-glow">
+                              {language === 'ar' ? 'بدء التقييم الآن' : 'BEGIN EVALUATION'}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="glass-card p-6 rounded-3xl border-primary/20 bg-primary/5 space-y-6 animate-in slide-in-from-bottom-4">
+                            <div className="text-center space-y-1">
+                              <p className="text-[10px] font-headline font-bold uppercase text-primary">{language === 'ar' ? 'كيف كانت تجربتك؟' : 'Rate Your Experience'}</p>
+                              <p className="text-[7px] text-muted-foreground uppercase">Case ID: {chatSession.caseId}</p>
+                            </div>
+                            <div className="flex justify-center gap-3">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <button key={s} onClick={() => setUserRating(s)} className={cn("p-1 transition-all hover:scale-125", userRating >= s ? "text-primary" : "text-white/10")}><Star fill={userRating >= s ? "currentColor" : "none"} size={28} /></button>
+                              ))}
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'ملاحظات إضافية' : 'Protocol Feedback'}</Label>
+                              <Textarea 
+                                placeholder={language === 'ar' ? 'اكتب تجربتك هنا...' : 'PROVIDE CONTEXTUAL FEEDBACK...'} 
+                                className="bg-background/50 border-white/10 text-[9px] font-headline uppercase min-h-[80px]"
+                                value={userFeedback}
+                                onChange={(e) => setUserFeedback(e.target.value)}
+                              />
+                            </div>
+                            <Button onClick={submitRating} disabled={isSubmittingRating || userRating === 0} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-black text-[9px] tracking-widest gold-glow">
+                              {isSubmittingRating ? <Loader2 className="animate-spin" /> : (language === 'ar' ? 'إرسال التقييم' : 'TRANSMIT FEEDBACK')}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {chatSession.status === 'archived' && (
+                      <div className="py-6 text-center animate-in fade-in">
+                        <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 mx-auto mb-3"><CheckCircle2 size={24} /></div>
+                        <p className="text-[10px] font-headline font-bold uppercase text-green-500">{language === 'ar' ? 'شكراً لتقييمك!' : 'Feedback Secured'}</p>
+                        <p className="text-[7px] text-muted-foreground uppercase mt-1">{language === 'ar' ? 'تم أرشفة هذه التذكرة بنجاح.' : 'Protocol archived in global ledger.'}</p>
+                        <Button variant="ghost" onClick={() => setSupportStep('options')} className="mt-4 text-[8px] font-headline uppercase text-muted-foreground hover:text-white">Return to Command</Button>
+                      </div>
+                    )}
+
                     <div ref={chatEndRef} />
                   </div>
-                  {messages.length > 1 && chatSession.status === 'open' && (
-                    <div className="py-3 px-4 bg-primary/10 border border-primary/20 rounded-xl mb-4 text-center animate-pulse"><p className="text-[8px] font-headline font-black text-primary uppercase tracking-widest">{chatStatus?.isActive ? (language === 'ar' ? 'جاري البحث عن موظف...' : 'Searching for an agent...') : (language === 'ar' ? 'سيتم التواصل معك في أوقات العمل' : 'We will contact you during working hours')}</p></div>
-                  )}
-                  <form onSubmit={handleSendChatMessage} className="mt-auto pt-4 flex gap-2"><Input placeholder={language === 'ar' ? 'اكتب هنا...' : 'TYPE MESSAGE...'} className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} /><button type="submit" disabled={!chatMessage.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all disabled:opacity-50"><SendHorizontal size={20} /></button></form>
+                  
+                  {chatSession.status === 'active' || chatSession.status === 'open' ? (
+                    <>
+                      {messages.length > 1 && chatSession.status === 'open' && (
+                        <div className="mx-4 py-2 px-4 bg-primary/10 border border-primary/20 rounded-xl mb-2 text-center animate-pulse"><p className="text-[8px] font-headline font-black text-primary uppercase tracking-widest">{chatStatus?.isActive ? (language === 'ar' ? 'جاري البحث عن موظف...' : 'Searching for an agent...') : (language === 'ar' ? 'سيتم التواصل معك في أوقات العمل' : 'We will contact you during working hours')}</p></div>
+                      )}
+                      <form onSubmit={handleSendChatMessage} className="mt-auto p-4 pt-0 flex gap-2"><Input placeholder={language === 'ar' ? 'اكتب هنا...' : 'TYPE MESSAGE...'} className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} /><button type="submit" disabled={!chatMessage.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all disabled:opacity-50"><SendHorizontal size={20} /></button></form>
+                    </>
+                  ) : null}
                 </>
               )}
             </div>
@@ -570,23 +524,26 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* ... rest of the dashboard modals ... */}
       {/* QR Modal */}
       <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader><div className="space-y-8 mt-6"><div className="p-6 bg-white rounded-3xl inline-block shadow-lg"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" /></div><div className="space-y-2"><p className="text-center text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p><p className="text-center text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p></div><button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button></div></DialogContent></Dialog>
 
       {/* Notification Modal */}
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-8 rounded-[2rem] max-h-[80vh] overflow-y-auto z-[1000]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center mb-4">{language === 'ar' ? 'شريط الحماية' : 'Security Feed'}</DialogTitle></DialogHeader><div className="space-y-4">{notifications.length === 0 ? <p className="text-center text-[10px] text-muted-foreground uppercase font-headline py-10">{language === 'ar' ? 'النظام خالي من التنبيهات' : 'System is clear'}</p> : notifications.map((n: any) => (<div key={n.id} className={cn("p-4 rounded-2xl border transition-all relative group", n.read ? "bg-muted/20 border-border/40" : "bg-primary/5 border-primary/20 shadow-lg")}><button onClick={() => deleteNotification(n.id)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-red-500"><Trash2 size={12} /></button><div className="flex justify-between items-start mb-2"><p className="text-[10px] font-headline font-bold uppercase text-primary">{n.title}</p><p className="text-[7px] text-muted-foreground uppercase">{new Date(n.date).toLocaleTimeString()}</p></div><p className="text-[9px] text-muted-foreground leading-relaxed">{n.message}</p></div>))}</div></DialogContent></Dialog>
 
-      {/* Scanner Modal */}
-      <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-4 text-center rounded-[2.5rem] z-[2000]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'ماسح المعرف الرقمي' : 'FLASH ID SCANNER'}</DialogTitle></DialogHeader><div className="relative mt-4 overflow-hidden rounded-2xl border-2 border-primary/20 cyan-glow"><div id="reader" className="w-full aspect-square bg-black"></div><div className="absolute inset-0 pointer-events-none flex items-center justify-center"><div className="w-48 h-48 border-2 border-primary/50 rounded-2xl animate-pulse flex items-center justify-center"><div className="w-full h-0.5 bg-primary/80 absolute top-1/2 -translate-y-1/2 animate-[scan_2s_infinite]"></div></div></div></div><p className="mt-4 text-[9px] font-headline font-bold text-muted-foreground uppercase tracking-widest">{language === 'ar' ? 'وجه الكاميرا نحو رمز QR للمستلم' : 'POINT CAMERA AT RECIPIENT QR CODE'}</p><button onClick={() => setScannerOpen(false)} className="mt-6 w-full h-12 bg-muted border border-border/40 rounded-xl flex items-center justify-center gap-2 hover:bg-muted/80 transition-all"><X size={16} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إلغاء' : 'CANCEL'}</span></button></DialogContent></Dialog>
-
-      <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-10 rounded-[2.5rem] z-[1000]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center">{language === 'ar' ? 'بروتوكول التحويل السريع' : 'Fast Transfer Protocol'}</DialogTitle></DialogHeader><div className="space-y-8 mt-6"><div className="space-y-4"><div className="relative group"><input type="text" placeholder={language === 'ar' ? "معرف المستلم" : "RECIPIENT FLASH ID"} value={recipient} onChange={(e) => setRecipient(e.target.value.toUpperCase())} className="w-full bg-muted border border-border/40 h-14 px-6 rounded-2xl font-headline text-[10px] tracking-widest uppercase focus:border-primary outline-none transition-all" />{isLookingUp && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary" size={16} />}</div>{recipientName && <div className="flex items-center justify-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-xl"><CheckCircle2 size={12} className="text-green-500" /><p className="text-[9px] font-headline font-bold text-green-500 uppercase tracking-widest">{language === 'ar' ? 'موثق:' : 'VERIFIED:'} @{recipientName}</p></div>}<div className="relative"><span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-headline font-bold text-primary/30">$</span><input type="number" placeholder="0.00" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} className="w-full bg-muted border border-border/40 h-20 pl-12 pr-6 rounded-2xl text-center text-3xl font-headline font-bold text-primary outline-none focus:border-primary transition-all" /></div></div><button onClick={handleInitiateTransfer} disabled={isSending || !recipientName || !sendAmount} className="w-full bg-primary text-primary-foreground font-headline font-bold py-5 rounded-2xl gold-glow active:scale-95 disabled:opacity-50 transition-all uppercase tracking-widest text-xs">{isSending ? <Loader2 className="animate-spin mx-auto" /> : (language === 'ar' ? "تأكيد العملية" : "AUTHORIZE TRANSACTION")}</button></div></DialogContent></Dialog>
-
-      <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Verify Vault PIN</DialogTitle></DialogHeader>
-          <div className="mt-8">
-            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleSendMoney} />
-            {isSending && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+      {/* Settings Modal */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar animate-in fade-in slide-in-from-bottom-10 duration-500">
+          <DialogHeader className="relative mb-4"><button onClick={() => setIsSettingsOpen(false)} className={cn("absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-primary", language === 'ar' ? "right-[-10px]" : "left-[-10px]")}><ChevronLeft className={cn("h-6 w-6", language === 'ar' && "rotate-180")} /></button><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center w-full">{language === 'ar' ? 'الإعدادات والتحكم' : 'Settings & Entity Control'}</DialogTitle></DialogHeader>
+          <div className="space-y-6 sm:space-y-8 mt-4">
+            <div className="flex flex-col items-center gap-4 text-center"><div className={cn("w-20 h-20 rounded-2xl border-2 flex items-center justify-center relative overflow-hidden shadow-xl", profile?.verified ? "border-green-500" : "border-red-500")}>{profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={32} />}</div><div className="space-y-2"><h3 className="text-md font-headline font-bold tracking-tight">@{profile?.username}</h3><button onClick={copyId} className="px-4 py-2 bg-muted text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-border/40 flex items-center gap-2 hover:bg-muted/80 transition-all">ID: {profile?.customId} <Copy size={12} /></button></div></div>
+            <div className="space-y-3 pb-4">
+              <ThemeToggle /><button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><QrCode size={18} className="text-primary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'المعرف الرقمي الخاص بي' : 'My Flash Identifier'}</span></button>
+              <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><Settings size={18} className="text-muted-foreground" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تعديل الحساب' : 'Configure Account'}</span></Link>
+              <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-muted/20 transition-all"><Languages size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'اللغة: العربية' : 'Language: EN'}</span></button>
+              <button onClick={() => { setIsSettingsOpen(false); setIsSupportOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-secondary transition-all"><Headset size={18} className="text-secondary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'الدعم الفني' : 'Support Center'}</span></button>
+              <button onClick={() => signOut(auth)} className="w-full h-14 glass-card rounded-2xl border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all"><LogOut size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'تسجيل الخروج' : 'Terminate Access'}</span></button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

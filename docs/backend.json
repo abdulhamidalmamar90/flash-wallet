@@ -36,9 +36,10 @@
         "username": { "type": "string" },
         "email": { "type": "string" },
         "lastMessage": { "type": "string" },
-        "status": { "type": "string", "enum": ["open", "active", "closed"] },
+        "status": { "type": "string", "enum": ["open", "active", "closed", "archived"] },
         "caseId": { "type": "string" },
         "rating": { "type": "number" },
+        "feedback": { "type": "string" },
         "joinedBy": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
