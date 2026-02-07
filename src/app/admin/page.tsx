@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useEffect, useState, useRef } from 'react';
@@ -134,24 +133,29 @@ export default function AdminPage() {
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
-  // Queries
-  const withdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals'), orderBy('date', 'desc')), [db]);
-  const { data: withdrawals = [] } = useCollection(withdrawalsQuery);
+  // Queries - Processed Client-side to avoid Index Errors
+  const allWithdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals')), [db]);
+  const { data: allWithdrawals = [] } = useCollection(allWithdrawalsQuery);
+  const withdrawals = useMemo(() => [...allWithdrawals].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allWithdrawals]);
 
-  const depositsQuery = useMemo(() => query(collection(db, 'deposits'), orderBy('date', 'desc')), [db]);
-  const { data: deposits = [] } = useCollection(depositsQuery);
+  const allDepositsQuery = useMemo(() => query(collection(db, 'deposits')), [db]);
+  const { data: allDeposits = [] } = useCollection(allDepositsQuery);
+  const deposits = useMemo(() => [...allDeposits].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allDeposits]);
 
   const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
   const { data: allUsers = [] } = useCollection(allUsersQuery);
 
-  const verificationsQuery = useMemo(() => query(collection(db, 'verifications'), orderBy('date', 'desc')), [db]);
-  const { data: verifications = [] } = useCollection(verificationsQuery);
+  const allVerificationsQuery = useMemo(() => query(collection(db, 'verifications')), [db]);
+  const { data: allVerifications = [] } = useCollection(allVerificationsQuery);
+  const verifications = useMemo(() => [...allVerifications].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allVerifications]);
 
-  const ticketsQuery = useMemo(() => query(collection(db, 'support_tickets'), orderBy('date', 'desc')), [db]);
-  const { data: tickets = [] } = useCollection(ticketsQuery);
+  const allTicketsQuery = useMemo(() => query(collection(db, 'support_tickets')), [db]);
+  const { data: allTickets = [] } = useCollection(allTicketsQuery);
+  const tickets = useMemo(() => [...allTickets].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allTickets]);
 
-  const ordersQuery = useMemo(() => query(collection(db, 'service_requests'), orderBy('date', 'desc')), [db]);
-  const { data: orders = [] } = useCollection(ordersQuery);
+  const allOrdersQuery = useMemo(() => query(collection(db, 'service_requests')), [db]);
+  const { data: allOrders = [] } = useCollection(allOrdersQuery);
+  const orders = useMemo(() => [...allOrders].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allOrders]);
 
   const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions')), [db]);
   const { data: allChatSessions = [] } = useCollection(chatSessionsQuery);
@@ -385,7 +389,7 @@ export default function AdminPage() {
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500"><ArrowUpCircle size={20} /></div>
                   <div>
-                    <p className="text-[10px] font-headline font-bold uppercase">@{w.username} <span className="text-white/20 ml-2">({w.methodName})</span></p>
+                    <div className="text-[10px] font-headline font-bold uppercase">@{w.username} <span className="text-white/20 ml-2">({w.methodName})</span></div>
                     <div className="text-[12px] font-headline font-black text-white">${w.amountUsd} <ArrowRight className="inline mx-1 h-3 w-3 text-muted-foreground" /> {w.netAmount} {w.currencyCode}</div>
                   </div>
                 </div>
@@ -409,7 +413,7 @@ export default function AdminPage() {
                 <div className="flex items-center gap-4">
                   <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-primary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={d.proofUrl} className="w-full h-full object-cover" alt="proof" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={d.proofUrl} className="w-full h-auto" alt="proof enlarged" /></DialogContent></Dialog>
                   <div>
-                    <p className="text-[10px] font-headline font-bold uppercase">@{d.username} <span className="text-white/20 ml-2">via {d.method}</span></p>
+                    <div className="text-[10px] font-headline font-bold uppercase">@{d.username} <span className="text-white/20 ml-2">via {d.method}</span></div>
                     <p className="text-[12px] font-headline font-black text-primary">${d.amount}</p>
                   </div>
                 </div>
@@ -508,7 +512,7 @@ export default function AdminPage() {
                       <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20"><FileText size={24} /></div>
                     )}
                     <div>
-                      <p className="text-[10px] font-headline font-bold uppercase">@{t.username} <span className="text-white/20 ml-2">[{t.subject}]</span></p>
+                      <div className="text-[10px] font-headline font-bold uppercase">@{t.username} <span className="text-white/20 ml-2">[{t.subject}]</span></div>
                       <p className="text-[8px] text-muted-foreground uppercase">{new Date(t.date).toLocaleString()}</p>
                     </div>
                   </div>
@@ -535,7 +539,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20"><ShoppingBag size={20} /></div>
                     <div>
-                      <p className="text-[10px] font-headline font-bold uppercase">@{o.username} <span className="text-white/20 ml-2"> ordered {o.serviceName}</span></p>
+                      <div className="text-[10px] font-headline font-bold uppercase">@{o.username} <span className="text-white/20 ml-2"> ordered {o.serviceName}</span></div>
                       <p className="text-[12px] font-headline font-black text-primary">${o.price} <span className="text-[8px] text-muted-foreground font-black ml-2">{o.selectedVariant}</span></p>
                     </div>
                   </div>
@@ -671,7 +675,7 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
                     <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="avatar" /> : <UserIcon className="text-muted-foreground" />}</div>
-                    <div><p className="text-[10px] font-headline font-bold uppercase">@{u.username}</p><p className="text-[7px] text-muted-foreground font-black tracking-widest">{u.customId}</p></div>
+                    <div><div className="text-[10px] font-headline font-bold uppercase">@{u.username}</div><p className="text-[7px] text-muted-foreground font-black tracking-widest">{u.customId}</p></div>
                   </div>
                   <button onClick={() => { setEditingUserId(u.id); setEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
                 </div>
@@ -688,7 +692,7 @@ export default function AdminPage() {
               <div key={v.id} className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between group">
                 <div className="flex items-center gap-4">
                   <Dialog><DialogTrigger asChild><div className="w-12 h-12 rounded-xl bg-secondary/10 overflow-hidden cursor-zoom-in border border-white/5"><img src={v.docImageUrl} className="w-full h-full object-cover" alt="KYC document" /></div></DialogTrigger><DialogContent className="max-w-2xl bg-black/90 p-0"><img src={v.docImageUrl} className="w-full h-auto" alt="KYC enlarged" /></DialogContent></Dialog>
-                  <div><p className="text-[10px] font-headline font-bold uppercase">@{v.username}</p><p className="text-[7px] text-muted-foreground uppercase">IDENTITY SCAN: {v.status}</p></div>
+                  <div><div className="text-[10px] font-headline font-bold uppercase">@{v.username}</div><p className="text-[7px] text-muted-foreground uppercase">IDENTITY SCAN: {v.status}</p></div>
                 </div>
                 {v.status === 'pending' && (
                   <div className="flex gap-2">
@@ -710,12 +714,24 @@ export default function AdminPage() {
           <div className="mt-6 space-y-5">
             <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Gateway Name</Label><Input placeholder="e.g. STC Pay / Binance" className="bg-background border-white/10 h-12 text-xs" value={newMethod.name} onChange={(e) => setNewMethod({...newMethod, name: e.target.value})} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Region</Label><Select value={newMethod.country} onValueChange={(v) => setNewMethod({...newMethod, country: v})}><SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10">{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase text-muted-foreground">Region</Label>
+                <Select value={newMethod.country} onValueChange={(v) => setNewMethod({...newMethod, country: v})}>
+                  <SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-card border-white/10 z-[1100]">{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Exchange Rate (vs USD)</Label><Input type="number" className="bg-background border-white/10 h-12 text-xs" value={newMethod.exchangeRate} onChange={(e) => setNewMethod({...newMethod, exchangeRate: parseFloat(e.target.value)})} /></div>
             </div>
             {methodType === 'withdraw' && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Fee Mode</Label><Select value={newMethod.feeType} onValueChange={(v) => setNewMethod({...newMethod, feeType: v})}><SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10"><SelectItem value="fixed">Fixed USD</SelectItem><SelectItem value="percent">Percentage</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase text-muted-foreground">Fee Mode</Label>
+                  <Select value={newMethod.feeType} onValueChange={(v) => setNewMethod({...newMethod, feeType: v})}>
+                    <SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-card border-white/10 z-[1100]"><SelectItem value="fixed">Fixed USD</SelectItem><SelectItem value="percent">Percentage</SelectItem></SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Fee Value</Label><Input type="number" className="bg-background border-white/10 h-12 text-xs" value={newMethod.feeValue} onChange={(e) => setNewMethod({...newMethod, feeValue: parseFloat(e.target.value)})} /></div>
               </div>
             )}
@@ -740,7 +756,13 @@ export default function AdminPage() {
           <div className="mt-6 space-y-5">
             <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Asset Name</Label><Input placeholder="PUBG Mobile 600 UC" className="bg-background border-white/10 h-12 text-xs" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Category</Label><Select value={newProduct.category} onValueChange={(v) => setNewProduct({...newProduct, category: v})}><SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10"><SelectItem value="GAMES">Games</SelectItem><SelectItem value="CARDS">Gift Cards</SelectItem><SelectItem value="SOFTWARE">Software</SelectItem><SelectItem value="SOCIAL">Social Media</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase text-muted-foreground">Category</Label>
+                <Select value={newProduct.category} onValueChange={(v) => setNewProduct({...newProduct, category: v})}>
+                  <SelectTrigger className="bg-background border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-card border-white/10 z-[1100]"><SelectItem value="GAMES">Games</SelectItem><SelectItem value="CARDS">Gift Cards</SelectItem><SelectItem value="SOFTWARE">Software</SelectItem><SelectItem value="SOCIAL">Social Media</SelectItem></SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2"><Label className="text-[8px] uppercase text-muted-foreground">Price ($)</Label><Input type="number" disabled={newProduct.type === 'variable'} className="bg-background border-white/10 h-12 text-xs disabled:opacity-30" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} /></div>
             </div>
             <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
@@ -774,11 +796,21 @@ export default function AdminPage() {
 
       {/* User Edit Modal */}
       <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
-        <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
           <div className="mt-6 space-y-6">
             <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Adjust Balance ($)</Label><Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-lg text-primary text-center" value={editForm.balance} onChange={(e) => setEditForm({...editForm, balance: e.target.value})} /></div>
-            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority Role</Label><Select value={editForm.role} onValueChange={(val) => setEditForm({...editForm, role: val})}><SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-card border-white/10"><SelectItem value="user">User (Standard)</SelectItem><SelectItem value="agent">Agent (Intermediate)</SelectItem><SelectItem value="admin">Admin (Full Control)</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority Role</Label>
+              <Select value={editForm.role} onValueChange={(val) => setEditForm({...editForm, role: val})}>
+                <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-card border-white/10 z-[1100]">
+                  <SelectItem value="user">User (Standard)</SelectItem>
+                  <SelectItem value="agent">Agent (Intermediate)</SelectItem>
+                  <SelectItem value="admin">Admin (Full Control)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5"><Label className="text-[10px] font-headline uppercase">Verified Entity</Label><Switch checked={editForm.verified} onCheckedChange={(val) => setEditForm({...editForm, verified: val})} /></div>
             <Button onClick={async () => { try { await updateDoc(doc(db, 'users', editingUserId!), { balance: parseFloat(editForm.balance), role: editForm.role, verified: editForm.verified }); toast({ title: "SYNCED" }); setEditingUserId(null); } catch (e) {} }} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
           </div>
