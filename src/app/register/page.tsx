@@ -1,9 +1,26 @@
 
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, User, Phone, ArrowRight, Loader2, ChevronDown, Eye, EyeOff, Globe } from 'lucide-react';
+import { 
+  Mail, 
+  Lock, 
+  User, 
+  Phone, 
+  ArrowRight, 
+  Loader2, 
+  ChevronDown, 
+  Eye, 
+  EyeOff, 
+  Calendar as CalendarIcon, 
+  UserCircle,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  ShieldCheck,
+  ChevronLeft
+} from 'lucide-react';
 import { PlaceHolderImages } from '@/app/lib/placeholder-images';
 import { useStore } from '@/app/lib/store';
 import { LanguageToggle } from '@/components/ui/LanguageToggle';
@@ -11,20 +28,22 @@ import { cn } from '@/lib/utils';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { 
   createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  signInWithRedirect,
-  getRedirectResult,
   GoogleAuthProvider, 
+  signInWithPopup, 
   signOut 
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const COUNTRIES = [
-  { code: 'GL', nameEn: 'Global / Worldwide', nameAr: 'عالمي / دولي', flag: '🌐', prefix: '' },
-  { code: 'CR', nameEn: 'Crypto / Digital Assets', nameAr: 'عملات رقمية', flag: '🪙', prefix: '' },
   { code: 'SA', nameEn: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameEn: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
@@ -32,40 +51,46 @@ const COUNTRIES = [
   { code: 'QA', nameEn: 'Qatar', nameAr: 'قطر', flag: '🇶🇦', prefix: '+974' },
   { code: 'JO', nameEn: 'Jordan', nameAr: 'الأردن', flag: '🇯🇴', prefix: '+962' },
   { code: 'IQ', nameEn: 'Iraq', nameAr: 'العراق', flag: '🇮🇶', prefix: '+964' },
-  { code: 'LY', nameEn: 'Libya', nameAr: 'ليبيا', flag: '🇱🇾', prefix: '+218' },
-  { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
-  { code: 'MA', nameEn: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', prefix: '+212' },
-  { code: 'PS', nameEn: 'Palestine', nameAr: 'فلسطين', flag: '🇵🇸', prefix: '+970' },
-  { code: 'LB', nameEn: 'Lebanon', nameAr: 'لبنان', flag: '🇱🇧', prefix: '+961' },
-  { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
-  { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
-  { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
-  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
-  { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: 'تونس', prefix: '+216' },
-  { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
-  { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
-  { code: 'GB', nameEn: 'UK', nameAr: 'بريطانيا', flag: '🇬🇧', prefix: '+44' },
-  { code: 'CA', nameEn: 'Canada', nameAr: 'كندا', flag: '🇨🇦', prefix: '+1' },
 ];
 
 export default function RegisterPage() {
   const router = useRouter();
   const auth = useAuth();
   const db = useFirestore();
-  const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const { language } = useStore();
 
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  
+  // Step 1 Fields
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
+
+  // Step 2 Fields
   const [username, setUsername] = useState('');
+  const [isUsernameValid, setIsUsernameValid] = useState<boolean | null>(null);
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [phone, setPhone] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[2]);
-  const [isCountryOpen, setIsCountryOpen] = useState(false);
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
+
+  const passwordCriteria = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[@$!%*?&]/.test(password)
+  };
+
+  const isPasswordStrong = Object.values(passwordCriteria).every(Boolean);
 
   const generateCustomId = () => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -74,118 +99,79 @@ export default function RegisterPage() {
     return `${firstLetter}${numbers}`;
   };
 
-  useEffect(() => {
-    if (!auth || !db) return;
-
-    const checkRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          setLoading(true);
-          const googleEmail = result.user.email?.toLowerCase();
-          const q = query(collection(db, 'users'), where('email', '==', googleEmail));
-          const emailSnap = await getDocs(q);
-          
-          if (!emailSnap.empty) {
-            router.push('/dashboard');
-          } else {
-            const userDoc = doc(db, 'users', result.user.uid);
-            await setDoc(userDoc, {
-              username: result.user.displayName || 'User',
-              email: googleEmail,
-              phone: '',
-              country: 'GL', 
-              customId: generateCustomId(),
-              balance: 0,
-              role: 'user',
-              verified: false,
-              language: language,
-              createdAt: new Date().toISOString()
-            });
-            router.push('/dashboard');
-          }
-        }
-      } catch (error: any) {
-        console.error("Redirect Auth Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkRedirect();
-  }, [auth, db, router, language]);
-
-  useEffect(() => {
-    if (user && !authLoading) {
-      router.push('/dashboard');
+  const checkUsernameUniqueness = async (val: string) => {
+    if (val.length < 3) {
+      setIsUsernameValid(null);
+      return;
     }
-  }, [user, authLoading, router]);
+    setCheckingUsername(true);
+    try {
+      const q = query(collection(db, 'users'), where('username', '==', val.toLowerCase()), limit(1));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setIsUsernameValid(true);
+        setUsernameSuggestions([]);
+      } else {
+        setIsUsernameValid(false);
+        // Generate suggestions
+        const suggestions = [
+          `${val}${Math.floor(Math.random() * 999)}`,
+          `${val}_${new Date().getFullYear()}`,
+          `${val}.flash`
+        ];
+        setUsernameSuggestions(suggestions);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
 
-  const t = {
-    title: language === 'ar' ? 'إنشاء محفظة' : 'CREATE WALLET',
-    subtitle: language === 'ar' ? 'ابدأ رحلتك المالية الآن' : 'Start your financial journey',
-    username: language === 'ar' ? 'اسم المستخدم' : 'Username',
-    email: language === 'ar' ? 'البريد الإلكتروني' : 'Email Address',
-    phone: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
-    password: language === 'ar' ? 'كلمة المرور' : 'Password',
-    register: language === 'ar' ? 'تفعيل المحفظة' : 'Activate Wallet',
-    loading: language === 'ar' ? 'جاري التجهيز...' : 'Initializing...',
-    social: language === 'ar' ? 'أو الاستمرار بواسطة' : 'Or Continue With',
-    hasAccount: language === 'ar' ? 'لديك حساب بالفعل؟' : 'Already have an account?',
-    login: language === 'ar' ? 'تسجيل الدخول' : 'Authorize Access',
-    emailInUse: language === 'ar' ? 'البريد الإلكتروني مستخدم بالفعل.' : 'Email already in use.',
-    phoneInUse: language === 'ar' ? 'رقم الهاتف مستخدم مسبقاً في حساب آخر.' : 'Phone number already in use.',
-    weakPassword: language === 'ar' ? 'كلمة المرور ضعيفة جداً.' : 'Password is too weak.',
-    accountExists: language === 'ar' ? 'هذا الحساب موجود بالفعل، يرجى تسجيل الدخول.' : 'This account already exists. Please login.',
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (username) checkUsernameUniqueness(username);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [username]);
+
+  const handleNextStep = () => {
+    if (!firstName || !lastName || !birthDate) {
+      toast({ variant: "destructive", title: language === 'ar' ? "بيانات ناقصة" : "Missing Info" });
+      return;
+    }
+    // Pre-fill username if empty
+    if (!username) setUsername(`${firstName}${lastName}`.toLowerCase().replace(/\s/g, ''));
+    setStep(2);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !db) return;
-    
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanUsername = username.trim();
-    const cleanPassword = password.trim();
-    const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
-
-    if (!cleanEmail || !cleanPassword || !cleanUsername) return;
+    if (!isUsernameValid || !isPasswordStrong || !email || !phone) return;
 
     setLoading(true);
-
     try {
-      // 1. Check email duplicate
+      const cleanEmail = email.trim().toLowerCase();
+      const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
+
+      // Final uniqueness checks
       const qEmail = query(collection(db, 'users'), where('email', '==', cleanEmail));
       const emailSnap = await getDocs(qEmail);
       if (!emailSnap.empty) {
-        toast({
-          variant: "destructive",
-          title: language === 'ar' ? "فشل الإنشاء" : "Registration Failed",
-          description: t.emailInUse
-        });
+        toast({ variant: "destructive", title: language === 'ar' ? "البريد مستخدم" : "Email in use" });
         setLoading(false);
         return;
       }
 
-      // 2. Check phone duplicate
-      if (phone.trim()) {
-        const qPhone = query(collection(db, 'users'), where('phone', '==', fullPhone));
-        const phoneSnap = await getDocs(qPhone);
-        if (!phoneSnap.empty) {
-          toast({
-            variant: "destructive",
-            title: language === 'ar' ? "الرقم مستخدم" : "Duplicate Phone",
-            description: t.phoneInUse
-          });
-          setLoading(false);
-          return;
-        }
-      }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       await setDoc(doc(db, 'users', userCredential.user.uid), {
-        username: cleanUsername,
+        firstName,
+        lastName,
+        username: username.toLowerCase(),
         email: cleanEmail,
         phone: fullPhone,
+        gender,
+        birthDate: birthDate?.toISOString(),
         country: selectedCountry.code,
         customId: generateCustomId(),
         balance: 0,
@@ -195,207 +181,204 @@ export default function RegisterPage() {
         createdAt: new Date().toISOString()
       });
 
+      await signOut(auth); // Sign out to force redirect to login as requested
       toast({
         title: language === 'ar' ? "تم إنشاء الحساب!" : "Wallet Created!",
-        description: language === 'ar' ? "أهلاً بك في فلاش." : "Welcome to FLASH."
+        description: language === 'ar' ? "يرجى تسجيل الدخول للبدء." : "Please login to start."
       });
-      
-      router.push('/dashboard');
+      router.push('/');
     } catch (error: any) {
-      let message = error.message;
-      if (error.code === 'auth/email-already-in-use') message = t.emailInUse;
-      if (error.code === 'auth/weak-password') message = t.weakPassword;
-
-      toast({
-        variant: "destructive",
-        title: language === 'ar' ? "خطأ في التسجيل" : "Registration Failed",
-        description: message
-      });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    if (!auth || !db) return;
-    setLoading(true);
-    const provider = new GoogleAuthProvider();
-    
-    const isWebView = typeof window !== 'undefined' && 
-      ((window as any).Capacitor?.isNativePlatform || /WV|WebView|Android/i.test(navigator.userAgent));
-
-    try {
-      if (isWebView) {
-        await signInWithRedirect(auth, provider);
-      } else {
-        const result = await signInWithPopup(auth, provider);
-        const googleEmail = result.user.email?.toLowerCase();
-        
-        const q = query(collection(db, 'users'), where('email', '==', googleEmail));
-        const emailSnap = await getDocs(q);
-        
-        if (!emailSnap.empty) {
-          router.push('/dashboard');
-        } else {
-          const userDoc = doc(db, 'users', result.user.uid);
-          await setDoc(userDoc, {
-            username: result.user.displayName || 'User',
-            email: googleEmail,
-            phone: '',
-            country: selectedCountry.code,
-            customId: generateCustomId(),
-            balance: 0,
-            role: 'user',
-            verified: false,
-            language: language,
-            createdAt: new Date().toISOString()
-          });
-          router.push('/dashboard');
-        }
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Google Auth Failed",
-        description: error.message
-      });
-    } finally {
-      if (!isWebView) setLoading(false);
-    }
+  const t = {
+    title: language === 'ar' ? 'إنشاء محفظة' : 'CREATE WALLET',
+    step1: language === 'ar' ? 'البيانات الشخصية' : 'Personal Info',
+    step2: language === 'ar' ? 'بيانات الحماية' : 'Security Setup',
+    firstName: language === 'ar' ? 'الاسم الأول' : 'First Name',
+    lastName: language === 'ar' ? 'الاسم الأخير' : 'Last Name',
+    gender: language === 'ar' ? 'الجنس' : 'Gender',
+    male: language === 'ar' ? 'ذكر' : 'Male',
+    female: language === 'ar' ? 'أنثى' : 'Female',
+    birthDate: language === 'ar' ? 'تاريخ الميلاد' : 'Birth Date',
+    next: language === 'ar' ? 'التالي' : 'Next',
+    username: language === 'ar' ? 'اسم المستخدم' : 'Username',
+    checking: language === 'ar' ? 'جاري التحقق...' : 'Checking...',
+    taken: language === 'ar' ? 'هذا الاسم محجوز' : 'Username taken',
+    available: language === 'ar' ? 'اسم المستخدم متاح' : 'Username available',
+    suggest: language === 'ar' ? 'اقتراحات:' : 'Suggestions:',
+    email: language === 'ar' ? 'البريد الإلكتروني' : 'Email Address',
+    phone: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
+    password: language === 'ar' ? 'كلمة المرور' : 'Password',
+    register: language === 'ar' ? 'تفعيل المحفظة' : 'Activate Wallet',
+    back: language === 'ar' ? 'رجوع' : 'Back',
+    login: language === 'ar' ? 'تسجيل الدخول' : 'Login'
   };
-
-  if (authLoading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0a]" onClick={() => setIsCountryOpen(false)}>
       <div className="absolute top-6 right-6 z-[100]"><LanguageToggle /></div>
-      <div className="absolute inset-0 z-0 opacity-40" style={{ backgroundImage: `url('${backgroundImage?.imageUrl || "https://images.unsplash.com/photo-1603347729548-6844517490c7"}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <div className="absolute inset-0 z-0 opacity-40" style={{ backgroundImage: `url('${backgroundImage?.imageUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         <div className="absolute inset-0 bg-black/85 backdrop-blur-sm"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95 duration-700 overflow-y-auto max-h-[90vh]">
-        <div className="text-center mb-10 flex flex-col items-center">
-          <h1 className="text-5xl font-headline font-bold text-white tracking-tighter gold-glow-text mb-2">FLASH</h1>
-          <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.3em]">{t.subtitle}</p>
-        </div>
-
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div className="group relative">
-            <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><User size={18} /></div>
-            <input 
-              type="text" 
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
-              placeholder={t.username} 
-              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-[14px] font-body text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required 
-            />
+      <div className="relative z-10 w-full max-w-md p-8 m-4 rounded-[2.5rem] border border-white/10 bg-black/30 backdrop-blur-xl shadow-2xl animate-in fade-in duration-700 max-h-[95vh] overflow-y-auto no-scrollbar">
+        <header className="text-center mb-8">
+          <h1 className="text-4xl font-headline font-bold text-white tracking-tighter gold-glow-text mb-2">FLASH</h1>
+          <div className="flex items-center justify-center gap-2">
+            <div className={cn("w-2 h-2 rounded-full", step >= 1 ? "bg-primary" : "bg-white/20")} />
+            <div className={cn("w-10 h-1 rounded-full", step >= 2 ? "bg-primary" : "bg-white/20")} />
+            <div className={cn("w-2 h-2 rounded-full", step >= 2 ? "bg-primary" : "bg-white/20")} />
           </div>
+          <p className="text-primary/60 text-[9px] font-bold uppercase tracking-[0.3em] mt-2">{step === 1 ? t.step1 : t.step2}</p>
+        </header>
 
-          <div className="group relative">
-            <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Mail size={18} /></div>
-            <input 
-              type="email" 
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
-              placeholder={t.email} 
-              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-[14px] font-body text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-4 text-right' : 'pl-12 pr-4 text-left')} 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required 
-            />
+        {step === 1 ? (
+          <div className="space-y-6 animate-in slide-in-from-right-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase text-white/40">{t.firstName}</Label>
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="bg-white/5 border-white/10 h-12 text-sm" placeholder="John" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase text-white/40">{t.lastName}</Label>
+                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="bg-white/5 border-white/10 h-12 text-sm" placeholder="Doe" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase text-white/40">{t.gender}</Label>
+              <RadioGroup value={gender} onValueChange={(v: any) => setGender(v)} className="flex gap-4">
+                <div className={cn("flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border transition-all cursor-pointer", gender === 'male' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}>
+                  <RadioGroupItem value="male" id="male" className="sr-only" />
+                  <Label htmlFor="male" className="cursor-pointer font-headline text-[10px] uppercase">{t.male}</Label>
+                </div>
+                <div className={cn("flex-1 flex items-center justify-center gap-2 h-12 rounded-xl border transition-all cursor-pointer", gender === 'female' ? "bg-pink-500/10 border-pink-500 text-pink-500" : "bg-white/5 border-white/10 text-white/40")}>
+                  <RadioGroupItem value="female" id="female" className="sr-only" />
+                  <Label htmlFor="female" className="cursor-pointer font-headline text-[10px] uppercase">{t.female}</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase text-white/40">{t.birthDate}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full h-12 bg-white/5 border-white/10 justify-start text-left font-normal rounded-xl", !birthDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                    {birthDate ? format(birthDate, "PPP") : <span>Select Date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-card border-white/10" align="start">
+                  <Calendar mode="single" selected={birthDate} onSelect={setBirthDate} disabled={(date) => date > new Date() || date < new Date("1900-01-01")} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <Button onClick={handleNextStep} disabled={!firstName || !lastName || !birthDate} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-2xl gold-glow mt-4">
+              {t.next} <ArrowRight className={cn("ml-2", language === 'ar' && "rotate-180")} size={18} />
+            </Button>
           </div>
+        ) : (
+          <form onSubmit={handleRegister} className="space-y-4 animate-in slide-in-from-right-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase text-white/40">{t.username}</Label>
+              <div className="relative">
+                <UserCircle className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-4' : 'left-4')} size={18} />
+                <Input 
+                  value={username} 
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} 
+                  className={cn("bg-white/5 border-white/10 h-12 text-sm", language === 'ar' ? 'pr-12' : 'pl-12')} 
+                  placeholder="username"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  {checkingUsername ? <Loader2 className="animate-spin text-primary h-4 w-4" /> : 
+                   isUsernameValid === true ? <CheckCircle2 className="text-green-500 h-4 w-4" /> :
+                   isUsernameValid === false ? <XCircle className="text-red-500 h-4 w-4" /> : null}
+                </div>
+              </div>
+              {isUsernameValid === false && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl space-y-2">
+                  <p className="text-[9px] text-red-500 font-bold uppercase">{t.taken}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {usernameSuggestions.map(s => (
+                      <button key={s} type="button" onClick={() => setUsername(s)} className="px-2 py-1 bg-white/5 rounded-md text-[8px] text-white/60 hover:text-primary transition-colors">@{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
-          <div className="flex gap-2 relative z-50" dir="ltr">
-            <div className="relative">
-              <button 
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }}
-                className="h-full bg-white/5 border border-white/10 rounded-2xl px-3 flex items-center gap-2 text-white/70 hover:bg-white/10 transition-all min-w-[100px]"
-              >
-                <span>{selectedCountry.flag}</span>
-                <span className="text-xs">{selectedCountry.code}</span>
-                <ChevronDown size={14} className={cn(isCountryOpen && "rotate-180 transition-transform")} />
-              </button>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase text-white/40">{t.email}</Label>
+              <div className="relative">
+                <Mail className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-4' : 'left-4')} size={18} />
+                <Input value={email} type="email" onChange={(e) => setEmail(e.target.value)} className={cn("bg-white/5 border-white/10 h-12 text-sm", language === 'ar' ? 'pr-12' : 'pl-12')} placeholder="email@example.com" required />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase text-white/40">{t.phone}</Label>
+              <div className="flex gap-2" dir="ltr">
+                <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2 min-w-[90px]">
+                  <span className="text-xs">{selectedCountry.flag}</span>
+                  <ChevronDown size={12} className={cn(isCountryOpen && "rotate-180")} />
+                </button>
+                <div className="relative flex-1">
+                  <Phone className="absolute top-1/2 -translate-y-1/2 left-4 text-white/20" size={18} />
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="bg-white/5 border-white/10 h-12 text-sm pl-12" placeholder="123456789" required />
+                </div>
+              </div>
               {isCountryOpen && (
-                <div className="absolute top-14 left-0 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-48 z-[110]">
+                <div className="absolute left-8 right-8 z-[110] bg-[#1a1a1a] border border-white/10 rounded-xl max-h-40 overflow-y-auto shadow-2xl">
                   {COUNTRIES.map(c => (
-                    <button 
-                      key={c.code}
-                      type="button"
-                      onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }}
-                      className="w-full flex items-center justify-between p-3 hover:bg-white/5 border-b border-white/5 last:border-0"
-                    >
-                      <span className="text-xs">{language === 'ar' ? c.nameAr : c.nameEn}</span>
-                      <span className="text-xs text-white/40">{c.prefix}</span>
+                    <button key={c.code} type="button" onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }} className="w-full p-3 flex items-center gap-3 hover:bg-white/5 border-b border-white/5 last:border-0">
+                      <span className="text-lg">{c.flag}</span>
+                      <span className="text-xs text-white/80">{language === 'ar' ? c.nameAr : c.nameEn}</span>
+                      <span className="text-[10px] text-white/30 ml-auto">{c.prefix}</span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            <div className="group relative flex-1">
-              <div className="absolute top-3.5 left-4 text-white/40 group-focus-within:text-primary"><Phone size={18} /></div>
-              <input 
-                type="tel" 
-                dir="ltr"
-                placeholder={t.phone} 
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-[14px] font-body text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 pl-12 pr-4 text-left"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required 
-              />
+
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase text-white/40">{t.password}</Label>
+              <div className="relative">
+                <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-4' : 'left-4')} size={18} />
+                <Input value={password} type={showPassword ? "text" : "password"} onChange={(e) => setPassword(e.target.value)} className={cn("bg-white/5 border-white/10 h-12 text-sm", language === 'ar' ? 'pr-12 pl-12' : 'pl-12 pr-12')} placeholder="••••••••" required />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'left-4' : 'right-4')}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {Object.entries(passwordCriteria).map(([key, valid]) => (
+                  <div key={key} className="flex items-center gap-1.5">
+                    {valid ? <ShieldCheck className="text-green-500" size={10} /> : <AlertCircle className="text-white/20" size={10} />}
+                    <span className={cn("text-[8px] uppercase font-bold", valid ? "text-green-500" : "text-white/30")}>
+                      {key === 'length' ? '8+ Chars' : key === 'upper' ? 'Uppercase' : key === 'number' ? 'Number' : 'Special Symbol'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="group relative">
-            <div className={cn("absolute top-3.5 text-white/40 group-focus-within:text-primary", language === 'ar' ? 'right-4' : 'left-4')}><Lock size={18} /></div>
-            <input 
-              type={showPassword ? "text" : "password"} 
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck="false"
-              placeholder={t.password} 
-              className={cn("w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 text-[14px] font-body text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50", language === 'ar' ? 'pr-12 pl-12 text-right' : 'pl-12 pr-12 text-left')} 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required 
-            />
-            <button 
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className={cn("absolute top-3.5 text-white/20 hover:text-primary transition-colors", language === 'ar' ? 'left-4' : 'right-4')}
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-
-          <button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-headline font-black py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 mt-4 active:scale-95 disabled:opacity-50">
-            <span>{loading ? t.loading : t.register}</span>
-            <ArrowRight size={18} className={cn(language === 'ar' && 'rotate-180')} />
-          </button>
-        </form>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/10"></span></div>
-          <div className="relative flex justify-center"><span className="bg-[#0b0b0d] px-3 text-[9px] text-white/40 uppercase tracking-widest font-bold">{t.social}</span></div>
-        </div>
-
-        <button onClick={handleGoogleLogin} disabled={loading} className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all group disabled:opacity-50">
-          <svg className="w-5 h-5" viewBox="0 0 48 48">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.13-.45-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"/>
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-          </svg>
-          <span className="font-headline font-bold text-[10px] tracking-widest uppercase">Google Sign-up</span>
-        </button>
+            <div className="flex gap-3 mt-6">
+              <Button type="button" variant="outline" onClick={() => setStep(1)} className="flex-1 h-14 rounded-2xl bg-white/5 border-white/10 font-headline text-[10px] uppercase">
+                {t.back}
+              </Button>
+              <Button type="submit" disabled={loading || !isUsernameValid || !isPasswordStrong} className="flex-[2] h-14 bg-primary text-background font-headline font-black tracking-widest rounded-2xl gold-glow">
+                {loading ? <Loader2 className="animate-spin" /> : t.register}
+              </Button>
+            </div>
+          </form>
+        )}
 
         <p className="text-center mt-8 text-white/40 text-[10px] font-bold uppercase tracking-widest">
-          {t.hasAccount} <Link href="/" className="text-primary cursor-pointer hover:underline">{t.login}</Link>
+          {language === 'ar' ? 'لديك حساب بالفعل؟' : 'Already have an account?'} <Link href="/" className="text-primary cursor-pointer hover:underline">{t.login}</Link>
         </p>
       </div>
     </div>

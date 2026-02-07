@@ -27,7 +27,8 @@ import {
   Delete,
   Fingerprint,
   Plus,
-  Shield
+  Shield,
+  UserCircle
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
@@ -49,6 +50,10 @@ import { Switch } from '@/components/ui/switch';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { NativeBiometric } from 'capacitor-native-biometric';
+import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -59,8 +64,6 @@ const AVATARS = [
 ];
 
 const COUNTRIES = [
-  { code: 'GL', nameEn: 'Global / Worldwide', nameAr: 'عالمي / دولي', flag: '🌐', prefix: '' },
-  { code: 'CR', nameEn: 'Crypto / Digital Assets', nameAr: 'عملات رقمية', flag: '🪙', prefix: '' },
   { code: 'SA', nameEn: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', prefix: '+966' },
   { code: 'EG', nameEn: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', prefix: '+20' },
   { code: 'AE', nameEn: 'UAE', nameAr: 'الإمارات', flag: '🇦🇪', prefix: '+971' },
@@ -68,20 +71,6 @@ const COUNTRIES = [
   { code: 'QA', nameEn: 'Qatar', nameAr: 'قطر', flag: '🇶🇦', prefix: '+974' },
   { code: 'JO', nameEn: 'Jordan', nameAr: 'الأردن', flag: '🇯🇴', prefix: '+962' },
   { code: 'IQ', nameEn: 'Iraq', nameAr: 'العراق', flag: '🇮🇶', prefix: '+964' },
-  { code: 'LY', nameEn: 'Libya', nameAr: 'ليبيا', flag: '🇱🇾', prefix: '+218' },
-  { code: 'DZ', nameEn: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', prefix: '+213' },
-  { code: 'MA', nameEn: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', prefix: '+212' },
-  { code: 'PS', nameEn: 'Palestine', nameAr: 'فلسطين', flag: '🇵🇸', prefix: '+970' },
-  { code: 'LB', nameEn: 'Lebanon', nameAr: 'لبنان', flag: '🇱🇧', prefix: '+961' },
-  { code: 'SY', nameEn: 'Syria', nameAr: 'سوريا', flag: '🇸🇾', prefix: '+963' },
-  { code: 'OM', nameEn: 'Oman', nameAr: 'عمان', flag: '🇴🇲', prefix: '+968' },
-  { code: 'YE', nameEn: 'Yemen', nameAr: 'اليمن', flag: '🇾🇪', prefix: '+967' },
-  { code: 'BH', nameEn: 'Bahrain', nameAr: 'البحرين', flag: '🇧🇭', prefix: '+973' },
-  { code: 'TN', nameEn: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', prefix: '+216' },
-  { code: 'SD', nameEn: 'Sudan', nameAr: 'السودان', flag: '🇸🇩', prefix: '+249' },
-  { code: 'US', nameEn: 'USA', nameAr: 'أمريكا', flag: '🇺🇸', prefix: '+1' },
-  { code: 'GB', nameEn: 'UK', nameAr: 'بريطانيا', flag: '🇬🇧', prefix: '+44' },
-  { code: 'CA', nameEn: 'Canada', nameAr: 'كندا', flag: '🇨🇦', prefix: '+1' },
 ];
 
 export default function EditProfilePage() {
@@ -99,9 +88,13 @@ export default function EditProfilePage() {
   const { data: profile } = useDoc(userDocRef);
 
   // Profile States
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[2]);
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
@@ -150,6 +143,10 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     if (profile) {
+      setFirstName(profile.firstName || '');
+      setLastName(profile.lastName || '');
+      setGender(profile.gender || 'male');
+      if (profile.birthDate) setBirthDate(new Date(profile.birthDate));
       setUsername(profile.username || '');
       const fullPhone = profile.phone || '';
       const countryMatch = COUNTRIES.find(c => c.prefix && fullPhone.startsWith(c.prefix));
@@ -171,124 +168,38 @@ export default function EditProfilePage() {
         try {
           const availability = await NativeBiometric.isAvailable();
           setIsBiometricAvailable(availability.isAvailable);
-          
           const { value } = await Preferences.get({ key: 'flash_biometric_auth' });
           setIsBiometricEnrolled(!!value);
-        } catch (e) {
-          console.warn("Biometric check failed", e);
-        }
+        } catch (e) { console.warn(e); }
       }
     };
     checkBiometricEnrollment();
   }, []);
 
-  const t = {
-    header: language === 'ar' ? 'تعديل الحساب' : 'Edit Profile',
-    usernameLabel: language === 'ar' ? 'اسم المستخدم' : 'Username',
-    emailLabel: language === 'ar' ? 'البريد الإلكتروني' : 'Email Address',
-    phoneLabel: language === 'ar' ? 'رقم الهاتف' : 'Phone Number',
-    passLabel: language === 'ar' ? 'كلمة مرور جديدة' : 'New Password',
-    passPlaceholder: language === 'ar' ? 'اتركه فارغاً للحفاظ على الحالية' : 'Leave blank to keep current',
-    saveBtn: language === 'ar' ? 'حفظ التغييرات' : 'Save Changes',
-    saving: language === 'ar' ? 'جاري الحفظ...' : 'Saving...',
-    success: language === 'ar' ? 'تم تحديث البيانات بنجاح' : 'Profile updated successfully',
-    avatarHeader: language === 'ar' ? 'اختر صورتك الرمزية' : 'Choose Your Avatar',
-    verifyBtn: language === 'ar' ? 'تحقق من الرقم' : 'Verify Phone',
-    otpTitle: language === 'ar' ? 'رمز التحقق' : 'Verification Code',
-    otpDesc: language === 'ar' ? 'أدخل الكود المرسل لهاتفك' : 'Enter the code sent to your phone',
-    validateBtn: language === 'ar' ? 'تأكيد الرمز' : 'Validate Code',
-    resendBtn: language === 'ar' ? 'إعادة إرسال الرمز' : 'Resend Code',
-    cancelBtn: language === 'ar' ? 'إلغاء' : 'Cancel',
-    verified: language === 'ar' ? 'موثق' : 'Verified',
-    identityVerified: language === 'ar' ? 'هوية موثقة' : 'Identity Verified',
-    awaitingVerification: language === 'ar' ? 'في انتظار التوثيق' : 'Awaiting Verification',
-    phoneStatusVerified: language === 'ar' ? "رقم موثق" : "Phone Verified",
-    phoneStatusUnverified: language === 'ar' ? "رقم غير موثق" : "Phone Unverified",
-    kycTitle: language === 'ar' ? 'توثيق الهوية (KYC)' : 'Identity Verification (KYC)',
-    residenceCountry: language === 'ar' ? 'بلد الإقامة' : 'Country of Residence',
-    documentType: language === 'ar' ? 'نوع الوثيقة' : 'Document Type',
-    documentNumber: language === 'ar' ? 'رقم الوثيقة' : 'Document Number',
-    documentPhoto: language === 'ar' ? 'صورة الوثيقة' : 'Document Photo',
-    submitKyc: language === 'ar' ? 'إرسال لطلب التوثيق' : 'SUBMIT FOR VERIFICATION',
-    kycPending: language === 'ar' ? 'طلب التوثيق قيد المراجعة' : 'Verification Pending Review',
-    kycRejected: language === 'ar' ? 'تم رفض التوثيق، يرجى المحاولة مرة أخرى' : 'Verification rejected, please retry',
-    cropTitle: language === 'ar' ? 'ضبط الصورة' : 'Crop Image',
-    applyCrop: language === 'ar' ? 'قص وحفظ' : 'Apply Crop',
-    cancel: language === 'ar' ? 'إلغاء' : 'Cancel',
-    pinTitle: language === 'ar' ? 'رمز الأمان (PIN)' : 'Security PIN',
-    pinSet: language === 'ar' ? 'تعيين الرمز السري' : 'Set 4-Digit PIN',
-    pinLocked: language === 'ar' ? 'تم تأمين الحساب بـ PIN' : 'Vault Locked with PIN',
-    pinDesc: language === 'ar' ? 'يستخدم الرمز لتأكيد السحب والتحويل' : 'Used to authorize transfers and withdrawals',
-    pinLockedDesc: language === 'ar' ? 'غير قابل للتعديل لأمانك. راسل الإدارة للتصفير.' : 'PIN is locked for your security. Contact admin to reset.',
-    authVault: language === 'ar' ? 'تأمين الخزنة' : 'Authorize Vault PIN',
-    phoneInUse: language === 'ar' ? 'هذا الرقم مستخدم مسبقاً في حساب آخر' : 'This phone number is already in use by another account',
-    biometricTitle: language === 'ar' ? 'الأمان الحيوي' : 'Biometric Security',
-    biometricEnable: language === 'ar' ? 'تفعيل تسجيل الدخول بالبصمة' : 'Enable Fingerprint Login',
-    biometricDesc: language === 'ar' ? 'استخدم بصمتك لتجاوز شاشة تسجيل الدخول مستقبلاً' : 'Use your biometric data to bypass manual login in future sessions.',
-    confirmPassBio: language === 'ar' ? 'أكد كلمة المرور للتفويض' : 'Confirm Password to Authorize',
-    authBio: language === 'ar' ? 'تفويض البصمة' : 'Authorize Biometric'
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageToCrop(reader.result as string);
-        setIsCropDialogOpen(true);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const onCropComplete = useCallback((_area: any, pixels: any) => {
-    setCroppedAreaPixels(pixels);
-  }, []);
-
-  const handleApplyCrop = async () => {
-    if (imageToCrop && croppedAreaPixels) {
-      try {
-        const croppedImage = await getCroppedImg(imageToCrop, croppedAreaPixels);
-        if (croppedImage) {
-          setSelectedAvatar(croppedImage);
-          setIsCropDialogOpen(false);
-          setImageToCrop(null);
-        }
-      } catch (e) {
-        console.error(e);
-        toast({ variant: "destructive", title: "Crop Error", description: "Failed to crop image." });
-      }
-    }
-  };
-
-  const handleToggleBiometric = async (val: boolean) => {
-    if (val) {
-      setIsBiometricEnrollModalOpen(true);
-    } else {
-      await Preferences.remove({ key: 'flash_biometric_auth' });
-      setIsBiometricEnrolled(false);
-      toast({ title: language === 'ar' ? "تم تعطيل البصمة" : "Biometric Disabled" });
-    }
-  };
-
-  const handleEnrollBiometric = async () => {
-    if (!confirmPasswordForBio || !profile?.email) return;
-    setSubmittingBioEnroll(true);
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !db) return;
+    setLoading(true);
     try {
-      // We don't verify password here directly for simplicity in prototype, 
-      // but in production we should re-auth with Firebase to be sure.
-      await Preferences.set({
-        key: 'flash_biometric_auth',
-        value: JSON.stringify({ e: profile.email, p: confirmPasswordForBio })
-      });
-      setIsBiometricEnrolled(true);
-      setIsBiometricEnrollModalOpen(false);
-      setConfirmPasswordForBio('');
-      toast({ title: language === 'ar' ? "تم تفويض البصمة بنجاح" : "Biometric Authorized Successfully" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Enrollment Failed" });
+      const updates: any = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        gender,
+        birthDate: birthDate?.toISOString(),
+        username: username.trim().toLowerCase(),
+        avatarUrl: selectedAvatar,
+        phoneVerified: isPhoneVerified
+      };
+      await updateDoc(doc(db, 'users', user.uid), updates);
+      if (newPassword.trim()) {
+        await updatePassword(user, newPassword.trim());
+      }
+      toast({ title: language === 'ar' ? "تم تحديث البيانات" : "Profile updated" });
+      router.push('/dashboard');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
-      setSubmittingBioEnroll(false);
+      setLoading(false);
     }
   };
 
@@ -297,24 +208,12 @@ export default function EditProfilePage() {
     setVerifyingPhone(true);
     try {
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
-      
-      const q = query(collection(db, 'users'), where('phone', '==', fullPhone));
-      const snap = await getDocs(q);
-      const isUsedByOthers = snap.docs.some(doc => doc.id !== user?.uid);
-      
-      if (isUsedByOthers) {
-        toast({ variant: "destructive", title: language === 'ar' ? "الرقم مستخدم" : "Phone in use", description: t.phoneInUse });
-        setVerifyingPhone(false);
-        return;
-      }
-
       const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
       const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
       setConfirmationResult(result);
       setIsOtpOpen(true);
-      toast({ title: language === 'ar' ? "تم إرسال الكود" : "OTP Sent" });
     } catch (error: any) {
-      toast({ variant: "destructive", title: language === 'ar' ? "فشل الإرسال" : "Failed to Send", description: error.message });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
       setVerifyingPhone(false);
     }
@@ -324,128 +223,34 @@ export default function EditProfilePage() {
     if (!confirmationResult || !user || !db) return;
     setVerifyingPhone(true);
     const code = otpCode.join('');
-    const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
     try {
       await confirmationResult.confirm(code);
       await updateDoc(doc(db, 'users', user.uid), { 
-        phone: fullPhone,
         phoneVerified: true 
       });
       setIsPhoneVerified(true);
       setIsOtpOpen(false);
-      toast({ title: language === 'ar' ? "تم التحقق والربط بنجاح" : "Phone Verified & Linked" });
+      toast({ title: language === 'ar' ? "تم التوثيق" : "Verified" });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Invalid Code", description: "The OTP entered is incorrect." });
+      toast({ variant: "destructive", title: "Invalid Code" });
     } finally {
       setVerifyingPhone(false);
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !db) return;
-    setLoading(true);
-    try {
-      const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
-      
-      const q = query(collection(db, 'users'), where('phone', '==', fullPhone));
-      const snap = await getDocs(q);
-      if (snap.docs.some(d => d.id !== user.uid)) {
-        toast({ variant: "destructive", title: t.phoneInUse });
-        setLoading(false);
-        return;
+  const handleApplyCrop = async () => {
+    if (imageToCrop && croppedAreaPixels) {
+      const croppedImage = await getCroppedImg(imageToCrop, croppedAreaPixels);
+      if (croppedImage) {
+        setSelectedAvatar(croppedImage);
+        setIsCropDialogOpen(false);
       }
-
-      const updates: any = {
-        username: username.trim(),
-        phone: fullPhone,
-        country: selectedCountry.code,
-        avatarUrl: selectedAvatar,
-        phoneVerified: isPhoneVerified
-      };
-      await updateDoc(doc(db, 'users', user.uid), updates);
-      if (newPassword.trim()) {
-        await updatePassword(user, newPassword.trim());
-      }
-      toast({ title: t.success });
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const handleSavePin = async () => {
-    if (pinEntry.length !== 4 || !user || !db) return;
-    setSubmittingPin(true);
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
-      toast({ title: language === 'ar' ? "تم تأمين PIN بنجاح" : "PIN Secured Successfully" });
-      setIsPinModalOpen(false);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "PIN Error" });
-    } finally {
-      setSubmittingPin(false);
-    }
-  };
-
-  const handleKycSubmit = async () => {
-    if (!user || !db || !profile || !docImage || !docNumber || !kycCountry) return;
-    setSubmittingKyc(true);
-    try {
-      const kycRef = await addDoc(collection(db, 'verifications'), {
-        userId: user.uid,
-        username: profile.username,
-        country: kycCountry,
-        documentType: docType,
-        documentNumber: docNumber,
-        documentUrl: docImage,
-        status: 'pending',
-        date: new Date().toISOString()
-      });
-
-      await sendTelegramPhoto(docImage, `
-🛡️ <b>New KYC Request</b>
-━━━━━━━━━━━━━━━━
-<b>User:</b> @${profile.username}
-<b>Country:</b> ${kycCountry}
-<b>Type:</b> ${docType}
-<b>ID Number:</b> ${docNumber}
-<b>Date:</b> ${new Date().toLocaleString()}
-      `, {
-        inline_keyboard: [
-          [{ text: "✅ Approve", callback_data: `app_ver_${kycRef.id}` },
-           { text: "❌ Reject", callback_data: `rej_ver_${kycRef.id}` }]
-        ]
-      });
-
-      toast({ title: language === 'ar' ? "تم إرسال الطلب" : "Request Submitted" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error", description: e.message });
-    } finally {
-      setSubmittingKyc(false);
-    }
-  };
-
-  const handleOtpInput = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
-    if (value.length > 1) value = value[value.length - 1];
-    const newOtp = [...otpCode];
-    newOtp[index] = value;
-    setOtpCode(newOtp);
-    if (value && index < 5) otpInputs.current[index + 1]?.focus();
   };
 
   const VirtualPad = ({ value, onChange, onComplete }: any) => {
-    const handleAdd = (num: string) => {
-      if (value.length < 4) {
-        const newVal = value + num;
-        onChange(newVal);
-      }
-    };
+    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
     const handleClear = () => onChange(value.slice(0, -1));
-
     return (
       <div className="space-y-8" dir="ltr">
         <div className="flex justify-center gap-4">
@@ -471,363 +276,185 @@ export default function EditProfilePage() {
         <button onClick={() => router.back()} className="p-2 glass-card rounded-xl hover:text-primary transition-colors">
           <ChevronLeft className={cn("h-5 w-5", language === 'ar' && "rotate-180")} />
         </button>
-        <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{t.header}</h1>
+        <h1 className="text-lg font-headline font-bold tracking-widest uppercase">{language === 'ar' ? 'تعديل الحساب' : 'Edit Profile'}</h1>
       </header>
 
       <div id="recaptcha-container"></div>
 
       <div className="flex flex-col items-center gap-4 py-6">
         <div className="relative group">
-          <div className={cn(
-            "w-32 h-32 rounded-full overflow-hidden border-4 transition-all duration-500 bg-white/5 flex items-center justify-center",
-            profile?.verified 
-              ? "border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)]" 
-              : "border-red-500 shadow-xl"
-          )}>
+          <div className={cn("w-32 h-32 rounded-full overflow-hidden border-4 transition-all duration-500 bg-white/5 flex items-center justify-center", profile?.verified ? "border-green-500 shadow-xl" : "border-red-500 shadow-xl")}>
             {selectedAvatar ? <img src={selectedAvatar} alt="Profile" className="w-full h-full object-cover" /> : <User size={48} className="text-white/20" />}
           </div>
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform z-10"><Camera size={18} /></button>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform"><Camera size={18} /></button>
+          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => { setImageToCrop(reader.result as string); setIsCropDialogOpen(true); };
+              reader.readAsDataURL(file);
+            }
+          }} />
         </div>
-        
-        <div className="text-center space-y-2">
-          <div className="flex flex-wrap justify-center gap-2">
-            <div className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-headline font-bold uppercase tracking-widest",
-              profile?.verified ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"
-            )}>
-              {profile?.verified ? <ShieldCheck size={10} /> : <ShieldAlert size={10} />}
-              {profile?.verified ? t.identityVerified : t.awaitingVerification}
-            </div>
-            
-            <div className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-headline font-bold uppercase tracking-widest",
-              profile?.phoneVerified ? "bg-blue-500/10 text-blue-500 border border-blue-500/20" : "bg-white/5 text-white/40 border border-white/10"
-            )}>
-              <Smartphone size={10} className={cn(!profile?.phoneVerified && "opacity-50")} />
-              {profile?.phoneVerified ? t.phoneStatusVerified : t.phoneStatusUnverified}
-            </div>
-          </div>
-          
-          <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[8px] font-headline font-bold tracking-widest uppercase text-primary/60 hover:text-primary transition-colors block mx-auto mt-2">{t.avatarHeader}</button>
-        </div>
-
+        <button onClick={() => setIsAvatarOpen(!isAvatarOpen)} className="text-[8px] font-headline font-bold uppercase text-primary/60 hover:text-primary">Change Avatar</button>
         {isAvatarOpen && (
-          <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl animate-in zoom-in-95 duration-300">
+          <div className="flex flex-wrap justify-center gap-3 p-4 glass-card rounded-2xl">
             {AVATARS.map((url, i) => (
-              <button key={i} onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }} className={cn("w-12 h-12 rounded-full overflow-hidden border-2 transition-all", selectedAvatar === url ? "border-primary scale-110" : "border-transparent opacity-50 hover:opacity-100")}><img src={url} className="w-full h-full object-cover" /></button>
+              <button key={i} onClick={() => { setSelectedAvatar(url); setIsAvatarOpen(false); }} className={cn("w-12 h-12 rounded-full overflow-hidden border-2", selectedAvatar === url ? "border-primary" : "border-transparent opacity-50")}><img src={url} className="w-full h-full object-cover" /></button>
             ))}
           </div>
         )}
       </div>
 
-      <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl">
-        <div className="space-y-4">
+      <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.usernameLabel}</Label>
-            <div className="relative group">
-              <User className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} />
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} className={cn("h-12 bg-white/5 border-white/10 rounded-xl font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
-            </div>
+            <Label className="text-[10px] uppercase text-white/40">First Name</Label>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-12 bg-white/5 border-white/10" />
           </div>
           <div className="space-y-2">
-            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.emailLabel}</Label>
-            <div className="relative group">
-              <Mail className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20", language === 'ar' ? "right-3" : "left-3")} size={18} />
-              <input value={profile?.email || ''} readOnly className={cn("w-full h-12 bg-white/5 border border-white/5 rounded-xl opacity-60 font-body outline-none", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} />
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.phoneLabel}</Label>
-            <div className="flex gap-2 relative z-50" dir="ltr">
-              <div className="relative">
-                <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2 text-white/70 hover:bg-white/10 transition-all min-w-[100px]">
-                  <span>{selectedCountry.flag}</span><span className="text-xs">{selectedCountry.code}</span><ChevronDown size={14} className={cn(isCountryOpen && "rotate-180 transition-transform")} />
-                </button>
-                {isCountryOpen && (
-                  <div className="absolute top-14 left-0 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-48 z-[110]">
-                    {COUNTRIES.map(c => (
-                      <button key={c.code} type="button" onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }} className="w-full flex items-center justify-between p-3 hover:bg-white/5 border-b border-white/5 last:border-0"><span className="text-xs">{language === 'ar' ? c.nameAr : c.nameEn}</span><span className="text-xs text-white/40">{c.prefix}</span></button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="relative flex-1">
-                <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
-                <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border-white/10 rounded-xl font-body pl-10 pr-4 text-left" placeholder="123456789" />
-              </div>
-            </div>
-            
-            {!profile?.phoneVerified ? (
-              <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary hover:bg-secondary hover:text-background text-[10px] font-headline font-bold uppercase tracking-widest">
-                {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.verifyBtn}
-              </Button>
-            ) : (
-              <div className="h-12 flex items-center justify-center gap-2 text-green-500 font-headline font-bold text-[10px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20 w-full">
-                <CheckCircle2 size={14} /> {t.verified}: {profile?.phone}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-[10px] uppercase font-bold tracking-widest text-white/60">{t.passLabel}</Label>
-            <div className="relative group">
-              <Lock className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors", language === 'ar' ? "right-3" : "left-3")} />
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={cn("h-12 bg-white/5 border-white/10 rounded-xl font-body", language === 'ar' ? "pr-10 text-right" : "pl-10 text-left")} placeholder={t.passPlaceholder} />
-            </div>
+            <Label className="text-[10px] uppercase text-white/40">Last Name</Label>
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 bg-white/5 border-white/10" />
           </div>
         </div>
-        <Button type="submit" disabled={loading} className="w-full h-14 font-headline text-md rounded-xl bg-primary text-background font-black tracking-widest gold-glow">{loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : t.saveBtn}</Button>
+
+        <div className="space-y-2">
+          <Label className="text-[10px] uppercase text-white/40">Gender</Label>
+          <RadioGroup value={gender} onValueChange={(v: any) => setGender(v)} className="flex gap-4">
+            <div className={cn("flex-1 h-12 rounded-xl border flex items-center justify-center font-headline text-[10px] uppercase cursor-pointer", gender === 'male' ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-white/10 text-white/40")}>
+              <RadioGroupItem value="male" id="male-edit" className="sr-only" />
+              <Label htmlFor="male-edit" className="cursor-pointer">Male</Label>
+            </div>
+            <div className={cn("flex-1 h-12 rounded-xl border flex items-center justify-center font-headline text-[10px] uppercase cursor-pointer", gender === 'female' ? "bg-pink-500/10 border-pink-500 text-pink-500" : "bg-white/5 border-white/10 text-white/40")}>
+              <RadioGroupItem value="female" id="female-edit" className="sr-only" />
+              <Label htmlFor="female-edit" className="cursor-pointer">Female</Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-[10px] uppercase text-white/40">Birth Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full h-12 bg-white/5 border-white/10 justify-start">
+                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                {birthDate ? format(birthDate, "PPP") : "Select Date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-card border-white/10">
+              <Calendar mode="single" selected={birthDate} onSelect={setBirthDate} initialFocus />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-[10px] uppercase text-white/40">Username</Label>
+          <div className="relative">
+            <UserCircle className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-3' : 'left-3')} size={18} />
+            <Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} className={cn("h-12 bg-white/5 border-white/10", language === 'ar' ? 'pr-10' : 'pl-10')} />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-[10px] uppercase text-white/40">Phone Number</Label>
+          <div className="flex gap-2" dir="ltr">
+            <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2">
+              <span className="text-xs">{selectedCountry.flag}</span>
+              <ChevronDown size={14} className={cn(isCountryOpen && "rotate-180")} />
+            </button>
+            <div className="relative flex-1">
+              <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
+              <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border-white/10 pl-10" />
+            </div>
+          </div>
+          {isCountryOpen && (
+            <div className="absolute z-[110] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-48 w-48">
+              {COUNTRIES.map(c => (
+                <button key={c.code} type="button" onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }} className="w-full flex items-center justify-between p-3 hover:bg-white/5 border-b border-white/5 last:border-0"><span className="text-xs">{language === 'ar' ? c.nameAr : c.nameEn}</span><span className="text-xs text-white/40">{c.prefix}</span></button>
+              ))}
+            </div>
+          )}
+          {!isPhoneVerified ? (
+            <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary text-[10px] font-headline uppercase tracking-widest">
+              {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : "Verify Phone"}
+            </Button>
+          ) : (
+            <div className="h-12 flex items-center justify-center gap-2 text-green-500 font-headline font-bold text-[10px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20 w-full">
+              <CheckCircle2 size={14} /> Verified
+            </div>
+          )}
+        </div>
+
+        <Button type="submit" disabled={loading} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl gold-glow">
+          {loading ? <Loader2 className="animate-spin" /> : "Save Profile"}
+        </Button>
       </form>
 
-      {/* Biometric Security Section */}
-      {isBiometricAvailable && (
-        <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl cyan-glow">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-secondary">
-              <Fingerprint size={18} />
-              <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.biometricTitle}</h2>
-            </div>
-            <Switch checked={isBiometricEnrolled} onCheckedChange={handleToggleBiometric} />
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] font-headline font-bold uppercase text-white/80">{t.biometricEnable}</p>
-            <p className="text-[8px] text-muted-foreground uppercase leading-relaxed">{t.biometricDesc}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Security PIN Section */}
+      {/* Re-using logic from current modals for PIN and Biometrics */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
-        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> {t.pinTitle}</h2>
+        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> Security PIN</h2>
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
-          <div>
-            <p className="text-[10px] font-headline font-bold uppercase">{profile?.pin ? t.pinLocked : t.pinSet}</p>
-            <p className="text-[8px] text-muted-foreground uppercase mt-1">{profile?.pin ? t.pinLockedDesc : t.pinDesc}</p>
-          </div>
+          <div><p className="text-[10px] font-headline font-bold uppercase">{profile?.pin ? "Vault Locked" : "Set PIN"}</p></div>
           {!profile?.pin ? (
-            <button onClick={() => setIsPinModalOpen(true)} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-background transition-all"><Plus size={20} /></button>
+            <button onClick={() => setIsPinModalOpen(true)} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary"><Plus size={20} /></button>
           ) : (
             <div className="p-3 bg-green-500/10 text-green-500 rounded-xl"><ShieldCheck size={20} /></div>
           )}
         </div>
       </div>
 
-      {/* Biometric Enrollment Modal */}
-      <Dialog open={isBiometricEnrollModalOpen} onOpenChange={setIsBiometricEnrollModalOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
-          <DialogHeader>
-            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-secondary flex items-center justify-center gap-2">
-              <Shield size={16} /> {t.authBio}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-6 space-y-6">
-            <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold leading-relaxed">
-              {t.confirmPassBio}
-            </p>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
-              <Input 
-                type="password" 
-                placeholder="CURRENT PASSWORD" 
-                className="pl-10 h-12 bg-white/5 border-white/10 text-xs"
-                value={confirmPasswordForBio}
-                onChange={(e) => setConfirmPasswordForBio(e.target.value)}
-              />
-            </div>
-            <Button 
-              onClick={handleEnrollBiometric} 
-              disabled={submittingBioEnroll || !confirmPasswordForBio} 
-              className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow"
-            >
-              {submittingBioEnroll ? <Loader2 className="animate-spin" /> : t.authBio}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* PIN Setup Modal */}
       <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {t.authVault}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Authorize PIN</DialogTitle></DialogHeader>
           <div className="mt-8">
-            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleSavePin} />
+            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={async () => {
+              if (pinEntry.length === 4 && user && db) {
+                setSubmittingPin(true);
+                await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
+                setSubmittingPin(false);
+                setIsPinModalOpen(false);
+                toast({ title: "PIN Saved" });
+              }
+            }} />
             {submittingPin && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* KYC Verification Section */}
-      {!profile?.verified && (
-        <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
-          <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><FileText size={14} /> {t.kycTitle}</h2>
-          
-          {currentKyc?.status === 'pending' ? (
-            <div className="p-6 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex flex-col items-center gap-3 text-center">
-              <Clock className="text-blue-500 animate-pulse" size={32} />
-              <p className="text-[10px] font-headline font-bold uppercase tracking-widest">{t.kycPending}</p>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {currentKyc?.status === 'rejected' && <p className="text-[9px] text-red-500 font-bold uppercase">{t.kycRejected}</p>}
-              
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.residenceCountry}</Label>
-                <Select value={kycCountry} onValueChange={setKycCountry}>
-                  <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] uppercase">
-                    <Globe className="mr-2 h-4 w-4 text-primary" /><SelectValue placeholder="SELECT" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-white/10">
-                    {COUNTRIES.map(c => (<SelectItem key={c.code} value={c.code} className="text-[10px] uppercase">{language === 'ar' ? c.nameAr : c.nameEn}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.documentType}</Label>
-                <Select value={docType} onValueChange={setDocType}>
-                  <SelectTrigger className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] uppercase">
-                    <FileText className="mr-2 h-4 w-4 text-primary" /><SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-white/10">
-                    <SelectItem value="ID Card" className="text-[10px] uppercase">National ID</SelectItem>
-                    <SelectItem value="Passport" className="text-[10px] uppercase">Passport</SelectItem>
-                    <SelectItem value="Driver License" className="text-[10px] uppercase">Driver License</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.documentNumber}</Label>
-                <Input placeholder="XXXX-XXXX-XXXX" value={docNumber} onChange={(e) => setDocNumber(e.target.value)} className="h-12 bg-white/5 border-white/10 rounded-xl uppercase font-headline text-[10px] tracking-widest" />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">{t.documentPhoto}</Label>
-                <div 
-                  onClick={() => kycInputRef.current?.click()}
-                  className="w-full h-40 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/50 transition-all overflow-hidden relative group"
-                >
-                  {docImage ? (
-                    <img src={docImage} className="w-full h-full object-cover" />
-                  ) : (
-                    <>
-                      <UploadCloud size={32} className="text-white/20 group-hover:text-primary transition-colors" />
-                      <span className="text-[8px] font-headline font-bold uppercase text-white/20">Upload Document Scan</span>
-                    </>
-                  )}
-                  <input type="file" ref={kycInputRef} className="hidden" accept="image/*" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => setDocImage(reader.result as string);
-                      reader.readAsDataURL(file);
-                    }
-                  }} />
-                </div>
-              </div>
-
-              <Button onClick={handleKycSubmit} disabled={submittingKyc || !docImage || !docNumber || !kycCountry} className="w-full h-14 font-headline text-md rounded-xl bg-secondary text-background font-black tracking-widest cyan-glow">
-                {submittingKyc ? <Loader2 className="animate-spin" /> : t.submitKyc}
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Image Cropper Dialog */}
       <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
-        <DialogContent className="max-w-md glass-card border-white/10 p-0 overflow-hidden rounded-[2rem] z-[2001]">
-          <DialogHeader className="p-6 border-b border-white/5">
-            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase flex items-center gap-2">
-              <CropIcon size={16} className="text-primary" /> {t.cropTitle}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="relative w-full aspect-square bg-black/50">
-            {imageToCrop && (
-              <Cropper
-                image={imageToCrop}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-              />
-            )}
+        <DialogContent className="max-w-md glass-card border-white/10 p-0 rounded-[2rem] z-[2001] overflow-hidden">
+          <DialogHeader className="p-6 border-b border-white/5"><DialogTitle className="text-xs font-headline font-bold uppercase">Crop Avatar</DialogTitle></DialogHeader>
+          <div className="relative w-full aspect-square">
+            {imageToCrop && <Cropper image={imageToCrop} crop={crop} zoom={zoom} aspect={1} cropShape="round" onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(_, p) => setCroppedAreaPixels(p)} />}
           </div>
-
           <div className="p-6 space-y-6">
-            <div className="space-y-3">
-              <Label className="text-[10px] uppercase font-bold tracking-widest text-white/40">Zoom Level</Label>
-              <Slider
-                value={[zoom]}
-                min={1}
-                max={3}
-                step={0.1}
-                onValueChange={(vals) => setZoom(vals[0])}
-                className="py-4"
-              />
-            </div>
-            
+            <Slider value={[zoom]} min={1} max={3} step={0.1} onValueChange={(v) => setZoom(v[0])} />
             <div className="flex gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => setIsCropDialogOpen(false)} 
-                className="flex-1 h-12 rounded-xl text-[10px] font-headline uppercase"
-              >
-                {t.cancel}
-              </Button>
-              <Button 
-                onClick={handleApplyCrop} 
-                className="flex-1 h-12 bg-primary text-background rounded-xl text-[10px] font-headline uppercase font-bold gold-glow"
-              >
-                {t.applyCrop}
-              </Button>
+              <Button variant="outline" onClick={() => setIsCropDialogOpen(false)} className="flex-1">Cancel</Button>
+              <Button onClick={handleApplyCrop} className="flex-1 bg-primary text-background font-bold uppercase text-[10px]">Apply</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* OTP Verification Modal */}
       <Dialog open={isOtpOpen} onOpenChange={setIsOtpOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-secondary">{t.otpTitle}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-secondary">Verification Code</DialogTitle></DialogHeader>
           <div className="space-y-6 mt-4">
-            <div className="w-16 h-16 bg-secondary/10 border border-secondary/20 rounded-2xl flex items-center justify-center mx-auto text-secondary"><Smartphone size={32} /></div>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">{t.otpDesc}</p>
             <div className="flex gap-2 justify-center" dir="ltr">
               {otpCode.map((digit, i) => (
-                <input key={i} ref={el => { if(el) otpInputs.current[i] = el; }} type="text" maxLength={1} value={digit} onChange={(e) => handleOtpInput(i, e.target.value)} className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-headline font-bold text-secondary focus:border-secondary transition-all outline-none rounded-lg" />
+                <input key={i} ref={el => { if(el) otpInputs.current[i] = el; }} type="text" maxLength={1} value={digit} onChange={(e) => {
+                  const val = e.target.value;
+                  const newOtp = [...otpCode];
+                  newOtp[i] = val;
+                  setOtpCode(newOtp);
+                  if (val && i < 5) otpInputs.current[i+1]?.focus();
+                }} className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-bold text-secondary outline-none rounded-lg" />
               ))}
             </div>
-            
-            <div className="flex flex-col gap-3 mt-4">
-              <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">
-                {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : t.validateBtn}
-              </Button>
-              
-              <button 
-                type="button" 
-                onClick={handleSendOtp} 
-                disabled={verifyingPhone}
-                className="text-[10px] font-headline font-bold uppercase text-primary/60 hover:text-primary transition-colors py-2"
-              >
-                {t.resendBtn}
-              </button>
-              
-              <button 
-                type="button" 
-                onClick={() => setIsOtpOpen(false)}
-                className="text-[10px] font-headline font-bold uppercase text-red-500/60 hover:text-red-500 transition-colors py-2"
-              >
-                {t.cancelBtn}
-              </button>
-            </div>
+            <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">
+              {verifyingPhone ? <Loader2 className="animate-spin" /> : "Validate"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
