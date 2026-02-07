@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -91,14 +90,13 @@ export default function LoginPage() {
     if (!auth || !db) return;
     
     const input = identifier.trim().toLowerCase();
-    const cleanPassword = password; // DO NOT TRIM password to avoid mismatches
+    const cleanPassword = password; 
     if (!input || !cleanPassword) return;
 
     setLoading(true);
     try {
       let loginEmail = input;
 
-      // Check if it's a username (no @)
       if (!input.includes('@')) {
         const q = query(collection(db, 'users'), where('username', '==', input), limit(1));
         const snap = await getDocs(q);
@@ -150,23 +148,54 @@ export default function LoginPage() {
           <p className="text-[10px] text-primary uppercase tracking-[0.5em] font-bold">{t.title}</p>
         </div>
 
-        <div className="glass-card p-10 rounded-[3rem] border-white/10 shadow-2xl backdrop-blur-3xl gold-glow">
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-5">
-              <div className="relative group">
-                <UserIcon className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
-                <input 
-                  type="text" 
-                  autoComplete="username"
-                  placeholder={t.identifier} 
-                  className={cn("w-full bg-white/5 border border-white/5 h-16 text-[14px] font-body text-white focus:outline-none focus:border-primary/40 rounded-2xl transition-all", language === 'ar' ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left")}
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  required 
-                />
+        <div className="glass-card p-10 rounded-[3rem] border-white/10 shadow-2xl backdrop-blur-3xl gold-glow overflow-visible">
+          <form onSubmit={handleLogin} className="space-y-10">
+            <div className="space-y-8">
+              {/* --- Futuristic Identifier Input --- */}
+              <div id="poda" className="scale-[0.9] sm:scale-100">
+                <div className="futuristic-glow"></div>
+                <div className="futuristic-darkBorderBg"></div>
+                <div className="futuristic-darkBorderBg"></div>
+                <div className="futuristic-darkBorderBg"></div>
+
+                <div className="futuristic-white"></div>
+                <div className="futuristic-border"></div>
+
+                <div id="futuristic-main">
+                  <input 
+                    placeholder={t.identifier} 
+                    type="text" 
+                    name="identifier" 
+                    className="futuristic-input" 
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    required 
+                    autoComplete="username"
+                  />
+                  <div id="futuristic-input-mask"></div>
+                  <div id="futuristic-cyan-mask"></div>
+                  <div className="futuristic-filterBorder"></div>
+                  <div id="futuristic-filter-icon">
+                    <svg
+                      height="20"
+                      width="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#D4AE35"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <div className="relative group">
-                <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-4" : "left-4")} size={18} />
+
+              {/* Password Input */}
+              <div className="relative group px-2">
+                <Lock className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-all", language === 'ar' ? "right-6" : "left-6")} size={18} />
                 <input 
                   type={showPassword ? "text" : "password"} 
                   autoComplete="current-password"
@@ -176,20 +205,24 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required 
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 hover:text-primary", language === 'ar' ? "left-4" : "right-4")}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className={cn("absolute top-1/2 -translate-y-1/2 text-white/20 hover:text-primary", language === 'ar' ? "left-6" : "right-6")}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="w-full h-16 bg-primary text-primary-foreground font-headline font-bold text-xs tracking-[0.2em] flex items-center justify-center gap-2 rounded-2xl gold-glow active:scale-95 hover:scale-[1.02] transition-all">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t.login} <ArrowRight size={16} className={cn(language === 'ar' && "rotate-180")} /></>}
-            </button>
+            <div className="px-2">
+              <button type="submit" disabled={loading} className="w-full h-16 bg-primary text-primary-foreground font-headline font-bold text-xs tracking-[0.2em] flex items-center justify-center gap-2 rounded-2xl gold-glow active:scale-95 hover:scale-[1.02] transition-all">
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <>{t.login} <ArrowRight size={16} className={cn(language === 'ar' && "rotate-180")} /></>}
+              </button>
+            </div>
           </form>
 
           {isBiometricAvailable && (
-            <button onClick={handleBiometricLogin} className="w-full h-16 mt-6 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center gap-3 hover:bg-primary/20 transition-all text-primary group">
-              <Fingerprint size={24} className="group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Biometric Vault</span>
-            </button>
+            <div className="px-2">
+              <button onClick={handleBiometricLogin} className="w-full h-16 mt-6 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center gap-3 hover:bg-primary/20 transition-all text-primary group">
+                <Fingerprint size={24} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-headline font-bold uppercase tracking-widest">Biometric Vault</span>
+              </button>
+            </div>
           )}
         </div>
 

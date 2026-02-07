@@ -116,3 +116,251 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* --- Futuristic Input Styles (From Uiverse.io by Lakshay-art) --- */
+.futuristic-grid-bg {
+  height: 800px;
+  width: 800px;
+  background-image: linear-gradient(to right, #0f0f10 1px, transparent 1px),
+    linear-gradient(to bottom, #0f0f10 1px, transparent 1px);
+  background-size: 1rem 1rem;
+  background-position: center center;
+  position: absolute;
+  z-index: -1;
+  filter: blur(1px);
+}
+
+.futuristic-white,
+.futuristic-border,
+.futuristic-darkBorderBg,
+.futuristic-glow {
+  max-height: 70px;
+  max-width: 314px;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  overflow: hidden;
+  z-index: -1;
+  border-radius: 12px;
+  filter: blur(3px);
+}
+
+.futuristic-input {
+  background-color: #010201;
+  border: none;
+  width: 100%;
+  max-width: 301px;
+  height: 56px;
+  border-radius: 10px;
+  color: white;
+  padding-inline: 20px 59px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+#poda {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.futuristic-input::placeholder {
+  color: #c0b9c0;
+  opacity: 0.5;
+}
+
+.futuristic-input:focus {
+  outline: none;
+}
+
+#futuristic-main:focus-within > #futuristic-input-mask {
+  display: none;
+}
+
+#futuristic-input-mask {
+  pointer-events: none;
+  width: 100px;
+  height: 20px;
+  position: absolute;
+  background: linear-gradient(90deg, transparent, black);
+  top: 18px;
+  left: 20px;
+}
+
+#futuristic-cyan-mask {
+  pointer-events: none;
+  width: 30px;
+  height: 20px;
+  position: absolute;
+  background: #00FFEE;
+  top: 10px;
+  left: 5px;
+  filter: blur(20px);
+  opacity: 0.8;
+  transition: all 2s;
+}
+
+#futuristic-main:hover > #futuristic-cyan-mask {
+  opacity: 0;
+}
+
+.futuristic-white {
+  max-height: 63px;
+  max-width: 307px;
+  border-radius: 10px;
+  filter: blur(2px);
+}
+
+.futuristic-white::before {
+  content: "";
+  z-index: -2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(83deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  filter: brightness(1.4);
+  background-image: conic-gradient(
+    rgba(0, 0, 0, 0) 0%,
+    #D4AE35,
+    rgba(0, 0, 0, 0) 8%,
+    rgba(0, 0, 0, 0) 50%,
+    #00FFEE,
+    rgba(0, 0, 0, 0) 58%
+  );
+  transition: all 2s;
+}
+
+.futuristic-border {
+  max-height: 59px;
+  max-width: 303px;
+  border-radius: 11px;
+  filter: blur(0.5px);
+}
+
+.futuristic-border::before {
+  content: "";
+  z-index: -2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(70deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  filter: brightness(1.3);
+  background-image: conic-gradient(
+    #1c191c,
+    #D4AE35 5%, 
+    #1c191c 14%,
+    #1c191c 50%,
+    #00FFEE 60%, 
+    #1c191c 64%
+  );
+  transition: all 2s;
+}
+
+.futuristic-darkBorderBg {
+  max-height: 65px;
+  max-width: 312px;
+}
+
+.futuristic-darkBorderBg::before {
+  content: "";
+  z-index: -2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(82deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background-image: conic-gradient(
+    rgba(0, 0, 0, 0),
+    #D4AE35, 
+    rgba(0, 0, 0, 0) 10%,
+    rgba(0, 0, 0, 0) 50%,
+    #00FFEE, 
+    rgba(0, 0, 0, 0) 60%
+  );
+  transition: all 2s;
+}
+
+#poda:hover > .futuristic-darkBorderBg::before { transform: translate(-50%, -50%) rotate(-98deg); }
+#poda:hover > .futuristic-white::before { transform: translate(-50%, -50%) rotate(-97deg); }
+#poda:hover > .futuristic-border::before { transform: translate(-50%, -50%) rotate(-110deg); }
+
+#poda:focus-within > .futuristic-darkBorderBg::before { transform: translate(-50%, -50%) rotate(442deg); transition: all 4s; }
+#poda:focus-within > .futuristic-white::before { transform: translate(-50%, -50%) rotate(443deg); transition: all 4s; }
+#poda:focus-within > .futuristic-border::before { transform: translate(-50%, -50%) rotate(430deg); transition: all 4s; }
+
+.futuristic-glow {
+  overflow: hidden;
+  filter: blur(30px);
+  opacity: 0.4;
+}
+
+.futuristic-glow:before {
+  content: "";
+  z-index: -2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(60deg);
+  position: absolute;
+  width: 999px;
+  height: 999px;
+  background-image: conic-gradient(
+    #000,
+    #D4AE35 5%, 
+    #000 38%,
+    #000 50%,
+    #00FFEE 60%,
+    #000 87%
+  );
+  transition: all 2s;
+}
+
+#futuristic-filter-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  max-height: 40px;
+  max-width: 38px;
+  height: 100%;
+  width: 100%;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #161329, black, #1d1b4b);
+}
+
+.futuristic-filterBorder {
+  height: 42px;
+  width: 40px;
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.futuristic-filterBorder::before {
+  content: "";
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background-image: conic-gradient(rgba(0,0,0,0), #D4AE35, rgba(0,0,0,0) 50%);
+  animation: rotate-futuristic 4s linear infinite;
+}
+
+@keyframes rotate-futuristic {
+  100% { transform: translate(-50%, -50%) rotate(450deg); }
+}
+
+#futuristic-main { position: relative; width: 100%; display: flex; justify-content: center; }
