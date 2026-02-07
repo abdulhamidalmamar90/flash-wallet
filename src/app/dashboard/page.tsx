@@ -32,7 +32,8 @@ import {
   Briefcase,
   ChevronLeft,
   Smartphone,
-  ShieldCheck
+  ShieldCheck,
+  MailCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -307,6 +308,7 @@ export default function Dashboard() {
           <div className="text-left">
             <div className="flex items-center gap-1.5 mb-0.5">
               {profile?.verified && <ShieldCheck size={10} className="text-green-500" />}
+              {profile?.emailVerified && <MailCheck size={10} className="text-primary" />}
               {profile?.phoneVerified && <Smartphone size={10} className="text-blue-500" />}
               <p className="text-[9px] text-primary font-headline font-bold tracking-widest uppercase">
                 {profile?.verified ? (language === 'ar' ? "هوية موثقة" : "Entity Verified") : (language === 'ar' ? "غير موثق" : "Unverified")}
@@ -442,6 +444,12 @@ export default function Dashboard() {
                     profile?.verified ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500"
                   )}>
                     {profile?.verified ? (language === 'ar' ? "هوية موثقة" : "ID Verified") : (language === 'ar' ? "هوية معلقة" : "ID Pending")}
+                  </div>
+                  <div className={cn(
+                    "px-2 py-0.5 rounded-full text-[7px] font-bold uppercase border",
+                    profile?.emailVerified ? "bg-primary/10 border-primary/20 text-primary" : "bg-white/5 border-white/10 text-white/30"
+                  )}>
+                    {profile?.emailVerified ? (language === 'ar' ? "بريد موثق" : "Email Verified") : (language === 'ar' ? "بريد معلق" : "Email Pending")}
                   </div>
                   <div className={cn(
                     "px-2 py-0.5 rounded-full text-[7px] font-bold uppercase border",

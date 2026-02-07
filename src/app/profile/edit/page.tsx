@@ -16,12 +16,15 @@ import {
   Delete,
   Fingerprint,
   Plus,
-  UserCircle
+  UserCircle,
+  Mail,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
 import { doc, updateDoc, collection, query, where, limit } from 'firebase/firestore';
-import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, sendEmailVerification } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -74,6 +77,7 @@ export default function EditProfilePage() {
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
@@ -81,6 +85,12 @@ export default function EditProfilePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+
+  // Verification States
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isKycVerified, setIsKycVerified] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // PIN States
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
@@ -99,7 +109,6 @@ export default function EditProfilePage() {
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -108,6 +117,7 @@ export default function EditProfilePage() {
       setGender(profile.gender || 'male');
       if (profile.birthDate) setBirthDate(new Date(profile.birthDate));
       setUsername(profile.username || '');
+      setEmail(profile.email || '');
       const fullPhone = profile.phone || '';
       const countryMatch = COUNTRIES.find(c => c.prefix && fullPhone.startsWith(c.prefix));
       if (countryMatch) {
@@ -118,6 +128,8 @@ export default function EditProfilePage() {
       }
       setSelectedAvatar(profile.avatarUrl || AVATARS[0]);
       setIsPhoneVerified(profile.phoneVerified || false);
+      setIsEmailVerified(profile.emailVerified || false);
+      setIsKycVerified(profile.verified || false);
     }
   }, [profile]);
 
@@ -133,7 +145,6 @@ export default function EditProfilePage() {
         birthDate: birthDate?.toISOString(),
         username: username.trim().toLowerCase(),
         avatarUrl: selectedAvatar,
-        phoneVerified: isPhoneVerified
       };
       await updateDoc(doc(db, 'users', user.uid), updates);
       if (newPassword.trim()) {
@@ -148,11 +159,55 @@ export default function EditProfilePage() {
     }
   };
 
+  const handleVerifyEmail = async () => {
+    if (!user || sendingEmail) return;
+    setSendingEmail(true);
+    try {
+      await sendEmailVerification(user);
+      toast({ 
+        title: language === 'ar' ? "تم إرسال الرابط" : "Verification Sent", 
+        description: language === 'ar' ? "تحقق من صندوق الوارد الخاص بك" : "Check your inbox for the link" 
+      });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const refreshEmailStatus = async () => {
+    if (!user || !db) return;
+    setLoading(true);
+    try {
+      await user.reload();
+      if (user.emailVerified) {
+        await updateDoc(doc(db, 'users', user.uid), { emailVerified: true });
+        setIsEmailVerified(true);
+        toast({ title: language === 'ar' ? "تم توثيق البريد بنجاح" : "Email Verified Successfully" });
+      } else {
+        toast({ variant: "destructive", title: language === 'ar' ? "لم يتم التوثيق بعد" : "Not Verified Yet" });
+      }
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendOtp = async () => {
     if (!phone || !auth || !db) return;
     setVerifyingPhone(true);
     try {
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
+      
+      // Prevent Duplicate Phone
+      const q = query(collection(db, 'users'), where('phone', '==', fullPhone), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty && snap.docs[0].id !== user?.uid) {
+        toast({ variant: "destructive", title: language === 'ar' ? "الرقم مستخدم بالفعل" : "Phone number already in use" });
+        return;
+      }
+
       const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
       const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
       setConfirmationResult(result);
@@ -170,12 +225,14 @@ export default function EditProfilePage() {
     const code = otpCode.join('');
     try {
       await confirmationResult.confirm(code);
+      const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
       await updateDoc(doc(db, 'users', user.uid), { 
-        phoneVerified: true 
+        phoneVerified: true,
+        phone: fullPhone
       });
       setIsPhoneVerified(true);
       setIsOtpOpen(false);
-      toast({ title: language === 'ar' ? "تم التوثيق" : "Verified" });
+      toast({ title: language === 'ar' ? "تم توثيق الهاتف" : "Phone Verified" });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Invalid Code" });
     } finally {
@@ -225,6 +282,22 @@ export default function EditProfilePage() {
       </header>
 
       <div id="recaptcha-container"></div>
+
+      {/* Verification Summary Section */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className={cn("p-3 rounded-2xl border text-center space-y-1 transition-all", isKycVerified ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")}>
+          <ShieldCheck size={16} className="mx-auto" />
+          <p className="text-[7px] font-headline font-bold uppercase">{language === 'ar' ? 'الهوية' : 'Identity'}</p>
+        </div>
+        <div className={cn("p-3 rounded-2xl border text-center space-y-1 transition-all", isEmailVerified ? "bg-primary/10 border-primary/20 text-primary" : "bg-white/5 border-white/10 text-white/30")}>
+          <Mail size={16} className="mx-auto" />
+          <p className="text-[7px] font-headline font-bold uppercase">{language === 'ar' ? 'البريد' : 'Email'}</p>
+        </div>
+        <div className={cn("p-3 rounded-2xl border text-center space-y-1 transition-all", isPhoneVerified ? "bg-blue-500/10 border-blue-500/20 text-blue-500" : "bg-white/5 border-white/10 text-white/30")}>
+          <Phone size={16} className="mx-auto" />
+          <p className="text-[7px] font-headline font-bold uppercase">{language === 'ar' ? 'الهاتف' : 'Phone'}</p>
+        </div>
+      </div>
 
       <div className="flex flex-col items-center gap-4 py-6">
         <div className="relative group">
@@ -296,8 +369,40 @@ export default function EditProfilePage() {
           </div>
         </div>
 
-        <div className="space-y-3">
-          <Label className="text-[10px] uppercase text-white/40">Phone Number</Label>
+        <Button type="submit" disabled={loading} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl gold-glow">
+          {loading ? <Loader2 className="animate-spin" /> : "Save Profile"}
+        </Button>
+      </form>
+
+      {/* Email Verification Section */}
+      <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
+        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Mail size={14} /> Email Authority</h2>
+        <div className="space-y-4">
+          <div className="relative">
+            <Mail className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
+            <Input value={email} disabled className="h-12 bg-white/5 border-white/10 pl-10 opacity-60" />
+          </div>
+          {!isEmailVerified ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Button type="button" onClick={handleVerifyEmail} disabled={sendingEmail} className="h-12 bg-primary/10 border border-primary/20 text-primary text-[9px] font-headline uppercase tracking-widest">
+                {sendingEmail ? <Loader2 className="animate-spin" size={14} /> : "Send Link"}
+              </Button>
+              <Button type="button" onClick={refreshEmailStatus} className="h-12 bg-white/5 border border-white/10 text-white text-[9px] font-headline uppercase tracking-widest flex items-center gap-2">
+                <RefreshCw size={12} /> Sync Status
+              </Button>
+            </div>
+          ) : (
+            <div className="h-12 flex items-center justify-center gap-2 text-primary font-headline font-bold text-[10px] uppercase px-3 bg-primary/10 rounded-xl border border-primary/20 w-full">
+              <CheckCircle2 size={14} /> Email Verified
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Phone Verification Section */}
+      <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
+        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-blue-400 flex items-center gap-2"><Phone size={14} /> Phone Identity</h2>
+        <div className="space-y-4">
           <div className="flex gap-2" dir="ltr">
             <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2">
               <span className="text-xs">{selectedCountry.flag}</span>
@@ -317,19 +422,15 @@ export default function EditProfilePage() {
           )}
           {!isPhoneVerified ? (
             <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary text-[10px] font-headline uppercase tracking-widest">
-              {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : "Verify Phone"}
+              {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : "Verify Number"}
             </Button>
           ) : (
-            <div className="h-12 flex items-center justify-center gap-2 text-green-500 font-headline font-bold text-[10px] uppercase px-3 bg-green-500/10 rounded-xl border border-green-500/20 w-full">
-              <CheckCircle2 size={14} /> Verified
+            <div className="h-12 flex items-center justify-center gap-2 text-blue-500 font-headline font-bold text-[10px] uppercase px-3 bg-blue-500/10 rounded-xl border border-blue-500/20 w-full">
+              <CheckCircle2 size={14} /> Phone Verified
             </div>
           )}
         </div>
-
-        <Button type="submit" disabled={loading} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl gold-glow">
-          {loading ? <Loader2 className="animate-spin" /> : "Save Profile"}
-        </Button>
-      </form>
+      </div>
 
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> Security PIN</h2>
@@ -392,9 +493,13 @@ export default function EditProfilePage() {
                 }} className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-bold text-secondary outline-none rounded-lg" />
               ))}
             </div>
-            <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">
-              {verifyingPhone ? <Loader2 className="animate-spin" /> : "Validate"}
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button onClick={handleVerifyOtp} disabled={verifyingPhone || otpCode.join('').length < 6} className="w-full h-14 bg-secondary text-background font-headline font-bold text-[10px] uppercase tracking-widest cyan-glow">
+                {verifyingPhone ? <Loader2 className="animate-spin" /> : "Validate"}
+              </Button>
+              <Button variant="ghost" onClick={handleSendOtp} className="text-[8px] font-headline uppercase text-muted-foreground">Resend Code</Button>
+              <Button variant="ghost" onClick={() => setIsOtpOpen(false)} className="text-[8px] font-headline uppercase text-red-500">Cancel</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

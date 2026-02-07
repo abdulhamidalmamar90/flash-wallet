@@ -17,10 +17,11 @@
         "customId": { "type": "string", "description": "Format: [A-Z][0-9]{12}" },
         "balance": { "type": "number" },
         "role": { "type": "string", "enum": ["user", "admin", "agent", "employee"] },
-        "verified": { "type": "boolean" },
+        "verified": { "type": "boolean", "description": "Identity/KYC Verification" },
+        "phoneVerified": { "type": "boolean" },
+        "emailVerified": { "type": "boolean" },
         "language": { "type": "string", "enum": ["en", "ar"] },
         "country": { "type": "string" },
-        "phoneVerified": { "type": "boolean" },
         "pin": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
