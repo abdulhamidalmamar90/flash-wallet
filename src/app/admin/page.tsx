@@ -57,7 +57,10 @@ import {
   Briefcase,
   Contact,
   SendHorizontal,
-  CircleDot
+  CircleDot,
+  Play,
+  LogOut,
+  Star
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -158,6 +161,8 @@ export default function AdminPage() {
   const [activeChat, setActiveChat] = useState<any>(null);
   const [chatReply, setChatMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [isJoiningChat, setIsJoiningChat] = useState(false);
+  const [isClosingChat, setIsClosingChat] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const [activeServiceRequest, setActiveServiceRequest] = useState<any>(null);
@@ -212,7 +217,7 @@ export default function AdminPage() {
   const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
   const { data: allUsers = [] } = useCollection(allUsersQuery);
 
-  const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions'), where('status', '==', 'open'), orderBy('updatedAt', 'desc')), [db]);
+  const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions'), where('status', 'in', ['open', 'active']), orderBy('updatedAt', 'desc')), [db]);
   const { data: chatSessions = [] } = useCollection(chatSessionsQuery);
 
   const methodsQuery = useMemo(() => query(collection(db, 'deposit_methods')), [db]);
@@ -270,6 +275,43 @@ export default function AdminPage() {
     });
     return () => unsub();
   }, [db, activeChat]);
+
+  const handleJoinChat = async () => {
+    if (!activeChat || !user || !profile) return;
+    setIsJoiningChat(true);
+    try {
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        status: 'active',
+        joinedBy: profile.username,
+        updatedAt: new Date().toISOString()
+      });
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: `تم العثور على موظف. مرحباً، معك ${profile.username}. من فضلك أعطني ثانية لمراجعة تفاصيل مشكلتك.`,
+        senderId: 'system',
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) { toast({ variant: "destructive", title: "Join Failed" }); } finally { setIsJoiningChat(false); }
+  };
+
+  const handleEndChat = async () => {
+    if (!activeChat || !db) return;
+    setIsClosingChat(true);
+    try {
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: "تم حل المشكلة وإغلاق المحادثة. شكراً لتواصلك مع فلاش.",
+        senderId: 'system',
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        status: 'closed',
+        updatedAt: new Date().toISOString()
+      });
+      toast({ title: "CHAT CLOSED" });
+      setActiveChat(null);
+    } catch (e) { toast({ variant: "destructive", title: "Close Failed" }); } finally { setIsClosingChat(false); }
+  };
 
   const handleSendAdminReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,9 +424,9 @@ export default function AdminPage() {
     if (!newBalance || isNaN(amountNum)) return;
     try {
       await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', targetUserId);
+        const userRef = doc(targetUserId && doc(db, 'users', targetUserId) as any);
         const diff = amountNum - currentBalance;
-        transaction.update(userRef, { balance: amountNum });
+        transaction.update(userRef as any, { balance: amountNum });
         if (diff !== 0) {
           const txRef = doc(collection(db, 'users', targetUserId, 'transactions'));
           transaction.set(txRef, { 
@@ -791,9 +833,15 @@ export default function AdminPage() {
                   <p className="text-center text-[8px] text-muted-foreground uppercase py-10">No active protocols</p>
                 ) : chatSessions.map((s: any) => (
                   <button key={s.id} onClick={() => setActiveChat(s)} className={cn("w-full p-4 border-b border-white/5 text-left transition-all hover:bg-white/5", activeChat?.id === s.id && "bg-primary/10 border-primary/20")}>
-                    <p className="text-[10px] font-headline font-bold uppercase">@{s.username}</p>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-[10px] font-headline font-bold uppercase">@{s.username}</p>
+                      <p className="text-[6px] text-primary font-black">{s.caseId}</p>
+                    </div>
                     <p className="text-[8px] text-muted-foreground truncate uppercase">{s.lastMessage}</p>
-                    <p className="text-[6px] text-white/20 mt-1 uppercase">{new Date(s.updatedAt).toLocaleTimeString()}</p>
+                    <div className="flex justify-between items-center mt-1">
+                      <p className="text-[6px] text-white/20 uppercase">{new Date(s.updatedAt).toLocaleTimeString()}</p>
+                      <Badge variant="outline" className="text-[5px] h-3 uppercase border-white/10">{s.status}</Badge>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -806,11 +854,16 @@ export default function AdminPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary"><UserIcon size={16} /></div>
                       <div>
-                        <p className="text-[10px] font-headline font-bold uppercase">@{activeChat.username}</p>
+                        <p className="text-[10px] font-headline font-bold uppercase">@{activeChat.username} <span className="text-[7px] text-primary ml-2">[{activeChat.caseId}]</span></p>
                         <p className="text-[7px] text-muted-foreground uppercase">{activeChat.email}</p>
                       </div>
                     </div>
-                    <button onClick={() => updateDoc(doc(db, 'chat_sessions', activeChat.id), { status: 'closed' })} className="p-2 text-red-500/40 hover:text-red-500"><X size={16} /></button>
+                    <div className="flex gap-2">
+                      {activeChat.status === 'open' && (
+                        <Button onClick={handleJoinChat} disabled={isJoiningChat} size="sm" className="h-8 bg-green-600 text-white rounded-lg text-[8px] font-headline uppercase tracking-widest"><Play size={12} className="mr-1" /> Join Chat</Button>
+                      )}
+                      <Button onClick={handleEndChat} disabled={isClosingChat} size="sm" className="h-8 bg-red-600 text-white rounded-lg text-[8px] font-headline uppercase tracking-widest"><LogOut size={12} className="mr-1" /> End Case</Button>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
                     {chatMessages.map((msg) => (
@@ -823,10 +876,14 @@ export default function AdminPage() {
                     ))}
                     <div ref={chatScrollRef} />
                   </div>
-                  <form onSubmit={handleSendAdminReply} className="p-4 border-t border-white/5 bg-white/5 flex gap-2">
-                    <Input placeholder="TRANSMIT REPLY..." className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] font-headline" value={chatReply} onChange={(e) => setChatMessage(e.target.value)} />
-                    <button type="submit" disabled={!chatReply.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all"><SendHorizontal size={20} /></button>
-                  </form>
+                  {activeChat.status === 'active' ? (
+                    <form onSubmit={handleSendAdminReply} className="p-4 border-t border-white/5 bg-white/5 flex gap-2">
+                      <Input placeholder="TRANSMIT REPLY..." className="h-12 bg-background/50 border-white/10 rounded-xl text-[10px] font-headline" value={chatReply} onChange={(e) => setChatMessage(e.target.value)} />
+                      <button type="submit" disabled={!chatReply.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-all"><SendHorizontal size={20} /></button>
+                    </form>
+                  ) : (
+                    <div className="p-4 bg-muted/20 text-center"><p className="text-[8px] font-headline uppercase text-muted-foreground">Join protocol to enable transmission</p></div>
+                  )}
                 </>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-10 opacity-20">
