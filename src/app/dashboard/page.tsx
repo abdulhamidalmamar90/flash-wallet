@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -363,7 +362,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
-      {/* ... existing dashboard content ... */}
       <header className="flex justify-between items-center px-8 py-10">
         <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-4 group">
           <div className={cn("w-14 h-14 rounded-2xl border-2 transition-all duration-500 flex items-center justify-center relative overflow-hidden", profile?.verified ? "border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]" : "border-red-500 shadow-lg")}>{profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" /> : <User size={24} className="text-muted-foreground" />}</div>
@@ -524,7 +522,6 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* ... rest of the dashboard modals ... */}
       {/* QR Modal */}
       <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">{language === 'ar' ? 'المعرف التشفيري' : 'Cryptographic Identifier'}</DialogTitle></DialogHeader><div className="space-y-8 mt-6"><div className="p-6 bg-white rounded-3xl inline-block shadow-lg"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" /></div><div className="space-y-2"><p className="text-center text-[10px] font-headline font-bold text-muted-foreground uppercase">{language === 'ar' ? 'معرف الكيان' : 'Entity ID'}</p><p className="text-center text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p></div><button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow hover:scale-105 transition-all">{language === 'ar' ? 'نسخ المعرف' : 'COPY FLASH ID'}</button></div></DialogContent></Dialog>
 

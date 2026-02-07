@@ -31,13 +31,13 @@ import {
   ShoppingBag,
   Ticket,
   ChevronDown,
-  Trash,
   CheckCircle2,
   PlusCircle,
   Banknote,
   ClipboardList,
   Store,
-  AlertTriangle
+  AlertTriangle,
+  Trash
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -74,7 +74,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/AlertDialog";
+} from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 
 const COUNTRIES = [
