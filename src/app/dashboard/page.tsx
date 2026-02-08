@@ -217,6 +217,41 @@ export default function Dashboard() {
     }
   }, [profile?.customId, toast]);
 
+  const startScanner = useCallback(async () => {
+    if (scannerRef.current) return;
+    try {
+      scannerRef.current = new Html5Qrcode("reader");
+      await scannerRef.current.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          setScannerOpen(false);
+          router.push(`/transfer?id=${decodedText.toUpperCase()}`);
+        },
+        () => {}
+      );
+    } catch (err) {
+      toast({ variant: "destructive", title: "Camera access failed" });
+      setScannerOpen(false);
+    }
+  }, [router, setScannerOpen, toast]);
+
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      await scannerRef.current.stop();
+      scannerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isScannerOpen) {
+      setTimeout(startScanner, 100);
+    } else {
+      stopScanner();
+    }
+    return () => { stopScanner(); };
+  }, [isScannerOpen, startScanner, stopScanner]);
+
   if (!mounted) return null;
   if (authLoading || (profileLoading && !profile)) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
@@ -267,6 +302,17 @@ export default function Dashboard() {
           </div>
         </section>
       </main>
+
+      {/* Scanner Modal */}
+      <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}>
+        <DialogContent className="max-w-xs glass-card border-white/10 p-0 overflow-hidden rounded-[2.5rem] z-[1200]">
+          <div id="reader" className="w-full aspect-square"></div>
+          <div className="p-6 bg-card/80 backdrop-blur-md text-center border-t border-white/5">
+            <p className="text-[10px] font-headline font-bold uppercase tracking-widest mb-4">Scan Entity Protocol</p>
+            <Button onClick={() => setScannerOpen(false)} variant="outline" className="w-full h-12 rounded-xl border-white/10 text-[9px] font-headline uppercase font-black tracking-widest">Abort Scan</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* QR Code Modal */}
       <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
