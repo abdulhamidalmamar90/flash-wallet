@@ -514,6 +514,53 @@ export default function EditProfilePage() {
         </div>
       </div>
 
+      <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
+        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary flex items-center gap-2"><Phone size={14} /> Phone Authority</h2>
+        <div className="space-y-4">
+          <div className="flex gap-2" dir="ltr">
+            <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2 min-w-[90px]" disabled={isPhoneVerified}>
+              <span className="text-xs">{selectedCountry.flag}</span>
+              {!isPhoneVerified && <ChevronDown size={12} className={cn(isCountryOpen && "rotate-180")} />}
+            </button>
+            <div className="relative flex-1">
+              <Phone className="absolute top-1/2 -translate-y-1/2 left-4 text-white/20" size={18} />
+              <Input 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                disabled={isPhoneVerified} 
+                className={cn("h-12 bg-white/5 border-white/10 pl-12", isPhoneVerified && "opacity-60 cursor-not-allowed")} 
+                placeholder="123456789" 
+              />
+            </div>
+          </div>
+          {isCountryOpen && (
+            <div className="absolute left-8 right-8 z-[110] bg-[#1a1a1a] border border-white/10 rounded-xl max-h-40 overflow-y-auto shadow-2xl">
+              {COUNTRIES.map(c => (
+                <button key={c.code} type="button" onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }} className="w-full p-3 flex items-center gap-3 hover:bg-white/5 border-b border-white/5 last:border-0">
+                  <span className="text-lg">{c.flag}</span>
+                  <span className="text-xs text-white/80">{language === 'ar' ? c.nameAr : c.nameEn}</span>
+                  <span className="text-[10px] text-white/30 ml-auto">{c.prefix}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {!isPhoneVerified ? (
+            <Button 
+              type="button" 
+              onClick={handleSendOtp} 
+              disabled={verifyingPhone || !phone} 
+              className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary text-[9px] font-headline uppercase tracking-widest cyan-glow"
+            >
+              {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : "Initiate Verification"}
+            </Button>
+          ) : (
+            <div className="h-12 flex items-center justify-center gap-2 text-secondary font-headline font-bold text-[10px] uppercase px-3 bg-secondary/10 rounded-xl border border-secondary/20 w-full">
+              <CheckCircle2 size={14} /> Phone Verified
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> Security PIN</h2>
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
@@ -623,13 +670,25 @@ export default function EditProfilePage() {
           <div className="space-y-6 mt-4">
             <div className="flex gap-2 justify-center" dir="ltr">
               {otpCode.map((digit, i) => (
-                <input key={i} ref={el => { if(el) otpInputs.current[i] = el; }} type="text" maxLength={1} value={digit} onChange={(e) => {
-                  const val = e.target.value;
-                  const newOtp = [...otpCode];
-                  newOtp[i] = val;
-                  setOtpCode(newOtp);
-                  if (val && i < 5) otpInputs.current[i+1]?.focus();
-                }} className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-bold text-secondary outline-none rounded-lg" />
+                <input 
+                  key={i} 
+                  ref={el => { if(el) otpInputs.current[i] = el; }} 
+                  type="text" 
+                  maxLength={1} 
+                  value={digit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!/^\d*$/.test(val)) return;
+                    const newOtp = [...otpCode];
+                    newOtp[i] = val;
+                    setOtpCode(newOtp);
+                    if (val && i < 5) otpInputs.current[i+1]?.focus();
+                  }} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace' && !otpCode[i] && i > 0) otpInputs.current[i-1]?.focus();
+                  }}
+                  className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-bold text-secondary outline-none rounded-lg focus:border-secondary shadow-[0_0_10px_rgba(0,255,238,0.1)]" 
+                />
               ))}
             </div>
             <div className="flex flex-col gap-3">
