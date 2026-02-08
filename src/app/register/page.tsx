@@ -249,7 +249,10 @@ export default function RegisterPage() {
     password: language === 'ar' ? 'كلمة المرور' : 'Password',
     register: language === 'ar' ? 'تفعيل المحفظة' : 'Activate Wallet',
     back: language === 'ar' ? 'رجوع' : 'Back',
-    login: language === 'ar' ? 'تسجيل الدخول' : 'Login'
+    login: language === 'ar' ? 'تسجيل الدخول' : 'Login',
+    agreement: language === 'ar' ? 'بتسجيلك أنت توافق على' : 'By registering you agree to our',
+    privacy: language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy',
+    terms: language === 'ar' ? 'شروط الخدمة' : 'Terms of Service'
   };
 
   return (
@@ -418,6 +421,15 @@ export default function RegisterPage() {
               <Button type="submit" disabled={loading || !isUsernameValid || !isPasswordStrong} className="flex-[2] h-14 bg-primary text-background font-headline font-black tracking-widest rounded-2xl gold-glow">
                 {loading ? <Loader2 className="animate-spin" /> : t.register}
               </Button>
+            </div>
+
+            <div className="pt-4 text-center">
+              <p className="text-[9px] text-white/30 uppercase tracking-widest leading-relaxed">
+                {t.agreement}{' '}
+                <Link href="/privacy" className="text-primary hover:underline">{t.privacy}</Link>
+                {' '}&{' '}
+                <Link href="/terms" className="text-primary hover:underline">{t.terms}</Link>
+              </p>
             </div>
           </form>
         )}
