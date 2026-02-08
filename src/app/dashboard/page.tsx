@@ -143,19 +143,32 @@ export default function Dashboard() {
     };
   }, [isScannerOpen, mounted, router, setScannerOpen, toast]);
 
-  // Support Chat Sync
+  // Support Chat Sync - Updated to only find ACTIVE sessions
   useEffect(() => {
     if (!db || !user || supportStep !== 'chat') return;
-    const sessionsQuery = query(collection(db, 'chat_sessions'), where('userId', '==', user.uid));
+    
+    const sessionsQuery = query(
+      collection(db, 'chat_sessions'), 
+      where('userId', '==', user.uid)
+    );
+
     const unsubSessions = onSnapshot(sessionsQuery, (snap) => {
-      if (!snap.empty) {
-        const session = snap.docs[0];
-        setChatSession({ id: session.id, ...session.data() });
-        const msgsQuery = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
-        return onSnapshot(msgsQuery, (mSnap) => {
+      // Find the latest session that is NOT closed
+      const activeSessionDoc = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .find(s => s.status === 'open' || s.status === 'active');
+
+      if (activeSessionDoc) {
+        setChatSession(activeSessionDoc);
+        const msgsQuery = query(collection(db, 'chat_sessions', activeSessionDoc.id, 'messages'), orderBy('timestamp', 'asc'));
+        const unsubMsgs = onSnapshot(msgsQuery, (mSnap) => {
           setMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
           setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
         });
+        return () => unsubMsgs();
+      } else {
+        setChatSession(null);
+        setMessages([]);
       }
     });
     return () => unsubSessions();
@@ -205,8 +218,25 @@ export default function Dashboard() {
         isAdmin: false,
         timestamp: new Date().toISOString()
       });
-      await updateDoc(doc(db, 'chat_sessions', chatSession.id), { updatedAt: new Date().toISOString() });
+      await updateDoc(doc(db, 'chat_sessions', chatSession.id), { 
+        updatedAt: new Date().toISOString(),
+        lastMessage: chatMessage.trim(),
+        status: 'active'
+      });
       setChatMessage('');
+    } catch (e) {}
+  };
+
+  const handleEndSession = async () => {
+    if (!db || !chatSession) return;
+    try {
+      await updateDoc(doc(db, 'chat_sessions', chatSession.id), { 
+        status: 'closed',
+        updatedAt: new Date().toISOString() 
+      });
+      setChatSession(null);
+      setMessages([]);
+      toast({ title: language === 'ar' ? "تم إنهاء الجلسة" : "Session Terminated" });
     } catch (e) {}
   };
 
@@ -238,7 +268,7 @@ export default function Dashboard() {
 
         <section className="grid grid-cols-3 gap-3">
           <Link href="/transfer" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-primary transition-all group"><div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-all"><Send size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إرسال' : 'Send'}</span></Link>
-          <Link href="/deposit" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-secondary transition-all group"><div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><Wallet size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إيداع' : 'Deposit'}</span></Link>
+          <Link href="/deposit" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-secondary transition-all group"><div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><Wallet size={20} /></div><span className="text-[7px) font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إيداع' : 'Deposit'}</span></Link>
           <button onClick={() => setIsSupportOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-foreground/20 transition-all group"><div className="p-3 rounded-xl bg-muted group-hover:bg-foreground group-hover:text-background transition-all"><Headset size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'دعم' : 'Support'}</span></button>
         </section>
 
@@ -325,12 +355,32 @@ export default function Dashboard() {
               {!chatSession ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6">
                   <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary border border-primary/20"><CircleDot size={40} className="animate-pulse" /></div>
-                  <Button onClick={async () => { setIsStartingChat(true); try { await addDoc(collection(db, 'chat_sessions'), { userId: user!.uid, username: profile.username, status: 'open', updatedAt: new Date().toISOString() }); } finally { setIsStartingChat(false); } }} disabled={isStartingChat} className="w-full h-14 bg-primary text-background rounded-2xl font-headline font-black text-[10px] tracking-widest gold-glow">START NEW CONVERSATION</Button>
+                  <Button onClick={async () => { 
+                    setIsStartingChat(true); 
+                    try { 
+                      await addDoc(collection(db, 'chat_sessions'), { 
+                        userId: user!.uid, 
+                        username: profile.username, 
+                        status: 'open', 
+                        updatedAt: new Date().toISOString() 
+                      }); 
+                    } finally { 
+                      setIsStartingChat(false); 
+                    } 
+                  }} disabled={isStartingChat} className="w-full h-14 bg-primary text-background rounded-2xl font-headline font-black text-[10px] tracking-widest gold-glow">
+                    {language === 'ar' ? 'بدء محادثة جديدة' : 'START NEW CONVERSATION'}
+                  </Button>
                 </div>
               ) : (
                 <>
                   <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
                     <Badge variant="outline" className="text-[6px] h-4 border-primary/20 text-primary uppercase">{chatSession.status}</Badge>
+                    <button 
+                      onClick={handleEndSession}
+                      className="text-[8px] font-headline font-bold text-red-500 hover:underline uppercase"
+                    >
+                      {language === 'ar' ? 'إنهاء الجلسة' : 'Terminate Session'}
+                    </button>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-4 p-4 no-scrollbar">
                     {messages.map((msg) => (
