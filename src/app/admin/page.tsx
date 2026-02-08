@@ -94,16 +94,16 @@ export default function AdminPage() {
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
-  const withdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals'), orderBy('date', 'desc')), [db]);
+  const withdrawalsQuery = useMemo(() => (db ? query(collection(db, 'withdrawals'), orderBy('date', 'desc')) : null), [db]);
   const { data: withdrawals = [] } = useCollection(withdrawalsQuery);
 
-  const depositsQuery = useMemo(() => query(collection(db, 'deposits'), orderBy('date', 'desc')), [db]);
+  const depositsQuery = useMemo(() => (db ? query(collection(db, 'deposits'), orderBy('date', 'desc')) : null), [db]);
   const { data: deposits = [] } = useCollection(depositsQuery);
 
-  const usersQuery = useMemo(() => query(collection(db, 'users')), [db]);
+  const usersQuery = useMemo(() => (db ? query(collection(db, 'users')) : null), [db]);
   const { data: allUsers = [] } = useCollection(usersQuery);
 
-  const productsQuery = useMemo(() => query(collection(db, 'marketplace_services')), [db]);
+  const productsQuery = useMemo(() => (db ? query(collection(db, 'marketplace_services')) : null), [db]);
   const { data: products = [] } = useCollection(productsQuery);
 
   const filteredUsers = useMemo(() => {

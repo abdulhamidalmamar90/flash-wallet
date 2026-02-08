@@ -35,9 +35,6 @@ import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/crop-image';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Capacitor } from '@capacitor/core';
-import { Preferences } from '@capacitor/preferences';
-import { NativeBiometric } from 'capacitor-native-biometric';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -131,6 +128,14 @@ export default function EditProfilePage() {
       setIsKycVerified(profile.verified || false);
     }
   }, [profile]);
+
+  const handleKeyClick = (num: string) => {
+    if (pinEntry.length < 4) setPinEntry(prev => prev + num);
+  };
+
+  const handleDelete = () => {
+    setPinEntry(prev => prev.slice(0, -1));
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -413,7 +418,7 @@ export default function EditProfilePage() {
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
           <div><p className="text-[10px] font-headline font-bold uppercase">{profile?.pin ? "Vault Locked" : "Set PIN"}</p></div>
           {!profile?.pin ? (
-            <button onClick={() => setIsPinModalOpen(true)} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary"><Plus size={20} /></button>
+            <button onClick={() => { setPinEntry(''); setIsPinModalOpen(true); }} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary"><Plus size={20} /></button>
           ) : (
             <div className="p-3 bg-green-500/10 text-green-500 rounded-xl"><ShieldCheck size={20} /></div>
           )}
@@ -421,20 +426,24 @@ export default function EditProfilePage() {
       </div>
 
       <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Authorize PIN</DialogTitle></DialogHeader>
-          <div className="mt-8 space-y-6">
-            <Input 
-              type="password" 
-              inputMode="numeric" 
-              pattern="[0-9]*" 
-              maxLength={4} 
-              value={pinEntry} 
-              onChange={(e) => setPinEntry(e.target.value.replace(/[^0-9]/g, ''))} 
-              className="h-16 text-3xl text-center font-headline bg-background/50 border-white/10 tracking-[0.5em]" 
-              placeholder="0000"
-              autoFocus
-            />
+          <div className="mt-8 space-y-8">
+            <div className="flex justify-center gap-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", pinEntry.length > i ? "bg-primary border-primary scale-110 shadow-[0_0_10px_rgba(250,218,122,0.5)]" : "border-white/20")} />
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 max-w-[240px] mx-auto">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button key={num} onClick={() => handleKeyClick(num.toString())} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">{num}</button>
+              ))}
+              <div className="w-16 h-16" />
+              <button onClick={() => handleKeyClick("0")} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">0</button>
+              <button onClick={handleDelete} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-red-500 hover:bg-red-500/10 active:scale-95 transition-all"><Delete size={24} /></button>
+            </div>
+
             <Button onClick={async () => {
               if (pinEntry.length === 4 && user && db) {
                 setSubmittingPin(true);
