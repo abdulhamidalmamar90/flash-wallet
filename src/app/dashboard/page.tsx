@@ -14,9 +14,7 @@ import {
   Send, 
   Camera, 
   ChevronLeft, 
-  Smartphone, 
   ShieldCheck, 
-  MailCheck, 
   Headset, 
   MessageSquare, 
   ImageIcon, 
@@ -24,12 +22,10 @@ import {
   CircleDot, 
   Star, 
   CheckCircle2,
-  Trash2,
-  ArrowDownLeft,
-  ClipboardList,
-  HelpCircle,
   X,
   Zap,
+  ClipboardList,
+  HelpCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -41,11 +37,9 @@ import {
   collection, 
   query, 
   where, 
-  getDocs, 
   orderBy, 
   limit, 
   updateDoc, 
-  deleteDoc, 
   addDoc,
   onSnapshot
 } from 'firebase/firestore';
@@ -106,45 +100,6 @@ export default function Dashboard() {
   const notificationsQuery = useMemo(() => (user && db) ? query(collection(db, 'users', user.uid, 'notifications'), orderBy('date', 'desc')) : null, [db, user?.uid]);
   const { data: notifications = [] } = useCollection(notificationsQuery);
   const unreadCount = useMemo(() => notifications.filter((n: any) => !n.read).length, [notifications]);
-
-  // QR Scanner Logic
-  useEffect(() => {
-    if (isScannerOpen && mounted) {
-      const startScanner = async () => {
-        try {
-          const scanner = new Html5Qrcode("reader");
-          scannerRef.current = scanner;
-          await scanner.start(
-            { facingMode: "environment" },
-            { 
-              fps: 10, 
-              qrbox: { width: 250, height: 250 },
-              aspectRatio: 1.0 
-            },
-            (decodedText) => {
-              if (scannerRef.current) {
-                scannerRef.current.stop().then(() => {
-                  setScannerOpen(false);
-                  router.push(`/transfer?id=${encodeURIComponent(decodedText.trim())}`);
-                }).catch(e => console.error("Stop failed", e));
-              }
-            },
-            () => {}
-          );
-        } catch (err) {
-          console.error("Scanner failed", err);
-          setScannerOpen(false);
-          toast({ variant: "destructive", title: "Imaging Error", description: "Protocol failed to initialize sensor." });
-        }
-      };
-      startScanner();
-    }
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-      }
-    };
-  }, [isScannerOpen, mounted, router, setScannerOpen, toast]);
 
   // Support Chat Logic
   useEffect(() => {
@@ -331,25 +286,6 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* QR Scanner Overlay */}
-      {isScannerOpen && (
-        <div className="fixed inset-0 z-[2000] bg-black flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
-          <div className="absolute top-10 right-10 z-[2001]"><button onClick={() => setScannerOpen(false)} className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20"><X size={32} /></button></div>
-          <div className="relative w-full aspect-square max-w-sm rounded-[3rem] overflow-hidden border-4 border-primary shadow-[0_0_50px_rgba(250,218,122,0.3)]">
-            <div id="reader" className="w-full h-full"></div>
-            <div className="absolute inset-0 border-[2px] border-primary/40 animate-pulse pointer-events-none"></div>
-            <div className="absolute top-1/2 left-0 w-full h-[2px] bg-primary shadow-[0_0_15px_#FADA7A] animate-bounce"></div>
-          </div>
-          <div className="mt-12 text-center space-y-4">
-            <div className="inline-flex items-center gap-3 px-6 py-2 bg-primary/10 border border-primary/20 rounded-full">
-              <Zap size={16} className="text-primary animate-pulse" />
-              <span className="text-[10px] font-headline font-bold text-primary uppercase tracking-widest">Scanning Network Layer</span>
-            </div>
-            <p className="text-[10px] text-muted-foreground uppercase max-w-xs leading-relaxed font-bold tracking-tight">Align the recipient's Flash Identifier within the sensor grid for instant settlement.</p>
-          </div>
-        </div>
-      )}
 
       {/* Support Modal */}
       <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
