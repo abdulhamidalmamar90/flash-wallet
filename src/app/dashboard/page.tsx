@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
@@ -75,10 +76,6 @@ export default function Dashboard() {
   const [chatSession, setChatSession] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [isStartingChat, setIsStartingChat] = useState(false);
-  const [userRating, setUserRating] = useState(0);
-  const [userFeedback, setUserFeedback] = useState('');
-  const [showRatingUI, setShowRatingUI] = useState(false);
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [recipient, setRecipient] = useState(''); 
@@ -106,77 +103,22 @@ export default function Dashboard() {
   const unreadCount = useMemo(() => notifications.filter((n: any) => !n.read).length, [notifications]);
 
   useEffect(() => {
-    if (!db) return;
-    const unsub = onSnapshot(doc(db, 'system_settings', 'chat_config'), (doc) => {
-      if (doc.exists()) setChatStatus(doc.data());
-    });
-    return () => unsub();
-  }, [db]);
-
-  useEffect(() => {
     if (!db || !user || supportStep !== 'chat') return;
     const sessionsQuery = query(collection(db, 'chat_sessions'), where('userId', '==', user.uid));
     const unsubSessions = onSnapshot(sessionsQuery, (snap) => {
       if (!snap.empty) {
-        const relevantDocs = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter((s: any) => ['open', 'active', 'closed', 'archived'].includes(s.status))
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-        if (relevantDocs.length > 0) {
-          const session = relevantDocs[0];
-          setChatSession(session);
-          
-          const msgsQuery = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
-          return onSnapshot(msgsQuery, (mSnap) => {
-            setMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-          });
-        }
-      } else {
-        setChatSession(null);
-        setMessages([]);
+        const session = snap.docs[0];
+        setChatSession({ id: session.id, ...session.data() });
+        
+        const msgsQuery = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
+        return onSnapshot(msgsQuery, (mSnap) => {
+          setMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+          setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        });
       }
     });
     return () => unsubSessions();
   }, [db, user, supportStep]);
-
-  useEffect(() => {
-    let isMounted = true;
-    const startScanner = async () => {
-      if (!isScannerOpen) return;
-      const readerElement = document.getElementById("reader");
-      if (!readerElement) return;
-      try {
-        const html5QrCode = new Html5Qrcode("reader");
-        scannerRef.current = html5QrCode;
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            if (!isMounted) return;
-            setRecipient(decodedText.toUpperCase());
-            setScannerOpen(false);
-            setIsSendModalOpen(true);
-            toast({ title: "ID DETECTED" });
-          },
-          () => {} 
-        );
-      } catch (err) {
-        if (isMounted) setScannerOpen(false);
-      }
-    };
-
-    startScanner();
-    return () => { 
-      isMounted = false;
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {}).finally(() => {
-          scannerRef.current = null;
-        });
-      }
-    };
-  }, [isScannerOpen, setScannerOpen, toast]);
 
   const copyId = useCallback(() => {
     if (profile?.customId) {
@@ -204,6 +146,24 @@ export default function Dashboard() {
       setIsSupportOpen(false);
       setSupportStep('options');
     } catch (err: any) { toast({ variant: "destructive", title: "Error" }); } finally { setIsSubmittingSupport(false); }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!db || !chatSession || !chatMessage.trim() || !user) return;
+    try {
+      await addDoc(collection(db, 'chat_sessions', chatSession.id, 'messages'), {
+        text: chatMessage.trim(),
+        senderId: user.uid,
+        isAdmin: false,
+        timestamp: new Date().toISOString()
+      });
+      await updateDoc(doc(db, 'chat_sessions', chatSession.id), {
+        lastMessage: chatMessage.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      setChatMessage('');
+    } catch (e) {}
   };
 
   if (!mounted) return null;
@@ -235,7 +195,7 @@ export default function Dashboard() {
         <section className="grid grid-cols-3 gap-3">
           <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-primary transition-all group"><div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-all"><Send size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إرسال' : 'Send'}</span></button>
           <Link href="/deposit" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-secondary transition-all group"><div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><Wallet size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إيداع' : 'Deposit'}</span></Link>
-          <Link href="/withdraw" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-foreground/20 transition-all group"><div className="p-3 rounded-xl bg-muted group-hover:bg-foreground group-hover:text-background transition-all"><ArrowDownLeft size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'سحب' : 'Withdraw'}</span></Link>
+          <button onClick={() => setIsSupportOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-foreground/20 transition-all group"><div className="p-3 rounded-xl bg-muted group-hover:bg-foreground group-hover:text-background transition-all"><Headset size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'دعم' : 'Support'}</span></button>
         </section>
 
         <section className="space-y-6">
@@ -250,7 +210,7 @@ export default function Dashboard() {
                     <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">{new Date(tx.date).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <p className={cn("font-headline font-bold text-xs", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "text-foreground" : "text-primary")}>{(tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? '-' : '+'}${tx.amount}</p>
+                <p className={cn("font-financial font-bold text-xs", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "text-foreground" : "text-primary")}>{(tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? '-' : '+'}${tx.amount}</p>
               </div>
             ))}
           </div>
@@ -289,28 +249,24 @@ export default function Dashboard() {
               ) : (
                 <>
                   <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
-                    <p className="text-[8px] font-headline font-bold text-primary tracking-widest uppercase">CASE: {chatSession.caseId}</p>
                     <Badge variant="outline" className="text-[6px] h-4 border-primary/20 text-primary uppercase">{chatSession.status}</Badge>
                   </div>
                   <div className="flex-1 overflow-y-auto space-y-4 p-4 no-scrollbar">
                     {messages.map((msg) => (
                       <div key={msg.id} className={cn("flex flex-col max-w-[85%]", msg.isAdmin ? "self-start items-start" : "self-end items-end")}>
-                        <div className={cn("p-3 rounded-2xl text-[10px] font-headline", msg.isAdmin ? "bg-muted text-foreground rounded-tl-none" : "bg-primary text-background rounded-tr-none shadow-lg")}>{msg.text}</div>
+                        <div className={cn("p-3 rounded-2xl text-[10px] font-financial", msg.isAdmin ? "bg-muted text-foreground rounded-tl-none" : "bg-primary text-background rounded-tr-none shadow-lg")}>{msg.text}</div>
                         <span className="text-[6px] text-muted-foreground mt-1 uppercase">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     ))}
                     <div ref={chatEndRef} />
                   </div>
-                  <form onSubmit={async (e) => { e.preventDefault(); if (!chatMessage.trim()) return; await addDoc(collection(db, 'chat_sessions', chatSession.id, 'messages'), { text: chatMessage.trim(), senderId: user!.uid, isAdmin: false, timestamp: new Date().toISOString() }); setChatMessage(''); }} className="mt-auto p-4 pt-0 flex gap-2"><Input placeholder="TYPE MESSAGE..." className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} /><button type="submit" disabled={!chatMessage.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center"><SendHorizontal size={20} /></button></form>
+                  <form onSubmit={handleSendMessage} className="mt-auto p-4 pt-0 flex gap-2"><Input placeholder="TYPE MESSAGE..." className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} /><button type="submit" disabled={!chatMessage.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center"><SendHorizontal size={20} /></button></form>
                 </>
               )}
             </div>
           )}
         </DialogContent>
       </Dialog>
-
-      {/* QR Modal */}
-      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}><DialogContent className="max-w-sm glass-card border-border/40 p-10 text-center rounded-[2.5rem] z-[1001]"><DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary">Cryptographic Identifier</DialogTitle></DialogHeader><div className="space-y-8 mt-6"><div className="p-6 bg-white rounded-3xl inline-block shadow-lg"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} alt="QR" className="w-48 h-48" /></div><div className="space-y-2"><p className="text-center text-[10px] font-headline font-bold text-muted-foreground uppercase">Entity ID</p><p className="text-center text-sm font-headline font-black tracking-widest text-foreground">{profile?.customId}</p></div><button onClick={copyId} className="w-full h-14 bg-primary text-primary-foreground font-headline font-bold rounded-2xl gold-glow">COPY FLASH ID</button></div></DialogContent></Dialog>
 
       {/* Settings Modal */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -321,6 +277,7 @@ export default function Dashboard() {
             <div className="space-y-3 pb-4">
               <ThemeToggle /><button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><Camera size={18} className="text-primary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">My Flash Identifier</span></button>
               <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><Settings size={18} className="text-muted-foreground" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Configure Account</span></Link>
+              <Link href="/orders" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><ClipboardList size={18} className="text-muted-foreground" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Asset Orders</span></Link>
               <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-muted/20 transition-all"><MessageSquare size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Language: {language === 'en' ? 'Arabic' : 'English'}</span></button>
               <button onClick={() => signOut(auth)} className="w-full h-14 glass-card rounded-2xl border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all"><LogOut size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Terminate Access</span></button>
             </div>

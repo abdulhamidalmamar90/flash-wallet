@@ -33,6 +33,8 @@ import {
   Download,
   FileJson,
   ShieldAlert,
+  SendHorizontal,
+  CircleDot,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -67,7 +69,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/AlertDialog";
 import Link from 'next/link';
 
 export default function AdminPage() {
@@ -115,6 +117,18 @@ export default function AdminPage() {
     feeValue: 0,
   });
 
+  // Order Fulfillment
+  const [fulfillingOrderId, setFulfillingOrderId] = useState<string | null>(null);
+  const [orderResultCode, setOrderResultCode] = useState('');
+  const [isRejectingOrder, setIsRejectingOrder] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  // Live Chat Admin
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
@@ -129,6 +143,15 @@ export default function AdminPage() {
 
   const productsQuery = useMemo(() => (db ? query(collection(db, 'marketplace_services')) : null), [db]);
   const { data: products = [] } = useCollection(productsQuery);
+
+  const ordersQuery = useMemo(() => (db ? query(collection(db, 'service_requests'), orderBy('date', 'desc')) : null), [db]);
+  const { data: allOrders = [] } = useCollection(ordersQuery);
+
+  const ticketsQuery = useMemo(() => (db ? query(collection(db, 'support_tickets'), orderBy('date', 'desc')) : null), [db]);
+  const { data: allTickets = [] } = useCollection(ticketsQuery);
+
+  const chatSessionsQuery = useMemo(() => (db ? query(collection(db, 'chat_sessions'), orderBy('updatedAt', 'desc')) : null), [db]);
+  const { data: chatSessions = [] } = useCollection(chatSessionsQuery);
 
   const depMethodsQuery = useMemo(() => (db ? query(collection(db, 'deposit_methods')) : null), [db]);
   const { data: allDepositMethods = [] } = useCollection(depMethodsQuery);
@@ -151,6 +174,87 @@ export default function AdminPage() {
       router.push('/dashboard');
     }
   }, [profile, profileLoading, authLoading, router, toast]);
+
+  // Chat Subscription
+  useEffect(() => {
+    if (!db || !activeChatId) return;
+    const q = query(collection(db, 'chat_sessions', activeChatId, 'messages'), orderBy('timestamp', 'asc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    });
+    return () => unsub();
+  }, [db, activeChatId]);
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!db || !activeChatId || !chatMessage.trim()) return;
+    try {
+      await addDoc(collection(db, 'chat_sessions', activeChatId, 'messages'), {
+        text: chatMessage.trim(),
+        isAdmin: true,
+        senderId: user?.uid,
+        timestamp: new Date().toISOString()
+      });
+      await updateDoc(doc(db, 'chat_sessions', activeChatId), {
+        updatedAt: new Date().toISOString(),
+        lastMessage: chatMessage.trim(),
+        status: 'active'
+      });
+      setChatMessage('');
+    } catch (e) {}
+  };
+
+  const handleApproveOrder = async () => {
+    if (!db || !fulfillingOrderId || !orderResultCode.trim()) return;
+    try {
+      const order = allOrders.find((o: any) => o.id === fulfillingOrderId);
+      await updateDoc(doc(db, 'service_requests', fulfillingOrderId), {
+        status: 'completed',
+        resultCode: orderResultCode.trim()
+      });
+      
+      const notifRef = doc(collection(db, 'users', order.userId, 'notifications'));
+      await addDoc(collection(db, 'users', order.userId, 'notifications'), {
+        title: "Order Secured",
+        message: `Your request for ${order.serviceName} has been fulfilled. Check history for details.`,
+        type: 'service',
+        read: false,
+        date: new Date().toISOString()
+      });
+
+      toast({ title: "ORDER FULFILLED" });
+      setFulfillingOrderId(null);
+      setOrderResultCode('');
+    } catch (e) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
+
+  const handleRejectOrder = async () => {
+    if (!db || !fulfillingOrderId || !rejectionReason.trim()) return;
+    try {
+      const order = allOrders.find((o: any) => o.id === fulfillingOrderId);
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', order.userId);
+        transaction.update(userRef, { balance: increment(order.price) });
+        transaction.update(doc(db, 'service_requests', fulfillingOrderId), {
+          status: 'rejected',
+          rejectionReason: rejectionReason.trim()
+        });
+        const txRef = doc(collection(db, 'users', order.userId, 'transactions'));
+        transaction.set(txRef, {
+          type: 'receive',
+          amount: order.price,
+          sender: 'SYSTEM REFUND',
+          status: 'completed',
+          date: new Date().toISOString()
+        });
+      });
+      toast({ title: "ORDER REJECTED & REFUNDED" });
+      setFulfillingOrderId(null);
+      setIsRejectingOrder(false);
+      setRejectionReason('');
+    } catch (e) { toast({ variant: "destructive", title: "FAILED" }); }
+  };
 
   const handleSaveProduct = async () => {
     if (!db) return;
@@ -186,17 +290,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  const handleDeleteUserEntity = async () => {
-    if (!editingUserId || !db) return;
-    try {
-      await deleteDoc(doc(db, 'users', editingUserId));
-      toast({ title: "ENTITY PURGED" });
-      setEditingUserId(null);
-      setIsUserDeleteDialogOpen(false);
-    } catch (e: any) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
-  };
-
-  // Backup Functions
   const exportCollection = async (collectionName: string, fileName: string) => {
     if (!db) return;
     try {
@@ -210,10 +303,8 @@ export default function AdminPage() {
       a.download = `FLASH_BACKUP_${fileName}_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast({ title: "BACKUP CREATED", description: `${fileName} exported successfully.` });
-    } catch (e) {
-      toast({ variant: "destructive", title: "BACKUP FAILED" });
-    }
+      toast({ title: "BACKUP CREATED" });
+    } catch (e) { toast({ variant: "destructive", title: "BACKUP FAILED" }); }
   };
 
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
@@ -233,13 +324,121 @@ export default function AdminPage() {
           <TabsList className="grid grid-cols-4 w-full h-auto bg-card/40 border border-white/5 rounded-[2rem] p-2 gap-2">
             <TabsTrigger value="withdrawals" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ArrowUpCircle className="h-4 w-4" /> Withdraws</TabsTrigger>
             <TabsTrigger value="deposits" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ArrowDownCircle className="h-4 w-4" /> Deposits</TabsTrigger>
+            <TabsTrigger value="orders" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ClipboardList className="h-4 w-4" /> Orders</TabsTrigger>
+            <TabsTrigger value="chats" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><MessageSquare className="h-4 w-4" /> Live Chats</TabsTrigger>
+            
             <TabsTrigger value="gateways" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Banknote className="h-4 w-4" /> Gateways</TabsTrigger>
             <TabsTrigger value="store" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><StoreIcon className="h-4 w-4" /> Store</TabsTrigger>
+            <TabsTrigger value="tickets" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Ticket className="h-4 w-4" /> Tickets</TabsTrigger>
             <TabsTrigger value="users" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Users className="h-4 w-4" /> Entities</TabsTrigger>
-            <TabsTrigger value="backup" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Database className="h-4 w-4" /> System Backup</TabsTrigger>
+            
+            <TabsTrigger value="backup" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2 col-span-2"><Database className="h-4 w-4" /> System Backup</TabsTrigger>
             <TabsTrigger value="kyc" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2 col-span-2"><ShieldCheck className="h-4 w-4" /> KYC Verification</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="orders" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {allOrders.map((order: any) => (
+              <div key={order.id} className="glass-card p-5 rounded-[2rem] border-white/5 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-[10px] font-headline font-bold uppercase">@{order.username}</p>
+                    <p className="text-[8px] text-primary font-black uppercase">{order.serviceName}</p>
+                  </div>
+                  <Badge variant="outline" className={cn("text-[7px] uppercase", order.status === 'pending' ? "text-yellow-500 border-yellow-500/20" : order.status === 'completed' ? "text-green-500 border-green-500/20" : "text-red-500 border-red-500/20")}>{order.status}</Badge>
+                </div>
+                <div className="p-3 bg-white/5 rounded-xl text-[8px] space-y-1">
+                  <p className="text-white/40 uppercase">VARIANT: <span className="text-white">{order.selectedVariant || 'N/A'}</span></p>
+                  <p className="text-white/40 uppercase">INPUT: <span className="text-primary">{order.userInput || 'N/A'}</span></p>
+                  <p className="text-white/40 uppercase">PRICE: <span className="text-white font-headline">${order.price}</span></p>
+                </div>
+                {order.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <Button onClick={() => { setFulfillingOrderId(order.id); setIsRejectingOrder(false); }} className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white rounded-xl text-[8px] font-headline uppercase font-black tracking-widest">Fulfill</Button>
+                    <Button onClick={() => { setFulfillingOrderId(order.id); setIsRejectingOrder(true); }} variant="destructive" className="flex-1 h-10 rounded-xl text-[8px] font-headline uppercase font-black tracking-widest">Reject</Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="chats" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+            <div className="lg:col-span-1 glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col">
+              <div className="p-4 border-b border-white/5 bg-white/5"><h3 className="text-[10px] font-headline font-bold uppercase tracking-widest">Active Channels</h3></div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-2 no-scrollbar">
+                {chatSessions.map((s: any) => (
+                  <button key={s.id} onClick={() => setActiveChatId(s.id)} className={cn("w-full p-4 rounded-2xl border text-left transition-all", activeChatId === s.id ? "bg-primary/10 border-primary/40" : "bg-white/5 border-transparent hover:border-white/10")}>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-[10px] font-headline font-bold uppercase">@{s.username}</p>
+                      <Badge className="text-[6px] h-4 uppercase">{s.status}</Badge>
+                    </div>
+                    <p className="text-[8px] text-muted-foreground truncate">{s.lastMessage || 'Starting session...'}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="lg:col-span-2 glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col">
+              {activeChatId ? (
+                <>
+                  <div className="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                    <p className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary">Live Connection: {activeChatId.slice(0, 8)}</p>
+                    <button onClick={() => setActiveChatId(null)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+                    {chatMessages.map((m: any) => (
+                      <div key={m.id} className={cn("flex flex-col max-w-[80%]", m.isAdmin ? "self-end items-end" : "self-start items-start")}>
+                        <div className={cn("p-3 rounded-2xl text-[10px] font-financial", m.isAdmin ? "bg-primary text-background rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>{m.text}</div>
+                        <span className="text-[6px] text-muted-foreground mt-1 uppercase">{new Date(m.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    ))}
+                    <div ref={chatEndRef} />
+                  </div>
+                  <form onSubmit={handleSendChatMessage} className="p-4 bg-white/5 flex gap-2">
+                    <Input placeholder="TYPE RESPONSE..." className="h-12 bg-background border-white/10 rounded-xl font-headline text-[10px]" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} />
+                    <button type="submit" className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center transition-transform active:scale-95"><SendHorizontal size={20} /></button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground space-y-4">
+                  <CircleDot size={48} className="opacity-10 animate-pulse" />
+                  <p className="text-[10px] font-headline uppercase font-bold tracking-widest opacity-20">Select an active channel to monitor</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="tickets" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {allTickets.map((t: any) => (
+              <div key={t.id} className="glass-card p-6 rounded-[2.5rem] border-white/5 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <Badge variant="outline" className="text-[7px] uppercase border-primary/20 text-primary mb-2">Ticket #{t.id.slice(0, 6)}</Badge>
+                    <h4 className="text-[11px] font-headline font-bold uppercase">{t.subject}</h4>
+                  </div>
+                  <Badge className="bg-white/5 text-white/60 text-[7px] uppercase">{t.status}</Badge>
+                </div>
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-[10px] leading-relaxed text-white/80">{t.message}</p>
+                </div>
+                {t.imageUrl && (
+                  <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 group relative">
+                    <img src={t.imageUrl} className="w-full h-full object-cover" />
+                    <a href={t.imageUrl} target="_blank" className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Download size={20} className="text-white" /></a>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                  <p className="text-[8px] font-headline font-bold text-primary">BY: @{t.username}</p>
+                  <Button variant="ghost" size="sm" onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), { status: 'closed' }); toast({ title: "TICKET CLOSED" }); }} className="text-[8px] uppercase h-8 px-4 rounded-lg">Close Ticket</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
 
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
@@ -305,14 +504,6 @@ export default function AdminPage() {
                   <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Store Protocol</span>
                 </div>
               </Button>
-            </div>
-
-            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl w-full max-w-2xl flex items-start gap-4 text-left">
-              <ShieldAlert className="text-red-500 shrink-0" size={24} />
-              <div className="space-y-1">
-                <p className="text-[10px] font-headline font-bold text-red-500 uppercase">Warning: Data Sovereignty</p>
-                <p className="text-[8px] text-muted-foreground uppercase leading-tight">These files contain sensitive user metadata and financial records. Ensure they are stored in an encrypted offline environment.</p>
-              </div>
             </div>
           </div>
         </TabsContent>
@@ -401,6 +592,28 @@ export default function AdminPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Order Fulfillment Modal */}
+      <Dialog open={!!fulfillingOrderId} onOpenChange={() => { setFulfillingOrderId(null); setIsRejectingOrder(false); }}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1100]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold uppercase text-center">{isRejectingOrder ? "REJECT PROTOCOL" : "FULFILL PROTOCOL"}</DialogTitle></DialogHeader>
+          <div className="mt-6 space-y-6">
+            {!isRejectingOrder ? (
+              <div className="space-y-4">
+                <Label className="text-[8px] uppercase font-black">Asset Key / Activation Code</Label>
+                <Input placeholder="PASTE CODE HERE" className="h-12 bg-background border-white/10 rounded-xl" value={orderResultCode} onChange={(e) => setOrderResultCode(e.target.value)} />
+                <Button onClick={handleApproveOrder} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] rounded-xl gold-glow uppercase tracking-widest">Mark as Completed</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Label className="text-[8px] uppercase font-black text-red-500">Reason for Rejection</Label>
+                <Input placeholder="E.G. INVALID ID PROVIDED" className="h-12 bg-background border-red-500/20 rounded-xl" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} />
+                <Button onClick={handleRejectOrder} variant="destructive" className="w-full h-14 font-headline font-black text-[10px] rounded-xl uppercase tracking-widest">Confirm Rejection & Refund</Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Gateway Dialog */}
       <Dialog open={isAddingGateway} onOpenChange={setIsAddingGateway}>
