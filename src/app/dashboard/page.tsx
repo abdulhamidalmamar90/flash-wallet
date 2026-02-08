@@ -28,6 +28,8 @@ import {
   ArrowDownLeft,
   ClipboardList,
   HelpCircle,
+  X,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -54,10 +56,10 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { sendTelegramNotification, sendTelegramPhoto } from '@/lib/telegram';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { submitTicketAndSendEmail } from '@/app/actions/support';
+import Image from 'next/image';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -75,15 +77,12 @@ export default function Dashboard() {
   const [supportStep, setSupportStep] = useState<'options' | 'form' | 'chat'>('options');
   
   const [chatMessage, setChatMessage] = useState('');
-  const [chatStatus, setChatStatus] = useState<any>(null);
-  const [chatSession, setChatSession] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [chatSession, setChatSession] = useState<any>(null);
   const [isStartingChat, setIsStartingChat] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const [recipient, setRecipient] = useState(''); 
   const [mounted, setMounted] = useState(false);
-
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
   const [supportImage, setSupportImage] = useState<string | null>(null);
@@ -105,6 +104,40 @@ export default function Dashboard() {
   const { data: notifications = [] } = useCollection(notificationsQuery);
   const unreadCount = useMemo(() => notifications.filter((n: any) => !n.read).length, [notifications]);
 
+  // QR Scanner Logic
+  useEffect(() => {
+    if (isScannerOpen && mounted) {
+      const startScanner = async () => {
+        try {
+          const scanner = new Html5Qrcode("reader");
+          scannerRef.current = scanner;
+          await scanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+              scanner.stop().then(() => {
+                setScannerOpen(false);
+                router.push(`/transfer?id=${decodedText}`);
+              });
+            },
+            () => {}
+          );
+        } catch (err) {
+          console.error("Scanner failed", err);
+          setScannerOpen(false);
+          toast({ variant: "destructive", title: "Camera Error", description: "Failed to access imaging sensor." });
+        }
+      };
+      startScanner();
+    }
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, [isScannerOpen, mounted, router, setScannerOpen, toast]);
+
+  // Support Chat Sync
   useEffect(() => {
     if (!db || !user || supportStep !== 'chat') return;
     const sessionsQuery = query(collection(db, 'chat_sessions'), where('userId', '==', user.uid));
@@ -112,7 +145,6 @@ export default function Dashboard() {
       if (!snap.empty) {
         const session = snap.docs[0];
         setChatSession({ id: session.id, ...session.data() });
-        
         const msgsQuery = query(collection(db, 'chat_sessions', session.id, 'messages'), orderBy('timestamp', 'asc'));
         return onSnapshot(msgsQuery, (mSnap) => {
           setMessages(mSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -144,25 +176,17 @@ export default function Dashboard() {
         imageUrl: supportImage,
         language: language as 'ar' | 'en'
       });
-
       if (result.success) {
-        toast({ 
-          title: language === 'ar' ? "تم إرسال التذكرة" : "Ticket Deployed",
-          description: language === 'ar' ? "تم إرسال بريد تأكيد إلى عنوانك المسجل." : "A confirmation email has been sent to your inbox."
-        });
+        toast({ title: language === 'ar' ? "تم إرسال التذكرة" : "Ticket Deployed" });
         setIsSupportOpen(false);
         setSupportStep('options');
         setSupportSubject('');
         setSupportMessage('');
         setSupportImage(null);
-      } else {
-        throw new Error(result.error);
-      }
+      } else throw new Error(result.error);
     } catch (err: any) { 
       toast({ variant: "destructive", title: "Protocol Error", description: err.message }); 
-    } finally { 
-      setIsSubmittingSupport(false); 
-    }
+    } finally { setIsSubmittingSupport(false); }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -175,9 +199,7 @@ export default function Dashboard() {
         isAdmin: false,
         timestamp: new Date().toISOString()
       });
-      await updateDoc(doc(db, 'chat_sessions', chatSession.id), {
-        updatedAt: new Date().toISOString()
-      });
+      await updateDoc(doc(db, 'chat_sessions', chatSession.id), { updatedAt: new Date().toISOString() });
       setChatMessage('');
     } catch (e) {}
   };
@@ -195,7 +217,7 @@ export default function Dashboard() {
             <p className="font-headline font-bold text-sm">@{profile?.username}</p>
           </div>
         </button>
-        <button onClick={() => { setIsNotifOpen(true); }} className="relative p-2 text-muted-foreground hover:text-foreground transition-all">
+        <button onClick={() => setIsNotifOpen(true)} className="relative p-2 text-muted-foreground hover:text-foreground transition-all">
           <Bell size={24} />
           {unreadCount > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-[8px] font-bold text-white rounded-full flex items-center justify-center border-2 border-background">{unreadCount}</span>}
         </button>
@@ -209,13 +231,13 @@ export default function Dashboard() {
         </section>
 
         <section className="grid grid-cols-3 gap-3">
-          <button onClick={() => setIsSendModalOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-primary transition-all group"><div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-all"><Send size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إرسال' : 'Send'}</span></button>
+          <Link href="/transfer" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-primary transition-all group"><div className="p-3 rounded-xl bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-all"><Send size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إرسال' : 'Send'}</span></Link>
           <Link href="/deposit" className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-secondary transition-all group"><div className="p-3 rounded-xl bg-secondary/10 group-hover:bg-secondary group-hover:text-background transition-all"><Wallet size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'إيداع' : 'Deposit'}</span></Link>
           <button onClick={() => setIsSupportOpen(true)} className="flex flex-col items-center gap-2 py-4 glass-card rounded-2xl hover:border-foreground/20 transition-all group"><div className="p-3 rounded-xl bg-muted group-hover:bg-foreground group-hover:text-background transition-all"><Headset size={20} /></div><span className="text-[7px] font-headline font-bold uppercase tracking-widest">{language === 'ar' ? 'دعم' : 'Support'}</span></button>
         </section>
 
         <section className="space-y-6">
-          <div className="flex justify-between items-center"><h3 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'سجل العمليات' : 'Recent Ledger'}</h3><Link href="/transactions" className="text-[8px] font-headline text-primary hover:underline">{language === 'ar' ? 'استخراج الكل' : 'EXTRACT ALL'}</Link></div>
+          <div className="flex justify-between items-center"><h3 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'سجل العمليات' : 'Recent Ledger'}</h3><Link href="/orders" className="text-[8px] font-headline text-primary hover:underline">{language === 'ar' ? 'طلباتي' : 'MY ORDERS'}</Link></div>
           <div className="space-y-3">
             {transactions.map((tx: any) => (
               <div key={tx.id} className="flex justify-between items-center p-5 glass-card rounded-2xl border-border/40 hover:bg-muted/5 transition-all">
@@ -233,6 +255,44 @@ export default function Dashboard() {
         </section>
       </main>
 
+      {/* QR Code Modal */}
+      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+        <DialogContent className="max-w-xs glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[1100]">
+          <DialogHeader><DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase mb-4">Your Identifier Protocol</DialogTitle></DialogHeader>
+          <div className="space-y-8">
+            <div className="p-6 bg-white rounded-[2rem] shadow-2xl inline-block border-4 border-primary/20">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}&bgcolor=ffffff&color=000000`} alt="QR" className="w-40 h-40" />
+            </div>
+            <div className="space-y-3">
+              <div className="p-4 bg-primary/10 rounded-2xl border border-primary/20">
+                <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] mb-1">Authenticated Flash ID</p>
+                <p className="text-xl font-headline font-black tracking-tight">{profile?.customId}</p>
+              </div>
+              <Button onClick={copyId} variant="outline" className="w-full h-12 rounded-xl border-white/5 text-[9px] font-headline font-bold uppercase tracking-widest hover:bg-white/5"><Copy size={14} className="mr-2" /> Duplicate Sequence</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Scanner Overlay */}
+      {isScannerOpen && (
+        <div className="fixed inset-0 z-[2000] bg-black flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
+          <div className="absolute top-10 right-10 z-[2001]"><button onClick={() => setScannerOpen(false)} className="p-4 bg-white/10 rounded-full text-white hover:bg-white/20"><X size={32} /></button></div>
+          <div className="relative w-full aspect-square max-w-sm rounded-[3rem] overflow-hidden border-4 border-primary shadow-[0_0_50px_rgba(250,218,122,0.3)]">
+            <div id="reader" className="w-full h-full"></div>
+            <div className="absolute inset-0 border-[2px] border-primary/40 animate-pulse pointer-events-none"></div>
+            <div className="absolute top-1/2 left-0 w-full h-[2px] bg-primary shadow-[0_0_15px_#FADA7A] animate-bounce"></div>
+          </div>
+          <div className="mt-12 text-center space-y-4">
+            <div className="inline-flex items-center gap-3 px-6 py-2 bg-primary/10 border border-primary/20 rounded-full">
+              <Zap size={16} className="text-primary animate-pulse" />
+              <span className="text-[10px] font-headline font-bold text-primary uppercase tracking-widest">Scanning Network Layer</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground uppercase max-w-xs leading-relaxed font-bold tracking-tight">Align the recipient's Flash Identifier within the sensor grid for instant settlement.</p>
+          </div>
+        </div>
+      )}
+
       {/* Support Modal */}
       <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
         <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2.5rem] z-[1001] max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -240,7 +300,6 @@ export default function Dashboard() {
             <button onClick={() => { if (supportStep === 'options') setIsSupportOpen(false); else setSupportStep('options'); }} className={cn("absolute top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-all text-muted-foreground hover:text-secondary", language === 'ar' ? "right-[-10px]" : "left-[-10px]")}><ChevronLeft className={cn("h-6 w-6", language === 'ar' && "rotate-180")} /></button>
             <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center w-full">{language === 'ar' ? 'مركز الدعم والمساعدة' : 'Support Command Center'}</DialogTitle>
           </DialogHeader>
-
           {supportStep === 'options' ? (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
               <button onClick={() => setSupportStep('form')} className="w-full p-6 glass-card rounded-3xl border-secondary/20 flex items-center gap-5 hover:border-secondary transition-all group"><div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform"><MessageSquare size={24} /></div><div className="text-left"><p className="text-[11px] font-headline font-bold uppercase">{language === 'ar' ? 'مراسلة الدعم' : 'Contact Support'}</p><p className="text-[8px] text-muted-foreground uppercase">Open encrypted ticket</p></div></button>
