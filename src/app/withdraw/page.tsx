@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -73,7 +73,7 @@ export default function WithdrawPage() {
   const [isPinVerificationOpen, setIsPinVerificationOpen] = useState(false);
   const [pinEntry, setPinEntry] = useState('');
 
-  const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
+  const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
   const allMethodsQuery = useMemo(() => {
@@ -94,19 +94,12 @@ export default function WithdrawPage() {
     }
   }, [profile?.country, selectedCountry, availableCountries]);
 
-  const methodsQuery = useMemo(() => {
-    if (!db) return null;
-    return query(collection(db, 'withdrawal_methods'), where('isActive', '==', true));
-  }, [db]);
-  
-  const { data: allMethodsList = [], loading: methodsLoading } = useCollection(methodsQuery);
-
   const filteredMethods = useMemo(() => {
     if (selectedCountry === 'GL') {
-      return allMethodsList.filter((m: any) => m.country === 'GL');
+      return allWithdrawMethods.filter((m: any) => m.country === 'GL');
     }
-    return allMethodsList.filter((m: any) => m.country === selectedCountry);
-  }, [allMethodsList, selectedCountry]);
+    return allWithdrawMethods.filter((m: any) => m.country === selectedCountry);
+  }, [allWithdrawMethods, selectedCountry]);
 
   useEffect(() => {
     if (selectedCountry === 'CR' && step === 2) {
@@ -147,7 +140,7 @@ export default function WithdrawPage() {
     };
   }, [selectedMethod, amount]);
 
-  const t = {
+  const t = useMemo(() => ({
     header: language === 'ar' ? 'سحب رصيد' : 'Withdraw Funds',
     selectCountry: language === 'ar' ? 'اختر الدولة' : 'Select Country',
     selectMethod: language === 'ar' ? 'اختر وسيلة السحب' : 'Select Gateway',
@@ -169,19 +162,19 @@ export default function WithdrawPage() {
     finalConfirm: language === 'ar' ? 'تأكيد نهائي' : 'Final Confirmation',
     abort: language === 'ar' ? 'إلغاء' : 'Abort',
     verifyVault: language === 'ar' ? "تأكيد PIN الخزنة" : "Verify Vault PIN"
-  };
+  }), [language]);
 
-  const handleInputChange = (label: string, value: string) => {
+  const handleInputChange = useCallback((label: string, value: string) => {
     setFormData(prev => ({ ...prev, [label]: value }));
-  };
+  }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (step === 1) router.back();
     else if (step === 3 && selectedCountry === 'CR') {
       setSelectedMethod(null);
       setStep(1);
     } else setStep(step - 1);
-  };
+  }, [step, selectedCountry, router]);
 
   const handleInitiateWithdrawal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,7 +214,7 @@ export default function WithdrawPage() {
       return;
     }
 
-    if (!user || !amount || !profile || !selectedMethod) return;
+    if (!user || !amount || !profile || !selectedMethod || !db) return;
     const amountUsd = parseFloat(amount);
 
     setLoading(true);
@@ -324,7 +317,7 @@ ${detailsText}
                   <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase font-headline">
                     <SelectValue placeholder="CHOOSE LOCATION" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-white/10">
+                  <SelectContent className="bg-card border-white/10 z-[1100]">
                     {availableCountries.length === 0 ? (
                       <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
                     ) : availableCountries.map(c => (
@@ -344,7 +337,7 @@ ${detailsText}
           <div className="space-y-6 animate-in slide-in-from-right-4">
             <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{t.selectMethod}</h2>
             <div className="grid grid-cols-1 gap-4">
-              {methodsLoading ? <Loader2 className="animate-spin mx-auto text-primary" /> : filteredMethods.length === 0 ? (
+              {filteredMethods.length === 0 ? (
                 <div className="glass-card p-10 rounded-3xl text-center space-y-4">
                   <Info className="mx-auto text-muted-foreground" size={32} />
                   <p className="text-[10px] font-headline font-bold uppercase text-muted-foreground">{t.noMethods}</p>
@@ -413,7 +406,7 @@ ${detailsText}
                   ) : field.type === 'select' ? (
                     <Select value={formData[field.label] || ''} onValueChange={(val) => handleInputChange(field.label, val)}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-xs uppercase"><SelectValue placeholder={`CHOOSE ${field.label.toUpperCase()}`} /></SelectTrigger>
-                      <SelectContent className="bg-card border-white/10">
+                      <SelectContent className="bg-card border-white/10 z-[1100]">
                         {field.options?.split(',').map((opt: string) => (
                           <SelectItem key={opt.trim()} value={opt.trim()} className="text-[10px] uppercase">{opt.trim()}</SelectItem>
                         ))}
