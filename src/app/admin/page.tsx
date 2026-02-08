@@ -69,7 +69,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/AlertDialog";
+} from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 
 export default function AdminPage() {
@@ -214,7 +214,6 @@ export default function AdminPage() {
         resultCode: orderResultCode.trim()
       });
       
-      const notifRef = doc(collection(db, 'users', order.userId, 'notifications'));
       await addDoc(collection(db, 'users', order.userId, 'notifications'), {
         title: "Order Secured",
         message: `Your request for ${order.serviceName} has been fulfilled. Check history for details.`,
@@ -305,6 +304,18 @@ export default function AdminPage() {
       URL.revokeObjectURL(url);
       toast({ title: "BACKUP CREATED" });
     } catch (e) { toast({ variant: "destructive", title: "BACKUP FAILED" }); }
+  };
+
+  const handleDeleteUserEntity = async () => {
+    if (!db || !editingUserId) return;
+    try {
+      await deleteDoc(doc(db, 'users', editingUserId));
+      toast({ title: "ENTITY PURGED" });
+      setEditingUserId(null);
+      setIsUserDeleteDialogOpen(false);
+    } catch (e) {
+      toast({ variant: "destructive", title: "PURGE FAILED" });
+    }
   };
 
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
@@ -427,12 +438,12 @@ export default function AdminPage() {
                 </div>
                 {t.imageUrl && (
                   <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 group relative">
-                    <img src={t.imageUrl} className="w-full h-full object-cover" />
+                    <img src={t.imageUrl} className="w-full h-full object-cover" alt="ticket proof" />
                     <a href={t.imageUrl} target="_blank" className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Download size={20} className="text-white" /></a>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                  <p className="text-[8px] font-headline font-bold text-primary">BY: @{t.username}</p>
+                  <p className="text-primary font-headline font-bold uppercase text-[8px]">BY: @{t.username}</p>
                   <Button variant="ghost" size="sm" onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), { status: 'closed' }); toast({ title: "TICKET CLOSED" }); }} className="text-[8px] uppercase h-8 px-4 rounded-lg">Close Ticket</Button>
                 </div>
               </div>
@@ -524,7 +535,7 @@ export default function AdminPage() {
                 {allDepositMethods.map((m: any) => (
                   <div key={m.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border-white/5 hover:border-primary/20 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary overflow-hidden">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <Landmark size={20} />}</div>
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary overflow-hidden">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" alt="gateway icon" /> : <Landmark size={20} />}</div>
                       <div>
                         <p className="text-[10px] font-headline font-bold uppercase">{m.name} <span className="text-[7px] text-muted-foreground ml-2">({m.country})</span></p>
                         <p className="text-[8px] text-primary font-black">RATE: {m.exchangeRate} {m.currencyCode}</p>
@@ -546,7 +557,7 @@ export default function AdminPage() {
                 {allWithdrawMethods.map((m: any) => (
                   <div key={m.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border-white/5 hover:border-secondary/20 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary overflow-hidden">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <Landmark size={20} />}</div>
+                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary overflow-hidden">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" alt="gateway icon" /> : <Landmark size={20} />}</div>
                       <div>
                         <p className="text-[10px] font-headline font-bold uppercase">{m.name} <span className="text-[7px] text-muted-foreground ml-2">({m.country})</span></p>
                         <p className="text-[8px] text-secondary font-black">FEE: {m.feeValue}{m.feeType === 'fixed' ? '$' : '%'}</p>
@@ -668,7 +679,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               <Label className="text-[8px] uppercase font-black">Icon / Artwork</Label>
               <div onClick={() => gatewayFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 transition-all overflow-hidden relative">
-                {newGateway.iconUrl ? <img src={newGateway.iconUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[7px] font-headline uppercase text-muted-foreground">Upload Protocol Icon</span></>}
+                {newGateway.iconUrl ? <img src={newGateway.iconUrl} className="w-full h-full object-cover" alt="gateway artwork" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[7px] font-headline uppercase text-muted-foreground">Upload Protocol Icon</span></>}
                 <input type="file" name="gatewayFile" ref={gatewayFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, setNewGateway)} />
               </div>
             </div>
@@ -741,7 +752,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               <Label className="text-[8px] uppercase font-black">Asset Image</Label>
               <div onClick={() => productFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 transition-all overflow-hidden relative">
-                {newProduct.imageUrl ? <img src={newProduct.imageUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[7px] font-headline uppercase text-muted-foreground">Upload Asset Art</span></>}
+                {newProduct.imageUrl ? <img src={newProduct.imageUrl} className="w-full h-full object-cover" alt="asset cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[7px] font-headline uppercase text-muted-foreground">Upload Asset Art</span></>}
                 <input type="file" ref={productFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, setNewProduct)} />
               </div>
             </div>
