@@ -247,8 +247,10 @@ export default function AdminPage() {
               <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority Role</Label>
               <Select value={editForm.role} onValueChange={(val) => setEditForm({...editForm, role: val})}>
                 <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-card border-white/10 z-[1100]">
-                  <SelectItem value="user">User</SelectItem><SelectItem value="agent">Agent</SelectItem><SelectItem value="admin">Admin</SelectItem>
+                <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                  <SelectItem value="user" className="focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer uppercase text-[10px]">User</SelectItem>
+                  <SelectItem value="agent" className="focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer uppercase text-[10px]">Agent</SelectItem>
+                  <SelectItem value="admin" className="focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer uppercase text-[10px]">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

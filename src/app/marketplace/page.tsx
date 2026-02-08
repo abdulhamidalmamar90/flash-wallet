@@ -215,10 +215,13 @@ export default function MarketplacePage() {
                         <SelectTrigger className="h-14 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase font-headline">
                           <SelectValue placeholder="CHOOSE PACKAGE" />
                         </SelectTrigger>
-                        {/* Higher z-index for SelectContent to appear above Dialog */}
-                        <SelectContent className="bg-card border-white/10 z-[1100]">
+                        <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
                           {selectedService.variants.map((v: any, idx: number) => (
-                            <SelectItem key={idx} value={idx.toString()} className="text-[10px] uppercase font-headline">
+                            <SelectItem 
+                              key={idx} 
+                              value={idx.toString()} 
+                              className="text-[10px] uppercase font-headline focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer"
+                            >
                               {v.label} - ${v.price}
                             </SelectItem>
                           ))}

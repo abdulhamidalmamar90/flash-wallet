@@ -317,11 +317,15 @@ ${detailsText}
                   <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase font-headline">
                     <SelectValue placeholder="CHOOSE LOCATION" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card border-white/10 z-[1100]">
+                  <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
                     {availableCountries.length === 0 ? (
                       <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
                     ) : availableCountries.map(c => (
-                      <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
+                      <SelectItem 
+                        key={c.code} 
+                        value={c.code} 
+                        className="text-[10px] uppercase font-headline focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer"
+                      >
                         {language === 'ar' ? c.ar : c.name}
                       </SelectItem>
                     ))}
@@ -406,9 +410,15 @@ ${detailsText}
                   ) : field.type === 'select' ? (
                     <Select value={formData[field.label] || ''} onValueChange={(val) => handleInputChange(field.label, val)}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-xs uppercase"><SelectValue placeholder={`CHOOSE ${field.label.toUpperCase()}`} /></SelectTrigger>
-                      <SelectContent className="bg-card border-white/10 z-[1100]">
+                      <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
                         {field.options?.split(',').map((opt: string) => (
-                          <SelectItem key={opt.trim()} value={opt.trim()} className="text-[10px] uppercase">{opt.trim()}</SelectItem>
+                          <SelectItem 
+                            key={opt.trim()} 
+                            value={opt.trim()} 
+                            className="text-[10px] uppercase focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer"
+                          >
+                            {opt.trim()}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
