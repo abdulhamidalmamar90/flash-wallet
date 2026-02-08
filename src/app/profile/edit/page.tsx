@@ -21,6 +21,9 @@ import {
   RefreshCw,
   Check,
   Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -31,7 +34,8 @@ import {
   signInWithPhoneNumber, 
   ConfirmationResult, 
   sendEmailVerification,
-  sendPasswordResetEmail
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -87,8 +91,16 @@ export default function EditProfilePage() {
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [resetingPassword, setResetingPassword] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+
+  // Password Change States
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOldPass, setShowOldPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   // Verification States
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
@@ -100,6 +112,7 @@ export default function EditProfilePage() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinEntry, setPinEntry] = useState('');
   const [submittingPin, setSubmittingPin] = useState(false);
+  const [pinActionType, setPinActionType] = useState<'set' | 'authorize_password'>('set');
 
   // Cropper States
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -113,6 +126,9 @@ export default function EditProfilePage() {
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+
+  const isFirstNameLocked = useMemo(() => !!profile?.firstName, [profile?.firstName]);
+  const isLastNameLocked = useMemo(() => !!profile?.lastName, [profile?.lastName]);
 
   useEffect(() => {
     if (profile) {
@@ -145,17 +161,28 @@ export default function EditProfilePage() {
     setPinEntry(prev => prev.slice(0, -1));
   };
 
-  const handleSavePin = async () => {
+  const handlePinAction = async () => {
     if (pinEntry.length < 4 || !user || !db) return;
-    setSubmittingPin(true);
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
+
+    if (pinActionType === 'set') {
+      setSubmittingPin(true);
+      try {
+        await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
+        setIsPinModalOpen(false);
+        toast({ title: "PIN Saved" });
+      } catch (e) {
+        toast({ variant: "destructive", title: "Error Saving PIN" });
+      } finally {
+        setSubmittingPin(false);
+      }
+    } else if (pinActionType === 'authorize_password') {
+      if (pinEntry !== profile?.pin) {
+        toast({ variant: "destructive", title: language === 'ar' ? "رمز PIN غير صحيح" : "Incorrect PIN" });
+        setPinEntry('');
+        return;
+      }
       setIsPinModalOpen(false);
-      toast({ title: "PIN Saved" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Error Saving PIN" });
-    } finally {
-      setSubmittingPin(false);
+      executePasswordUpdate();
     }
   };
 
@@ -169,6 +196,11 @@ export default function EditProfilePage() {
         birthDate: birthDate?.toISOString(),
         avatarUrl: selectedAvatar,
       };
+      
+      // Only allow updating names if they were empty
+      if (!isFirstNameLocked) updates.firstName = firstName;
+      if (!isLastNameLocked) updates.lastName = lastName;
+
       await updateDoc(doc(db, 'users', user.uid), updates);
       toast({ title: language === 'ar' ? "تم تحديث البيانات" : "Profile updated" });
       router.push('/dashboard');
@@ -179,19 +211,44 @@ export default function EditProfilePage() {
     }
   };
 
-  const handleResetPassword = async () => {
-    if (!email) return;
-    setResetingPassword(true);
+  const handleOpenPasswordChange = () => {
+    if (!profile?.pin) {
+      toast({ variant: "destructive", title: language === 'ar' ? "يرجى تعيين PIN أولاً" : "Set Vault PIN first" });
+      return;
+    }
+    setOldPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsPasswordDialogOpen(true);
+  };
+
+  const handleRequestPasswordUpdate = () => {
+    if (newPassword !== confirmPassword) {
+      toast({ variant: "destructive", title: "Passwords Mismatch" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast({ variant: "destructive", title: "Password too short" });
+      return;
+    }
+    setPinEntry('');
+    setPinActionType('authorize_password');
+    setIsPinModalOpen(true);
+  };
+
+  const executePasswordUpdate = async () => {
+    if (!user || !auth) return;
+    setUpdatingPassword(true);
     try {
-      await sendPasswordResetEmail(auth, email);
-      toast({ 
-        title: language === 'ar' ? "تم إرسال الرابط" : "Reset Link Sent",
-        description: language === 'ar' ? "تحقق من بريدك الإلكتروني" : "Check your inbox for reset instructions"
-      });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      const credential = EmailAuthProvider.credential(user.email!, oldPassword);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPassword);
+      toast({ title: language === 'ar' ? "تم تغيير كلمة المرور" : "Password Updated" });
+      setIsPasswordDialogOpen(false);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Authorization Failed", description: "Old password may be incorrect." });
     } finally {
-      setResetingPassword(false);
+      setUpdatingPassword(false);
     }
   };
 
@@ -342,16 +399,26 @@ export default function EditProfilePage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <Label className="text-[10px] uppercase text-white/40">First Name</Label>
-              <ShieldCheck size={10} className="text-primary/40" />
+              {isFirstNameLocked && <ShieldCheck size={10} className="text-primary/40" />}
             </div>
-            <Input value={firstName} disabled className="h-12 bg-white/5 border-white/10 opacity-60 cursor-not-allowed" />
+            <Input 
+              value={firstName} 
+              onChange={(e) => setFirstName(e.target.value)} 
+              disabled={isFirstNameLocked}
+              className={cn("h-12 bg-white/5 border-white/10", isFirstNameLocked ? "opacity-60 cursor-not-allowed" : "focus:border-primary/50")} 
+            />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <Label className="text-[10px] uppercase text-white/40">Last Name</Label>
-              <ShieldCheck size={10} className="text-primary/40" />
+              {isLastNameLocked && <ShieldCheck size={10} className="text-primary/40" />}
             </div>
-            <Input value={lastName} disabled className="h-12 bg-white/5 border-white/10 opacity-60 cursor-not-allowed" />
+            <Input 
+              value={lastName} 
+              onChange={(e) => setLastName(e.target.value)} 
+              disabled={isLastNameLocked}
+              className={cn("h-12 bg-white/5 border-white/10", isLastNameLocked ? "opacity-60 cursor-not-allowed" : "focus:border-primary/50")} 
+            />
           </div>
         </div>
 
@@ -402,15 +469,14 @@ export default function EditProfilePage() {
         <div className="space-y-4">
           <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
             <p className="text-[10px] font-headline font-bold uppercase">Credential Management</p>
-            <p className="text-[8px] text-muted-foreground uppercase leading-relaxed">Initiate an encrypted password reset sequence via your verified terminal.</p>
+            <p className="text-[8px] text-muted-foreground uppercase leading-relaxed">Initiate a secure password change sequence within your encrypted terminal.</p>
             <Button 
               type="button" 
               variant="outline"
-              onClick={handleResetPassword} 
-              disabled={resetingPassword}
+              onClick={handleOpenPasswordChange}
               className="w-full h-12 border-primary/20 text-primary text-[10px] font-headline uppercase tracking-widest hover:bg-primary/10"
             >
-              {resetingPassword ? <Loader2 className="animate-spin" size={14} /> : "Reset Terminal Password"}
+              Update Terminal Password
             </Button>
           </div>
         </div>
@@ -479,16 +545,53 @@ export default function EditProfilePage() {
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
           <div><p className="text-[10px] font-headline font-bold uppercase">{profile?.pin ? "Vault Locked" : "Set PIN"}</p></div>
           {!profile?.pin ? (
-            <button onClick={() => { setPinEntry(''); setIsPinModalOpen(true); }} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary"><Plus size={20} /></button>
+            <button onClick={() => { setPinEntry(''); setPinActionType('set'); setIsPinModalOpen(true); }} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary"><Plus size={20} /></button>
           ) : (
             <div className="p-3 bg-green-500/10 text-green-500 rounded-xl"><ShieldCheck size={20} /></div>
           )}
         </div>
       </div>
 
+      {/* Change Password Dialog */}
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Lock size={14} className="text-primary" /> Update Terminal</DialogTitle></DialogHeader>
+          <div className="mt-6 space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-[8px] uppercase tracking-widest text-white/40">Current Password</Label>
+                <div className="relative">
+                  <Input type={showOldPass ? "text" : "password"} value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="h-12 bg-white/5 border-white/10" />
+                  <button type="button" onClick={() => setShowOldPass(!showOldPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors">{showOldPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[8px] uppercase tracking-widest text-white/40">New Password</Label>
+                <div className="relative">
+                  <Input type={showNewPass ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 bg-white/5 border-white/10" />
+                  <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors">{showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[8px] uppercase tracking-widest text-white/40">Confirm New Password</Label>
+                <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="h-12 bg-white/5 border-white/10" />
+              </div>
+            </div>
+            <Button 
+              onClick={handleRequestPasswordUpdate} 
+              disabled={!oldPassword || !newPassword || newPassword !== confirmPassword || updatingPassword}
+              className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow"
+            >
+              {updatingPassword ? <Loader2 className="animate-spin" /> : "PROCEED TO AUTH"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PIN Verification Modal */}
       <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Authorize PIN</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {pinActionType === 'set' ? 'Set Vault PIN' : 'Authorize Protocol'}</DialogTitle></DialogHeader>
           <div className="mt-8 space-y-8" dir="ltr">
             <div className="flex justify-center gap-4">
               {[0, 1, 2, 3].map((i) => (
@@ -503,7 +606,7 @@ export default function EditProfilePage() {
               <button onClick={handleDelete} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-red-500 hover:bg-red-500/10 active:scale-95 transition-all"><Delete size={24} /></button>
               <button onClick={() => handleKeyClick("0")} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">0</button>
               <button 
-                onClick={handleSavePin} 
+                onClick={handlePinAction} 
                 disabled={submittingPin || pinEntry.length < 4} 
                 className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-background active:scale-95 transition-all disabled:opacity-50"
               >
