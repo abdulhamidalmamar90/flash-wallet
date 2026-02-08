@@ -94,6 +94,7 @@ export default function AdminPage() {
   // System States
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isProjectBackingUp, setIsProjectBackingUp] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Store / Products States
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -138,6 +139,8 @@ export default function AdminPage() {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => { setMounted(true); }, []);
+
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
@@ -178,11 +181,11 @@ export default function AdminPage() {
   }, [allUsers, searchTerm]);
 
   useEffect(() => {
-    if (!authLoading && !profileLoading && profile && (profile as any).role !== 'admin') {
+    if (mounted && !authLoading && !profileLoading && profile && (profile as any).role !== 'admin') {
       toast({ variant: "destructive", title: "ACCESS DENIED" });
       router.push('/dashboard');
     }
-  }, [profile, profileLoading, authLoading, router, toast]);
+  }, [profile, profileLoading, authLoading, router, toast, mounted]);
 
   // Chat Subscription
   useEffect(() => {
@@ -385,7 +388,7 @@ export default function AdminPage() {
     }
   };
 
-  if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
+  if (!mounted || authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in duration-500 pb-32">

@@ -160,7 +160,6 @@ export default function Dashboard() {
         timestamp: new Date().toISOString()
       });
       await updateDoc(doc(db, 'chat_sessions', chatSession.id), {
-        lastMessage: chatMessage.trim(),
         updatedAt: new Date().toISOString()
       });
       setChatMessage('');
@@ -189,7 +188,7 @@ export default function Dashboard() {
       <main className="px-8 space-y-10">
         <section className="text-center py-10 glass-card rounded-[2.5rem] gold-glow border-primary/20">
           <p className="text-muted-foreground text-[10px] uppercase tracking-[0.4em] font-headline mb-4">{language === 'ar' ? 'إجمالي الأصول' : 'Current Asset Value'}</p>
-          <h1 className="text-5xl font-headline font-bold text-foreground tracking-tighter">${profile?.balance?.toLocaleString()}<span className="text-xl opacity-20">.00</span></h1>
+          <h1 className="text-5xl font-headline font-bold text-foreground tracking-tighter">${profile?.balance?.toLocaleString()}<span className="textxl opacity-20">.00</span></h1>
           <div className="mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20"><div className="w-1.5 h-1.5 bg-primary animate-pulse rounded-full"></div><span className="text-[8px] text-primary tracking-[0.2em] font-headline font-bold uppercase">Vault Secure v2.5.0</span></div>
         </section>
 
