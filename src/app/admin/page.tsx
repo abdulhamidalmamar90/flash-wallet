@@ -4,6 +4,7 @@
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import JSZip from 'jszip';
 import { 
   Check, 
   X, 
@@ -35,6 +36,7 @@ import {
   ShieldAlert,
   SendHorizontal,
   CircleDot,
+  FileArchive,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -85,6 +87,9 @@ export default function AdminPage() {
   
   const productFileInputRef = useRef<HTMLInputElement>(null);
   const gatewayFileInputRef = useRef<HTMLInputElement>(null);
+
+  // System States
+  const [isBackingUp, setIsBackingUp] = useState(false);
 
   // Store / Products States
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -306,6 +311,45 @@ export default function AdminPage() {
     } catch (e) { toast({ variant: "destructive", title: "BACKUP FAILED" }); }
   };
 
+  const handleFullSystemBackup = async () => {
+    if (!db) return;
+    setIsBackingUp(true);
+    try {
+      const zip = new JSZip();
+      const collectionsToExport = [
+        { name: 'users', file: 'USERS_ENTITIES.json' },
+        { name: 'withdrawals', file: 'WITHDRAWAL_LEDGER.json' },
+        { name: 'deposits', file: 'DEPOSIT_LEDGER.json' },
+        { name: 'marketplace_services', file: 'STORE_PROTOCOL.json' },
+        { name: 'service_requests', file: 'ORDERS_HISTORY.json' },
+        { name: 'support_tickets', file: 'SUPPORT_TICKETS.json' },
+        { name: 'chat_sessions', file: 'CHAT_CHANNELS.json' },
+        { name: 'deposit_methods', file: 'DEPOSIT_GATEWAYS.json' },
+        { name: 'withdrawal_methods', file: 'WITHDRAWAL_GATEWAYS.json' },
+        { name: 'verifications', file: 'KYC_LEDGER.json' },
+      ];
+
+      for (const coll of collectionsToExport) {
+        const snap = await getDocs(query(collection(db, coll.name)));
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        zip.file(coll.file, JSON.stringify(data, null, 2));
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FLASH_MASTER_BACKUP_${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "MASTER ARCHIVE GENERATED" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "ARCHIVE FAILED" });
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
   const handleDeleteUserEntity = async () => {
     if (!db || !editingUserId) return;
     try {
@@ -490,31 +534,49 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
-              <Button onClick={() => exportCollection('users', 'USERS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-primary/40 hover:bg-primary/5 group transition-all">
+            <div className="w-full max-w-2xl space-y-6">
+              <Button 
+                onClick={handleFullSystemBackup} 
+                disabled={isBackingUp}
+                className="w-full h-20 bg-primary text-background border border-primary/40 rounded-2xl hover:bg-primary/90 transition-all gold-glow"
+              >
                 <div className="flex flex-col items-center gap-2">
-                  <Users className="text-primary group-hover:scale-110 transition-transform" />
-                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export User Entities</span>
+                  {isBackingUp ? <Loader2 className="animate-spin" /> : <FileArchive size={24} />}
+                  <span className="text-[10px] font-headline font-black uppercase tracking-[0.2em]">Generate Master Encrypted Archive (ZIP)</span>
                 </div>
               </Button>
-              <Button onClick={() => exportCollection('withdrawals', 'WITHDRAWALS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-secondary/40 hover:bg-secondary/5 group transition-all">
-                <div className="flex flex-col items-center gap-2">
-                  <ArrowUpCircle className="text-secondary group-hover:scale-110 transition-transform" />
-                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Withdrawal Ledger</span>
-                </div>
-              </Button>
-              <Button onClick={() => exportCollection('deposits', 'DEPOSITS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-green-500/40 hover:bg-green-500/5 group transition-all">
-                <div className="flex flex-col items-center gap-2">
-                  <ArrowDownCircle className="text-green-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Deposit Ledger</span>
-                </div>
-              </Button>
-              <Button onClick={() => exportCollection('marketplace_services', 'STORE')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-orange-500/40 hover:bg-orange-500/5 group transition-all">
-                <div className="flex flex-col items-center gap-2">
-                  <ShoppingBag className="text-orange-500 group-hover:scale-110 transition-transform" />
-                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Store Protocol</span>
-                </div>
-              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5"></span></div>
+                <div className="relative flex justify-center"><span className="bg-background px-4 text-[8px] text-white/30 uppercase tracking-widest">Individual Nodes</span></div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Button onClick={() => exportCollection('users', 'USERS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-primary/40 hover:bg-primary/5 group transition-all">
+                  <div className="flex flex-col items-center gap-2">
+                    <Users className="text-primary group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export User Entities</span>
+                  </div>
+                </Button>
+                <Button onClick={() => exportCollection('withdrawals', 'WITHDRAWALS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-secondary/40 hover:bg-secondary/5 group transition-all">
+                  <div className="flex flex-col items-center gap-2">
+                    <ArrowUpCircle className="text-secondary group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Withdrawal Ledger</span>
+                  </div>
+                </Button>
+                <Button onClick={() => exportCollection('deposits', 'DEPOSITS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-green-500/40 hover:bg-green-500/5 group transition-all">
+                  <div className="flex flex-col items-center gap-2">
+                    <ArrowDownCircle className="text-green-500 group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Deposit Ledger</span>
+                  </div>
+                </Button>
+                <Button onClick={() => exportCollection('marketplace_services', 'STORE')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-orange-500/40 hover:bg-orange-500/5 group transition-all">
+                  <div className="flex flex-col items-center gap-2">
+                    <ShoppingBag className="text-orange-500 group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Store Protocol</span>
+                  </div>
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>
