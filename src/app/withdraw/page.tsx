@@ -523,7 +523,7 @@ ${detailsText}
             {loading && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
           </div>
         </DialogContent>
-      </div>
+      </Dialog>
     </div>
   );
 }
