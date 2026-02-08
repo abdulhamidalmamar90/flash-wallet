@@ -20,7 +20,7 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
-      language: 'en',
+      language: 'en', // Changed default to English
       theme: 'dark',
       isScannerOpen: false,
       toggleLanguage: () => set((state) => ({ 
