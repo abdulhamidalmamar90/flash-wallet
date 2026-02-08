@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useRef } from 'react';
@@ -65,8 +64,6 @@ export default function OTPPage() {
               ref={el => { if(el) inputs.current[i] = el; }}
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="one-time-code"
               value={digit}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}

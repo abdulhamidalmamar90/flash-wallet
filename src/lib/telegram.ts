@@ -2,7 +2,7 @@
 'use client';
 
 /**
- * @fileOverview Telegram Notification Service with core credentials.
+ * @fileOverview Telegram Notification Service with Interactive Buttons support.
  */
 
 const TELEGRAM_TOKEN = '8236708164:AAHi0AYmvf3_IJEpYAgug-GYdf4O9AkvZY4';
@@ -12,7 +12,7 @@ export async function sendTelegramNotification(message: string, replyMarkup?: an
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   
   try {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -24,7 +24,7 @@ export async function sendTelegramNotification(message: string, replyMarkup?: an
         reply_markup: replyMarkup,
       }),
     });
-    return response.ok;
+    return res.ok;
   } catch (error) {
     console.warn('Telegram notification failed', error);
     return false;
@@ -35,7 +35,8 @@ export async function sendTelegramPhoto(base64Image: string, caption: string, re
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`;
   
   try {
-    const blob = await (await fetch(base64Image)).blob();
+    const fetchResponse = await fetch(base64Image);
+    const blob = await fetchResponse.blob();
     
     const formData = new FormData();
     formData.append('chat_id', TELEGRAM_CHAT_ID);
@@ -46,11 +47,11 @@ export async function sendTelegramPhoto(base64Image: string, caption: string, re
       formData.append('reply_markup', JSON.stringify(replyMarkup));
     }
 
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       body: formData,
     });
-    return response.ok;
+    return res.ok;
   } catch (error) {
     console.warn('Telegram photo notification failed', error);
     return false;

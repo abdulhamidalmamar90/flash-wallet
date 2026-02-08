@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -73,7 +73,7 @@ export default function WithdrawPage() {
   const [isPinVerificationOpen, setIsPinVerificationOpen] = useState(false);
   const [pinEntry, setPinEntry] = useState('');
 
-  const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
+  const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
   const allMethodsQuery = useMemo(() => {
@@ -94,12 +94,19 @@ export default function WithdrawPage() {
     }
   }, [profile?.country, selectedCountry, availableCountries]);
 
+  const methodsQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, 'withdrawal_methods'), where('isActive', '==', true));
+  }, [db]);
+  
+  const { data: allMethodsList = [], loading: methodsLoading } = useCollection(methodsQuery);
+
   const filteredMethods = useMemo(() => {
     if (selectedCountry === 'GL') {
-      return allWithdrawMethods.filter((m: any) => m.country === 'GL');
+      return allMethodsList.filter((m: any) => m.country === 'GL');
     }
-    return allWithdrawMethods.filter((m: any) => m.country === selectedCountry);
-  }, [allWithdrawMethods, selectedCountry]);
+    return allMethodsList.filter((m: any) => m.country === selectedCountry);
+  }, [allMethodsList, selectedCountry]);
 
   useEffect(() => {
     if (selectedCountry === 'CR' && step === 2) {
@@ -140,7 +147,7 @@ export default function WithdrawPage() {
     };
   }, [selectedMethod, amount]);
 
-  const t = useMemo(() => ({
+  const t = {
     header: language === 'ar' ? 'سحب رصيد' : 'Withdraw Funds',
     selectCountry: language === 'ar' ? 'اختر الدولة' : 'Select Country',
     selectMethod: language === 'ar' ? 'اختر وسيلة السحب' : 'Select Gateway',
@@ -162,26 +169,18 @@ export default function WithdrawPage() {
     finalConfirm: language === 'ar' ? 'تأكيد نهائي' : 'Final Confirmation',
     abort: language === 'ar' ? 'إلغاء' : 'Abort',
     verifyVault: language === 'ar' ? "تأكيد PIN الخزنة" : "Verify Vault PIN"
-  }), [language]);
+  };
 
-  const handleInputChange = useCallback((label: string, value: string) => {
+  const handleInputChange = (label: string, value: string) => {
     setFormData(prev => ({ ...prev, [label]: value }));
-  }, []);
+  };
 
-  const handleBack = useCallback(() => {
+  const handleBack = () => {
     if (step === 1) router.back();
     else if (step === 3 && selectedCountry === 'CR') {
       setSelectedMethod(null);
       setStep(1);
     } else setStep(step - 1);
-  }, [step, selectedCountry, router]);
-
-  const handleKeyClick = (num: string) => {
-    if (pinEntry.length < 4) setPinEntry(prev => prev + num);
-  };
-
-  const handleDelete = () => {
-    setPinEntry(prev => prev.slice(0, -1));
   };
 
   const handleInitiateWithdrawal = (e: React.FormEvent) => {
@@ -216,14 +215,13 @@ export default function WithdrawPage() {
   };
 
   const handleConfirmSubmit = async () => {
-    if (pinEntry.length < 4) return;
     if (pinEntry !== profile?.pin) {
       toast({ variant: "destructive", title: language === 'ar' ? "رمز PIN غير صحيح" : "Incorrect PIN" });
       setPinEntry('');
       return;
     }
 
-    if (!user || !amount || !profile || !selectedMethod || !db) return;
+    if (!user || !amount || !profile || !selectedMethod) return;
     const amountUsd = parseFloat(amount);
 
     setLoading(true);
@@ -287,6 +285,28 @@ ${detailsText}
     }
   };
 
+  const VirtualPad = ({ value, onChange, onComplete }: any) => {
+    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
+    const handleClear = () => onChange(value.slice(0, -1));
+    return (
+      <div className="space-y-8" dir="ltr">
+        <div className="flex justify-center gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
+          ))}
+          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
+          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
+          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
+        </div>
+      </div>
+    );
+  };
+
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -304,15 +324,11 @@ ${detailsText}
                   <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase font-headline">
                     <SelectValue placeholder="CHOOSE LOCATION" />
                   </SelectTrigger>
-                  <SelectContent position="popper" side="bottom" sideOffset={4} className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                  <SelectContent className="bg-card border-white/10">
                     {availableCountries.length === 0 ? (
                       <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
                     ) : availableCountries.map(c => (
-                      <SelectItem 
-                        key={c.code} 
-                        value={c.code} 
-                        className="text-[10px] uppercase font-headline focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer"
-                      >
+                      <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
                         {language === 'ar' ? c.ar : c.name}
                       </SelectItem>
                     ))}
@@ -328,7 +344,7 @@ ${detailsText}
           <div className="space-y-6 animate-in slide-in-from-right-4">
             <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-muted-foreground">{t.selectMethod}</h2>
             <div className="grid grid-cols-1 gap-4">
-              {filteredMethods.length === 0 ? (
+              {methodsLoading ? <Loader2 className="animate-spin mx-auto text-primary" /> : filteredMethods.length === 0 ? (
                 <div className="glass-card p-10 rounded-3xl text-center space-y-4">
                   <Info className="mx-auto text-muted-foreground" size={32} />
                   <p className="text-[10px] font-headline font-bold uppercase text-muted-foreground">{t.noMethods}</p>
@@ -397,15 +413,9 @@ ${detailsText}
                   ) : field.type === 'select' ? (
                     <Select value={formData[field.label] || ''} onValueChange={(val) => handleInputChange(field.label, val)}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-xs uppercase"><SelectValue placeholder={`CHOOSE ${field.label.toUpperCase()}`} /></SelectTrigger>
-                      <SelectContent position="popper" side="bottom" sideOffset={4} className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                      <SelectContent className="bg-card border-white/10">
                         {field.options?.split(',').map((opt: string) => (
-                          <SelectItem 
-                            key={opt.trim()} 
-                            value={opt.trim()} 
-                            className="text-[10px] uppercase focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer"
-                          >
-                            {opt.trim()}
-                          </SelectItem>
+                          <SelectItem key={opt.trim()} value={opt.trim()} className="text-[10px] uppercase">{opt.trim()}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -503,29 +513,11 @@ ${detailsText}
 
       {/* PIN Verification Modal */}
       <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {t.verifyVault}</DialogTitle></DialogHeader>
-          <div className="mt-8 space-y-8" dir="ltr">
-            <div className="flex justify-center gap-4">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", pinEntry.length > i ? "bg-primary border-primary scale-110 shadow-[0_0_10px_rgba(250,218,122,0.5)]" : "border-white/20")} />
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 max-w-[240px] mx-auto">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                <button key={num} onClick={() => handleKeyClick(num.toString())} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">{num}</button>
-              ))}
-              <button onClick={handleDelete} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-red-500 hover:bg-red-500/10 active:scale-95 transition-all"><Delete size={24} /></button>
-              <button onClick={() => handleKeyClick("0")} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">0</button>
-              <button 
-                onClick={handleConfirmSubmit} 
-                disabled={loading || pinEntry.length < 4} 
-                className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-background active:scale-95 transition-all disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="animate-spin" size={24} /> : <Check size={24} />}
-              </button>
-            </div>
+          <div className="mt-8">
+            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleConfirmSubmit} />
+            {loading && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
           </div>
         </DialogContent>
       </Dialog>

@@ -19,35 +19,26 @@ import {
   UserCircle,
   Mail,
   RefreshCw,
-  Check,
-  Lock,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
-import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
-import { doc, updateDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
-import { 
-  updatePassword, 
-  RecaptchaVerifier, 
-  signInWithPhoneNumber, 
-  ConfirmationResult, 
-  sendEmailVerification,
-  EmailAuthProvider,
-  reauthenticateWithCredential
-} from 'firebase/auth';
+import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
+import { doc, updateDoc, collection, query, where, limit } from 'firebase/firestore';
+import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, sendEmailVerification } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/crop-image';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+import { NativeBiometric } from 'capacitor-native-biometric';
 
 const AVATARS = [
   "https://picsum.photos/seed/avatar1/200",
@@ -77,9 +68,6 @@ export default function EditProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const otpInputs = useRef<HTMLInputElement[]>([]);
   
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
@@ -93,18 +81,10 @@ export default function EditProfilePage() {
   const [phone, setPhone] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
-
-  // Password Change States
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showOldPass, setShowOldPass] = useState(false);
-  const [showNewPass, setShowNewPass] = useState(false);
-  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   // Verification States
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
@@ -116,7 +96,6 @@ export default function EditProfilePage() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinEntry, setPinEntry] = useState('');
   const [submittingPin, setSubmittingPin] = useState(false);
-  const [pinActionType, setPinActionType] = useState<'set' | 'authorize_password'>('set');
 
   // Cropper States
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -130,19 +109,6 @@ export default function EditProfilePage() {
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-
-  const isFirstNameLocked = useMemo(() => !!profile?.firstName, [profile?.firstName]);
-  const isLastNameLocked = useMemo(() => !!profile?.lastName, [profile?.lastName]);
-
-  // Password criteria logic
-  const passwordCriteria = useMemo(() => ({
-    length: newPassword.length >= 8,
-    upper: /[A-Z]/.test(newPassword),
-    number: /[0-9]/.test(newPassword),
-    special: /[@$!%*?&]/.test(newPassword)
-  }), [newPassword]);
-
-  const isPasswordStrong = Object.values(passwordCriteria).every(Boolean);
 
   useEffect(() => {
     if (profile) {
@@ -167,101 +133,29 @@ export default function EditProfilePage() {
     }
   }, [profile]);
 
-  const handleKeyClick = (num: string) => {
-    if (pinEntry.length < 4) setPinEntry(prev => prev + num);
-  };
-
-  const handleDelete = () => {
-    setPinEntry(prev => prev.slice(0, -1));
-  };
-
-  const handlePinAction = async () => {
-    if (pinEntry.length < 4 || !user || !db) return;
-
-    if (pinActionType === 'set') {
-      setSubmittingPin(true);
-      try {
-        await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
-        setIsPinModalOpen(false);
-        toast({ title: "PIN Saved" });
-      } catch (e) {
-        toast({ variant: "destructive", title: "Error Saving PIN" });
-      } finally {
-        setSubmittingPin(false);
-      }
-    } else if (pinActionType === 'authorize_password') {
-      if (pinEntry !== profile?.pin) {
-        toast({ variant: "destructive", title: language === 'ar' ? "رمز PIN غير صحيح" : "Incorrect PIN" });
-        setPinEntry('');
-        return;
-      }
-      setIsPinModalOpen(false);
-      executePasswordUpdate();
-    }
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !db) return;
     setLoading(true);
     try {
       const updates: any = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         gender,
         birthDate: birthDate?.toISOString(),
+        username: username.trim().toLowerCase(),
         avatarUrl: selectedAvatar,
       };
-      
-      if (!isFirstNameLocked) updates.firstName = firstName;
-      if (!isLastNameLocked) updates.lastName = lastName;
-
       await updateDoc(doc(db, 'users', user.uid), updates);
+      if (newPassword.trim()) {
+        await updatePassword(user, newPassword.trim());
+      }
       toast({ title: language === 'ar' ? "تم تحديث البيانات" : "Profile updated" });
       router.push('/dashboard');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleOpenPasswordChange = () => {
-    if (!profile?.pin) {
-      toast({ variant: "destructive", title: language === 'ar' ? "يرجى تعيين PIN أولاً" : "Set Vault PIN first" });
-      return;
-    }
-    setOldPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setIsPasswordDialogOpen(true);
-  };
-
-  const handleRequestPasswordUpdate = () => {
-    if (newPassword !== confirmPassword) {
-      toast({ variant: "destructive", title: "Passwords Mismatch" });
-      return;
-    }
-    if (!isPasswordStrong) {
-      toast({ variant: "destructive", title: "Password Too Weak" });
-      return;
-    }
-    setPinEntry('');
-    setPinActionType('authorize_password');
-    setIsPinModalOpen(true);
-  };
-
-  const executePasswordUpdate = async () => {
-    if (!user || !auth) return;
-    setUpdatingPassword(true);
-    try {
-      const credential = EmailAuthProvider.credential(user.email!, oldPassword);
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, newPassword);
-      toast({ title: language === 'ar' ? "تم تغيير كلمة المرور" : "Password Updated" });
-      setIsPasswordDialogOpen(false);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Authorization Failed", description: "Old password may be incorrect." });
-    } finally {
-      setUpdatingPassword(false);
     }
   };
 
@@ -306,6 +200,7 @@ export default function EditProfilePage() {
     try {
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
       
+      // Prevent Duplicate Phone
       const q = query(collection(db, 'users'), where('phone', '==', fullPhone), limit(1));
       const snap = await getDocs(q);
       if (!snap.empty && snap.docs[0].id !== user?.uid) {
@@ -355,7 +250,27 @@ export default function EditProfilePage() {
     }
   };
 
-  if (!mounted) return null;
+  const VirtualPad = ({ value, onChange, onComplete }: any) => {
+    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
+    const handleClear = () => onChange(value.slice(0, -1));
+    return (
+      <div className="space-y-8" dir="ltr">
+        <div className="flex justify-center gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
+          ))}
+          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
+          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
+          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in duration-500 pb-32" onClick={() => setIsCountryOpen(false)}>
@@ -368,6 +283,7 @@ export default function EditProfilePage() {
 
       <div id="recaptcha-container"></div>
 
+      {/* Verification Summary Section */}
       <div className="grid grid-cols-3 gap-2">
         <div className={cn("p-3 rounded-2xl border text-center space-y-1 transition-all", isKycVerified ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")}>
           <ShieldCheck size={16} className="mx-auto" />
@@ -411,39 +327,12 @@ export default function EditProfilePage() {
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <Label className="text-[10px] uppercase text-white/40">First Name</Label>
-              {isFirstNameLocked && <ShieldCheck size={10} className="text-primary/40" />}
-            </div>
-            <Input 
-              value={firstName} 
-              onChange={(e) => setFirstName(e.target.value)} 
-              disabled={isFirstNameLocked}
-              className={cn("h-12 bg-white/5 border-white/10", isFirstNameLocked ? "opacity-60 cursor-not-allowed" : "focus:border-primary/50")} 
-            />
+            <Label className="text-[10px] uppercase text-white/40">First Name</Label>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-12 bg-white/5 border-white/10" />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <Label className="text-[10px] uppercase text-white/40">Last Name</Label>
-              {isLastNameLocked && <ShieldCheck size={10} className="text-primary/40" />}
-            </div>
-            <Input 
-              value={lastName} 
-              onChange={(e) => setLastName(e.target.value)} 
-              disabled={isLastNameLocked}
-              className={cn("h-12 bg-white/5 border-white/10", isLastNameLocked ? "opacity-60 cursor-not-allowed" : "focus:border-primary/50")} 
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <Label className="text-[10px] uppercase text-white/40">Username</Label>
-            <ShieldCheck size={10} className="text-primary/40" />
-          </div>
-          <div className="relative">
-            <UserCircle className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-3' : 'left-3')} size={18} />
-            <Input value={username} disabled className={cn("h-12 bg-white/5 border-white/10 opacity-60 cursor-not-allowed", language === 'ar' ? 'pr-10' : 'pl-10')} />
+            <Label className="text-[10px] uppercase text-white/40">Last Name</Label>
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 bg-white/5 border-white/10" />
           </div>
         </div>
 
@@ -472,29 +361,20 @@ export default function EditProfilePage() {
           />
         </div>
 
+        <div className="space-y-2">
+          <Label className="text-[10px] uppercase text-white/40">Username</Label>
+          <div className="relative">
+            <UserCircle className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-3' : 'left-3')} size={18} />
+            <Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} className={cn("h-12 bg-white/5 border-white/10", language === 'ar' ? 'pr-10' : 'pl-10')} />
+          </div>
+        </div>
+
         <Button type="submit" disabled={loading} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl gold-glow">
-          {loading ? <Loader2 className="animate-spin" /> : "Sync Base Info"}
+          {loading ? <Loader2 className="animate-spin" /> : "Save Profile"}
         </Button>
       </form>
 
-      <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
-        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Lock size={14} /> Security Protocols</h2>
-        <div className="space-y-4">
-          <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
-            <p className="text-[10px] font-headline font-bold uppercase">Credential Management</p>
-            <p className="text-[8px] text-muted-foreground uppercase leading-relaxed">Initiate a secure password change sequence within your encrypted terminal.</p>
-            <Button 
-              type="button" 
-              variant="outline"
-              onClick={handleOpenPasswordChange}
-              className="w-full h-12 border-primary/20 text-primary text-[10px] font-headline uppercase tracking-widest hover:bg-primary/10"
-            >
-              Update Terminal Password
-            </Button>
-          </div>
-        </div>
-      </div>
-
+      {/* Email Verification Section */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Mail size={14} /> Email Authority</h2>
         <div className="space-y-4">
@@ -519,48 +399,33 @@ export default function EditProfilePage() {
         </div>
       </div>
 
+      {/* Phone Verification Section */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
-        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary flex items-center gap-2"><Phone size={14} /> Phone Authority</h2>
+        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-blue-400 flex items-center gap-2"><Phone size={14} /> Phone Identity</h2>
         <div className="space-y-4">
           <div className="flex gap-2" dir="ltr">
-            <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2 min-w-[90px]" disabled={isPhoneVerified}>
+            <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2">
               <span className="text-xs">{selectedCountry.flag}</span>
-              {!isPhoneVerified && <ChevronDown size={12} className={cn(isCountryOpen && "rotate-180")} />}
+              <ChevronDown size={14} className={cn(isCountryOpen && "rotate-180")} />
             </button>
             <div className="relative flex-1">
-              <Phone className="absolute top-1/2 -translate-y-1/2 left-4 text-white/20" size={18} />
-              <Input 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                disabled={isPhoneVerified} 
-                inputMode="tel"
-                className={cn("h-12 bg-white/5 border-white/10 pl-12", isPhoneVerified && "opacity-60 cursor-not-allowed")} 
-                placeholder="123456789" 
-              />
+              <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
+              <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border-white/10 pl-10" />
             </div>
           </div>
           {isCountryOpen && (
-            <div className="absolute left-8 right-8 z-[110] bg-[#1a1a1a] border border-white/10 rounded-xl max-h-40 overflow-y-auto shadow-2xl">
+            <div className="absolute z-[110] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-48 w-48">
               {COUNTRIES.map(c => (
-                <button key={c.code} type="button" onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }} className="w-full p-3 flex items-center gap-3 hover:bg-white/5 border-b border-white/5 last:border-0">
-                  <span className="text-lg">{c.flag}</span>
-                  <span className="text-xs text-white/80">{language === 'ar' ? c.nameAr : c.nameEn}</span>
-                  <span className="text-[10px] text-white/30 ml-auto">{c.prefix}</span>
-                </button>
+                <button key={c.code} type="button" onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }} className="w-full flex items-center justify-between p-3 hover:bg-white/5 border-b border-white/5 last:border-0"><span className="text-xs">{language === 'ar' ? c.nameAr : c.nameEn}</span><span className="text-xs text-white/40">{c.prefix}</span></button>
               ))}
             </div>
           )}
           {!isPhoneVerified ? (
-            <Button 
-              type="button" 
-              onClick={handleSendOtp} 
-              disabled={verifyingPhone || !phone} 
-              className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary text-[9px] font-headline uppercase tracking-widest cyan-glow"
-            >
-              {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : "Initiate Verification"}
+            <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary text-[10px] font-headline uppercase tracking-widest">
+              {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : "Verify Number"}
             </Button>
           ) : (
-            <div className="h-12 flex items-center justify-center gap-2 text-secondary font-headline font-bold text-[10px] uppercase px-3 bg-secondary/10 rounded-xl border border-secondary/20 w-full">
+            <div className="h-12 flex items-center justify-center gap-2 text-blue-500 font-headline font-bold text-[10px] uppercase px-3 bg-blue-500/10 rounded-xl border border-blue-500/20 w-full">
               <CheckCircle2 size={14} /> Phone Verified
             </div>
           )}
@@ -572,84 +437,27 @@ export default function EditProfilePage() {
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
           <div><p className="text-[10px] font-headline font-bold uppercase">{profile?.pin ? "Vault Locked" : "Set PIN"}</p></div>
           {!profile?.pin ? (
-            <button onClick={() => { setPinEntry(''); setPinActionType('set'); setIsPinModalOpen(true); }} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary"><Plus size={20} /></button>
+            <button onClick={() => setIsPinModalOpen(true)} className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary"><Plus size={20} /></button>
           ) : (
             <div className="p-3 bg-green-500/10 text-green-500 rounded-xl"><ShieldCheck size={20} /></div>
           )}
         </div>
       </div>
 
-      {/* Change Password Dialog with criteria */}
-      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Lock size={14} className="text-primary" /> Update Terminal</DialogTitle></DialogHeader>
-          <div className="mt-6 space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-[8px] uppercase tracking-widest text-white/40">Current Password</Label>
-                <div className="relative">
-                  <Input type={showOldPass ? "text" : "password"} value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="h-12 bg-white/5 border-white/10" />
-                  <button type="button" onClick={() => setShowOldPass(!showOldPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors">{showOldPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[8px] uppercase tracking-widest text-white/40">New Password</Label>
-                <div className="relative">
-                  <Input type={showNewPass ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 bg-white/5 border-white/10" />
-                  <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors">{showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                </div>
-                {/* Password Criteria indicators */}
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {Object.entries(passwordCriteria).map(([key, valid]) => (
-                    <div key={key} className="flex items-center gap-1.5">
-                      {valid ? <ShieldCheck className="text-green-500" size={10} /> : <AlertCircle className="text-white/20" size={10} />}
-                      <span className={cn("text-[8px] uppercase font-bold", valid ? "text-green-500" : "text-white/30")}>
-                        {key === 'length' ? '8+ Chars' : key === 'upper' ? 'Uppercase' : key === 'number' ? 'Number' : 'Special Symbol'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[8px] uppercase tracking-widest text-white/40">Confirm New Password</Label>
-                <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="h-12 bg-white/5 border-white/10" />
-              </div>
-            </div>
-            <Button 
-              onClick={handleRequestPasswordUpdate} 
-              disabled={!oldPassword || !newPassword || newPassword !== confirmPassword || !isPasswordStrong || updatingPassword}
-              className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow"
-            >
-              {updatingPassword ? <Loader2 className="animate-spin" /> : "PROCEED TO AUTH"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {pinActionType === 'set' ? 'Set Vault PIN' : 'Authorize Protocol'}</DialogTitle></DialogHeader>
-          <div className="mt-8 space-y-8" dir="ltr">
-            <div className="flex justify-center gap-4">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", pinEntry.length > i ? "bg-primary border-primary scale-110 shadow-[0_0_10px_rgba(250,218,122,0.5)]" : "border-white/20")} />
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 max-w-[240px] mx-auto">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                <button key={num} onClick={() => handleKeyClick(num.toString())} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">{num}</button>
-              ))}
-              <button onClick={handleDelete} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-red-500 hover:bg-red-500/10 active:scale-95 transition-all"><Delete size={24} /></button>
-              <button onClick={() => handleKeyClick("0")} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">0</button>
-              <button 
-                onClick={handlePinAction} 
-                disabled={submittingPin || pinEntry.length < 4} 
-                className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-background active:scale-95 transition-all disabled:opacity-50"
-              >
-                {submittingPin ? <Loader2 className="animate-spin" size={24} /> : <Check size={24} />}
-              </button>
-            </div>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Authorize PIN</DialogTitle></DialogHeader>
+          <div className="mt-8">
+            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={async () => {
+              if (pinEntry.length === 4 && user && db) {
+                setSubmittingPin(true);
+                await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
+                setSubmittingPin(false);
+                setIsPinModalOpen(false);
+                toast({ title: "PIN Saved" });
+              }
+            }} />
+            {submittingPin && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
           </div>
         </DialogContent>
       </Dialog>
@@ -676,28 +484,13 @@ export default function EditProfilePage() {
           <div className="space-y-6 mt-4">
             <div className="flex gap-2 justify-center" dir="ltr">
               {otpCode.map((digit, i) => (
-                <input 
-                  key={i} 
-                  ref={el => { if(el) otpInputs.current[i] = el; }} 
-                  type="text" 
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete="one-time-code"
-                  maxLength={1} 
-                  value={digit} 
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (!/^\d*$/.test(val)) return;
-                    const newOtp = [...otpCode];
-                    newOtp[i] = val;
-                    setOtpCode(newOtp);
-                    if (val && i < 5) otpInputs.current[i+1]?.focus();
-                  }} 
-                  onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && !otpCode[i] && i > 0) otpInputs.current[i-1]?.focus();
-                  }}
-                  className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-bold text-secondary outline-none rounded-lg focus:border-secondary shadow-[0_0_10px_rgba(0,255,238,0.1)]" 
-                />
+                <input key={i} ref={el => { if(el) otpInputs.current[i] = el; }} type="text" maxLength={1} value={digit} onChange={(e) => {
+                  const val = e.target.value;
+                  const newOtp = [...otpCode];
+                  newOtp[i] = val;
+                  setOtpCode(newOtp);
+                  if (val && i < 5) otpInputs.current[i+1]?.focus();
+                }} className="w-10 h-14 bg-white/5 border border-white/10 text-center text-xl font-bold text-secondary outline-none rounded-lg" />
               ))}
             </div>
             <div className="flex flex-col gap-3">

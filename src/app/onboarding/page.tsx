@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Zap, Globe, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,11 +35,6 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { language } = useStore();
   const [currentStep, setCurrentStep] = useState(0);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleNext = () => {
     if (currentStep < STEPS.length - 1) {
@@ -49,8 +44,6 @@ export default function OnboardingPage() {
       router.push('/');
     }
   };
-
-  if (!mounted) return null;
 
   const step = STEPS[currentStep];
 

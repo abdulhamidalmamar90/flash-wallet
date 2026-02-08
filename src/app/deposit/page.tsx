@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -178,15 +179,11 @@ export default function DepositPage() {
                   <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase tracking-widest font-headline">
                     <SelectValue placeholder="CHOOSE COUNTRY" />
                   </SelectTrigger>
-                  <SelectContent position="popper" side="bottom" sideOffset={4} className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                  <SelectContent className="bg-card border-white/10">
                     {availableCountries.length === 0 ? (
                       <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
                     ) : availableCountries.map(c => (
-                      <SelectItem 
-                        key={c.code} 
-                        value={c.code} 
-                        className="text-[10px] uppercase font-headline focus:bg-primary/20 focus:text-primary transition-colors cursor-pointer"
-                      >
+                      <SelectItem key={c.code} value={c.code} className="text-[10px] uppercase font-headline">
                         {language === 'ar' ? c.ar : c.name}
                       </SelectItem>
                     ))}
