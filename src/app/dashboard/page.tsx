@@ -105,16 +105,9 @@ export default function Dashboard() {
   useEffect(() => {
     if (!db || !user || supportStep !== 'chat') return;
     
-    const sessionsQuery = query(
-      collection(db, 'chat_sessions'), 
-      where('userId', '==', user.uid)
-    );
-
+    const sessionsQuery = query(collection(db, 'chat_sessions'), where('userId', '==', user.uid));
     const unsubSessions = onSnapshot(sessionsQuery, (snap) => {
-      const activeSession = snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .find(s => s.status !== 'archived');
-
+      const activeSession = snap.docs.map(d => ({ id: d.id, ...d.data() } as any)).find(s => s.status !== 'archived');
       if (activeSession) {
         setChatSession(activeSession);
         const msgsQuery = query(collection(db, 'chat_sessions', activeSession.id, 'messages'), orderBy('timestamp', 'asc'));
@@ -123,10 +116,7 @@ export default function Dashboard() {
           setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
         });
         return () => unsubMsgs();
-      } else {
-        setChatSession(null);
-        setMessages([]);
-      }
+      } else { setChatSession(null); setMessages([]); }
     });
     return () => unsubSessions();
   }, [db, user, supportStep]);
@@ -144,44 +134,19 @@ export default function Dashboard() {
         updatedAt: new Date().toISOString(),
         caseId: Math.random().toString(36).substring(2, 8).toUpperCase()
       });
-
-      await addDoc(collection(db, 'chat_sessions', sessionRef.id, 'messages'), {
-        text: initialMessage,
-        senderId: user.uid,
-        isAdmin: false,
-        timestamp: new Date().toISOString()
-      });
-
-      await sendTelegramNotification(`
-💬 <b>New Live Chat Request</b>
-━━━━━━━━━━━━━━━━
-<b>User:</b> @${profile.username}
-<b>Initial Issue:</b> ${initialMessage}
-<b>Case ID:</b> #${sessionRef.id.slice(0, 6).toUpperCase()}
-      `);
-
+      await addDoc(collection(db, 'chat_sessions', sessionRef.id, 'messages'), { text: initialMessage, senderId: user.uid, isAdmin: false, timestamp: new Date().toISOString() });
+      await sendTelegramNotification(`💬 <b>New Live Chat Request</b>\n━━━━━━━━━━━━━━━━\n<b>User:</b> @${profile.username}\n<b>Initial Issue:</b> ${initialMessage}\n<b>Case ID:</b> #${sessionRef.id.slice(0, 6).toUpperCase()}`);
       setChatMessage('');
-    } catch (e) {
-      toast({ variant: "destructive", title: "Failed to start chat" });
-    } finally {
-      setIsStartingChat(false);
-    }
+    } catch (e) { toast({ variant: "destructive", title: "Failed to start chat" }); }
+    finally { setIsStartingChat(false); }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!db || !chatSession || !chatMessage.trim() || !user) return;
     try {
-      await addDoc(collection(db, 'chat_sessions', chatSession.id, 'messages'), {
-        text: chatMessage.trim(),
-        senderId: user.uid,
-        isAdmin: false,
-        timestamp: new Date().toISOString()
-      });
-      await updateDoc(doc(db, 'chat_sessions', chatSession.id), { 
-        updatedAt: new Date().toISOString(),
-        lastMessage: chatMessage.trim()
-      });
+      await addDoc(collection(db, 'chat_sessions', chatSession.id, 'messages'), { text: chatMessage.trim(), senderId: user.uid, isAdmin: false, timestamp: new Date().toISOString() });
+      await updateDoc(doc(db, 'chat_sessions', chatSession.id), { updatedAt: new Date().toISOString(), lastMessage: chatMessage.trim() });
       setChatMessage('');
     } catch (e) {}
   };
@@ -189,32 +154,14 @@ export default function Dashboard() {
   const submitRating = async () => {
     if (!db || !chatSession) return;
     try {
-      await updateDoc(doc(db, 'chat_sessions', chatSession.id), {
-        rating,
-        feedback,
-        status: 'archived'
-      });
-      
-      await sendTelegramNotification(`
-⭐ <b>Chat Rated: ${rating}/5</b>
-━━━━━━━━━━━━━━━━
-<b>User:</b> @${chatSession.username}
-<b>Feedback:</b> ${feedback || 'No comments'}
-<b>Case:</b> #${chatSession.id.slice(0, 6).toUpperCase()}
-      `);
-
-      setIsRatingOpen(false);
-      setIsSupportOpen(false);
-      setSupportStep('options');
-      toast({ title: "Feedback Received" });
+      await updateDoc(doc(db, 'chat_sessions', chatSession.id), { rating, feedback, status: 'archived' });
+      await sendTelegramNotification(`⭐ <b>Chat Rated: ${rating}/5</b>\n━━━━━━━━━━━━━━━━\n<b>User:</b> @${chatSession.username}\n<b>Feedback:</b> ${feedback || 'No comments'}\n<b>Case:</b> #${chatSession.id.slice(0, 6).toUpperCase()}`);
+      setIsRatingOpen(false); setIsSupportOpen(false); setSupportStep('options'); toast({ title: "Feedback Received" });
     } catch (e) {}
   };
 
   const copyId = useCallback(() => {
-    if (profile?.customId) {
-      navigator.clipboard.writeText(profile.customId);
-      toast({ title: "COPIED" });
-    }
+    if (profile?.customId) { navigator.clipboard.writeText(profile.customId); toast({ title: "COPIED" }); }
   }, [profile?.customId, toast]);
 
   const startScanner = useCallback(async () => {
@@ -224,31 +171,18 @@ export default function Dashboard() {
       await scannerRef.current.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          setScannerOpen(false);
-          router.push(`/transfer?id=${decodedText.toUpperCase()}`);
-        },
+        (decodedText) => { setScannerOpen(false); router.push(`/transfer?id=${decodedText.toUpperCase()}`); },
         () => {}
       );
-    } catch (err) {
-      toast({ variant: "destructive", title: "Camera access failed" });
-      setScannerOpen(false);
-    }
+    } catch (err) { toast({ variant: "destructive", title: "Camera access failed" }); setScannerOpen(false); }
   }, [router, setScannerOpen, toast]);
 
   const stopScanner = useCallback(async () => {
-    if (scannerRef.current) {
-      await scannerRef.current.stop();
-      scannerRef.current = null;
-    }
+    if (scannerRef.current) { await scannerRef.current.stop(); scannerRef.current = null; }
   }, []);
 
   useEffect(() => {
-    if (isScannerOpen) {
-      setTimeout(startScanner, 100);
-    } else {
-      stopScanner();
-    }
+    if (isScannerOpen) { setTimeout(startScanner, 100); } else { stopScanner(); }
     return () => { stopScanner(); };
   }, [isScannerOpen, startScanner, stopScanner]);
 
@@ -291,10 +225,7 @@ export default function Dashboard() {
               <div key={tx.id} className="flex justify-between items-center p-5 glass-card rounded-2xl border-border/40 hover:bg-muted/5 transition-all">
                 <div className="flex items-center gap-4">
                   <div className={cn("w-1 h-10 rounded-full", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "bg-red-500/40" : "bg-primary/40")} />
-                  <div>
-                    <p className="font-headline font-bold text-[10px] uppercase truncate max-w-[150px]">{tx.type === 'send' ? `TO @${tx.recipient}` : tx.type === 'receive' ? `FROM @${tx.sender || 'SYSTEM'}` : tx.type === 'withdraw' ? 'WITHDRAWAL' : tx.type === 'deposit' ? 'DEPOSIT' : `${tx.service}`}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">{new Date(tx.date).toLocaleDateString()}</p>
-                  </div>
+                  <div><p className="font-headline font-bold text-[10px] uppercase truncate max-w-[150px]">{tx.type === 'send' ? `TO @${tx.recipient}` : tx.type === 'receive' ? `FROM @${tx.sender || 'SYSTEM'}` : tx.type === 'withdraw' ? 'WITHDRAWAL' : tx.type === 'deposit' ? 'DEPOSIT' : `${tx.service}`}</p><p className="text-[8px] text-muted-foreground uppercase tracking-widest mt-1">{new Date(tx.date).toLocaleDateString()}</p></div>
                 </div>
                 <p className={cn("font-financial font-bold text-xs", (tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? "text-foreground" : "text-primary")}>{(tx.type === 'send' || tx.type === 'withdraw' || tx.type === 'purchase') ? '-' : '+'}${tx.amount}</p>
               </div>
@@ -318,25 +249,8 @@ export default function Dashboard() {
             </div>
           ) : supportStep === 'form' ? (
             <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!user || !profile || !supportSubject.trim() || !supportMessage.trim()) return;
-              setIsSubmittingSupport(true);
-              try {
-                const result = await submitTicketAndSendEmail({
-                  userId: user.uid,
-                  username: profile.username || 'unknown',
-                  email: profile.email || 'unknown',
-                  subject: supportSubject.trim(),
-                  message: supportMessage.trim(),
-                  imageUrl: supportImage,
-                  language: language as 'ar' | 'en'
-                });
-                if (result.success) {
-                  toast({ title: "Ticket Deployed" });
-                  setIsSupportOpen(false);
-                  setSupportStep('options');
-                }
-              } catch (err: any) { toast({ variant: "destructive", title: "Error", description: err.message }); }
+              e.preventDefault(); if (!user || !profile || !supportSubject.trim() || !supportMessage.trim()) return; setIsSubmittingSupport(true);
+              try { const result = await submitTicketAndSendEmail({ userId: user.uid, username: profile.username || 'unknown', email: profile.email || 'unknown', subject: supportSubject.trim(), message: supportMessage.trim(), imageUrl: supportImage, language: language as 'ar' | 'en' }); if (result.success) { toast({ title: "Ticket Deployed" }); setIsSupportOpen(false); setSupportStep('options'); } } catch (err: any) { toast({ variant: "destructive", title: "Error", description: err.message }); }
               finally { setIsSubmittingSupport(false); }
             }} className="space-y-5">
               <div className="space-y-4">
@@ -351,68 +265,22 @@ export default function Dashboard() {
               {!chatSession ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6 animate-in fade-in">
                   <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary border border-primary/20"><MessageSquare size={40} /></div>
-                  <div className="space-y-2">
-                    <p className="text-xs font-headline font-bold uppercase">{language === 'ar' ? 'مرحباً بك في الدردشة' : 'Welcome to Live Chat'}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'يرجى كتابة مشكلتك لبدء الدردشة' : 'Please describe your issue to start'}</p>
-                  </div>
-                  <div className="w-full space-y-3">
-                    <Input 
-                      placeholder="TYPE YOUR PROBLEM..." 
-                      className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" 
-                      value={chatMessage} 
-                      onChange={(e) => setChatMessage(e.target.value)} 
-                    />
-                    <Button onClick={() => handleStartChat(chatMessage)} disabled={isStartingChat || !chatMessage.trim()} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-black text-[10px] tracking-widest gold-glow">
-                      {isStartingChat ? <Loader2 className="animate-spin" /> : (language === 'ar' ? 'بدء الدردشة' : 'START CHAT')}
-                    </Button>
-                  </div>
+                  <div className="space-y-2"><p className="text-xs font-headline font-bold uppercase">{language === 'ar' ? 'مرحباً بك في الدردشة' : 'Welcome to Live Chat'}</p><p className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'يرجى كتابة مشكلتك لبدء الدردشة' : 'Please describe your issue to start'}</p></div>
+                  <div className="w-full space-y-3"><Input placeholder="TYPE YOUR PROBLEM..." className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} /><Button onClick={() => handleStartChat(chatMessage)} disabled={isStartingChat || !chatMessage.trim()} className="w-full h-12 bg-primary text-background rounded-xl font-headline font-black text-[10px] tracking-widest gold-glow">{isStartingChat ? <Loader2 className="animate-spin" /> : (language === 'ar' ? 'بدء الدردشة' : 'START CHAT')}</Button></div>
                 </div>
               ) : (
                 <>
-                  <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="text-[8px] font-headline font-bold uppercase text-primary">Case #{chatSession.caseId}</span>
-                    </div>
-                    {chatSession.status === 'closed' && (
-                      <Button size="sm" onClick={() => setIsRatingOpen(true)} className="h-7 text-[8px] bg-primary text-background font-black rounded-lg">RATE SUPPORT</Button>
-                    )}
-                  </div>
-                  
+                  <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-2xl"><div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div><span className="text-[8px] font-headline font-bold uppercase text-primary">Case #{chatSession.caseId}</span></div>{chatSession.status === 'closed' && <Button size="sm" onClick={() => setIsRatingOpen(true)} className="h-7 text-[8px] bg-primary text-background font-black rounded-lg">RATE SUPPORT</Button>}</div>
                   <div className="flex-1 overflow-y-auto space-y-4 p-4 no-scrollbar">
-                    {chatSession.status === 'open' && (
-                      <div className="flex flex-col items-center py-4 space-y-2 animate-pulse">
-                        <Loader2 className="animate-spin text-primary" size={24} />
-                        <p className="text-[8px] font-headline text-muted-foreground uppercase">Searching for an authorized agent...</p>
-                      </div>
-                    )}
-                    {chatSession.status === 'active' && !messages.some(m => m.isAdmin) && (
-                      <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-center">
-                        <p className="text-[8px] font-headline text-primary font-bold uppercase">Agent {chatSession.joinedBy || 'Master'} joined. Reviewing issue...</p>
-                      </div>
-                    )}
+                    {chatSession.status === 'open' && <div className="flex flex-col items-center py-4 space-y-2 animate-pulse"><Loader2 className="animate-spin text-primary" size={24} /><p className="text-[8px] font-headline text-muted-foreground uppercase">Searching for an authorized agent...</p></div>}
+                    {chatSession.status === 'active' && !messages.some(m => m.isAdmin) && <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl text-center"><p className="text-[8px] font-headline text-primary font-bold uppercase">Agent {chatSession.joinedBy || 'Master'} joined. Reviewing issue...</p></div>}
                     {messages.map((msg) => (
-                      <div key={msg.id} className={cn("flex flex-col max-w-[85%]", msg.isAdmin ? "self-start items-start" : "self-end items-end")}>
-                        <div className={cn("p-3 rounded-2xl text-[10px] font-financial", msg.isAdmin ? "bg-muted text-foreground rounded-tl-none" : "bg-primary text-background rounded-tr-none shadow-lg")}>{msg.text}</div>
-                        <span className="text-[6px] text-muted-foreground mt-1 uppercase">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
+                      <div key={msg.id} className={cn("flex flex-col max-w-[85%]", msg.isAdmin ? "self-start items-start" : "self-end items-end")}><div className={cn("p-3 rounded-2xl text-[10px] font-financial", msg.isAdmin ? "bg-muted text-foreground rounded-tl-none" : "bg-primary text-background rounded-tr-none shadow-lg")}>{msg.text}</div><span className="text-[6px] text-muted-foreground mt-1 uppercase">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
                     ))}
-                    {chatSession.status === 'closed' && (
-                      <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-center space-y-2 animate-in slide-in-from-bottom-2">
-                        <CheckCircle2 className="mx-auto text-green-500" size={20} />
-                        <p className="text-[9px] font-headline font-black text-green-500 uppercase tracking-widest">Protocol Resolved</p>
-                        <p className="text-[7px] text-muted-foreground uppercase leading-relaxed">This session is now closed. Please rate your experience.</p>
-                      </div>
-                    )}
+                    {chatSession.status === 'closed' && <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-center space-y-2 animate-in slide-in-from-bottom-2"><CheckCircle2 className="mx-auto text-green-500" size={20} /><p className="text-[9px] font-headline font-black text-green-500 uppercase tracking-widest">Protocol Resolved</p><p className="text-[7px] text-muted-foreground uppercase leading-relaxed">This session is now closed. Please rate your experience.</p></div>}
                     <div ref={chatEndRef} />
                   </div>
-
-                  {chatSession.status === 'active' && (
-                    <form onSubmit={handleSendMessage} className="mt-auto p-4 pt-0 flex gap-2">
-                      <Input placeholder="TYPE MESSAGE..." className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} />
-                      <button type="submit" disabled={!chatMessage.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center"><SendHorizontal size={20} /></button>
-                    </form>
-                  )}
+                  {chatSession.status === 'active' && <form onSubmit={handleSendMessage} className="mt-auto p-4 pt-0 flex gap-2"><Input placeholder="TYPE MESSAGE..." className="h-12 bg-white/5 border-white/10 rounded-xl text-[10px] font-headline" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} /><button type="submit" disabled={!chatMessage.trim()} className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center"><SendHorizontal size={20} /></button></form>}
                 </>
               )}
             </div>
@@ -425,19 +293,30 @@ export default function Dashboard() {
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold uppercase text-primary">Rate Experience</DialogTitle></DialogHeader>
           <div className="mt-6 space-y-6">
-            <div className="flex justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button key={s} onClick={() => setRating(s)} className={cn("p-2 transition-all", rating >= s ? "text-primary scale-110" : "text-white/10")}>
-                  <Star fill={rating >= s ? "currentColor" : "none"} size={28} />
-                </button>
-              ))}
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[8px] uppercase font-black text-muted-foreground">Detailed Feedback</Label>
-              <Textarea placeholder="TELL US MORE..." className="bg-white/5 border-white/10 h-24 text-[10px]" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
-            </div>
+            <div className="flex justify-center gap-2">{[1, 2, 3, 4, 5].map((s) => <button key={s} onClick={() => setRating(s)} className={cn("p-2 transition-all", rating >= s ? "text-primary scale-110" : "text-white/10")}><Star fill={rating >= s ? "currentColor" : "none"} size={28} /></button>)}</div>
+            <div className="space-y-2"><Label className="text-[8px] uppercase font-black text-muted-foreground">Detailed Feedback</Label><Textarea placeholder="TELL US MORE..." className="bg-white/5 border-white/10 h-24 text-[10px]" value={feedback} onChange={(e) => setFeedback(e.target.value)} /></div>
             <Button onClick={submitRating} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">SUBMIT PROTOCOL</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR & Scanner */}
+      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-8 text-center rounded-[2.5rem] z-[1000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary mb-4">Your Identity Matrix</DialogTitle></DialogHeader>
+          <div className="space-y-8 flex flex-col items-center">
+            <div className="p-6 bg-white rounded-[2rem] shadow-[0_0_30px_rgba(250,218,122,0.2)]"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}`} className="w-48 h-48" alt="QR" /></div>
+            <div className="space-y-2"><p className="text-[10px] text-muted-foreground uppercase tracking-widest">Digital Identifier</p><p className="text-xl font-headline font-bold text-white tracking-widest">{profile?.customId}</p></div>
+            <button onClick={copyId} className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl font-headline text-[10px] font-bold uppercase tracking-widest hover:bg-primary hover:text-background transition-all">Copy ID Reference</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}>
+        <DialogContent className="max-w-sm glass-card border-border/40 p-0 overflow-hidden rounded-[2.5rem] z-[1000]">
+          <div className="p-6 border-b border-white/5 flex justify-between items-center"><h3 className="text-xs font-headline font-bold uppercase text-primary tracking-widest">Scanner Terminal</h3><button onClick={() => setScannerOpen(false)} className="p-2 hover:bg-white/5 rounded-xl transition-all"><X size={20} /></button></div>
+          <div className="aspect-square w-full relative"><div id="reader" className="w-full h-full overflow-hidden"></div><div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none"><div className="w-full h-full border-2 border-primary/50 relative"><div className="absolute inset-0 bg-primary/10 animate-pulse"></div></div></div></div>
+          <div className="p-8 text-center"><p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-relaxed">Align the recipient's QR identifier within the matrix for instant settlement.</p></div>
         </DialogContent>
       </Dialog>
 

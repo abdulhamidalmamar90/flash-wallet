@@ -69,7 +69,6 @@ export default function AdminPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [isProjectBackingUp, setIsProjectBackingUp] = useState(false);
-  const [isDataBackingUp, setIsDataBackingUp] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -77,7 +76,7 @@ export default function AdminPage() {
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
-  // Queries for all sections
+  // Queries for all 8 sections
   const usersQuery = useMemo(() => (db ? query(collection(db, 'users'), orderBy('createdAt', 'desc')) : null), [db]);
   const { data: allUsers = [] } = useCollection(usersQuery);
 
@@ -268,8 +267,8 @@ export default function AdminPage() {
         <TabsList className="flex flex-wrap h-auto bg-card/40 border border-white/5 rounded-[2rem] p-2 gap-2 mb-8">
           <TabsTrigger value="overview" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Overview</TabsTrigger>
           <TabsTrigger value="users" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Users</TabsTrigger>
-          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Deposits {deposits.filter((d:any)=>d.status==='pending').length > 0 && `(${deposits.filter((d:any)=>d.status==='pending').length})`}</TabsTrigger>
-          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Withdraws {withdrawals.filter((w:any)=>w.status==='pending').length > 0 && `(${withdrawals.filter((w:any)=>w.status==='pending').length})`}</TabsTrigger>
+          <TabsTrigger value="deposits" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Deposits</TabsTrigger>
+          <TabsTrigger value="withdrawals" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Withdraws</TabsTrigger>
           <TabsTrigger value="kyc" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">KYC</TabsTrigger>
           <TabsTrigger value="store" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Store</TabsTrigger>
           <TabsTrigger value="gateways" className="rounded-xl font-headline text-[9px] uppercase px-4 py-2">Gateways</TabsTrigger>
@@ -336,21 +335,13 @@ export default function AdminPage() {
             {deposits.map((dep: any) => (
               <div key={dep.id} className="glass-card p-5 rounded-3xl border-white/5 space-y-4">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-[10px] font-headline font-bold">@{dep.username}</p>
-                    <p className="text-[8px] text-muted-foreground uppercase">{new Date(dep.date).toLocaleString()}</p>
-                  </div>
+                  <div><p className="text-[10px] font-headline font-bold">@{dep.username}</p><p className="text-[8px] text-muted-foreground uppercase">{new Date(dep.date).toLocaleString()}</p></div>
                   <Badge className={cn("text-[7px]", dep.status === 'pending' ? "bg-yellow-500" : dep.status === 'approved' ? "bg-green-500" : "bg-red-500")}>{dep.status}</Badge>
                 </div>
-                <div className="p-3 bg-white/5 rounded-xl flex justify-between items-center">
-                  <span className="text-[8px] text-muted-foreground uppercase">Amount:</span>
-                  <span className="text-sm font-headline font-black text-primary">${dep.amount}</span>
-                </div>
+                <div className="p-3 bg-white/5 rounded-xl flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase">Amount:</span><span className="text-sm font-headline font-black text-primary">${dep.amount}</span></div>
                 <div className="aspect-video rounded-xl overflow-hidden border border-white/10 group relative">
                   <img src={dep.proofUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Button size="sm" variant="outline" className="text-[8px] font-headline" onClick={() => window.open(dep.proofUrl)}>VIEW FULL</Button>
-                  </div>
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Button size="sm" variant="outline" className="text-[8px] font-headline" onClick={() => window.open(dep.proofUrl)}>VIEW FULL</Button></div>
                 </div>
                 {dep.status === 'pending' && (
                   <div className="flex gap-2">
@@ -416,24 +407,16 @@ export default function AdminPage() {
         </TabsContent>
 
         <TabsContent value="store" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xs font-headline font-bold uppercase">Store Inventory</h2>
-            <Button onClick={() => setIsAddServiceOpen(true)} className="h-9 text-[8px] font-headline bg-primary text-background"><Plus size={12} className="mr-1" /> Add Protocol</Button>
-          </div>
+          <div className="flex justify-between items-center"><h2 className="text-xs font-headline font-bold uppercase">Store Inventory</h2><Button onClick={() => setIsAddServiceOpen(true)} className="h-9 text-[8px] font-headline bg-primary text-background"><Plus size={12} className="mr-1" /> Add Protocol</Button></div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {marketplaceServices.map((s: any) => (
               <div key={s.id} className="glass-card p-4 rounded-3xl border-white/5 space-y-3 group">
                 <div className="aspect-square rounded-xl overflow-hidden bg-white/5 relative">
                   <img src={s.imageUrl || 'https://picsum.photos/seed/store/200'} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <button onClick={() => deleteDoc(doc(db!, 'marketplace_services', s.id))} className="p-2 bg-red-500 rounded-lg text-white"><Trash2 size={14} /></button>
-                  </div>
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><button onClick={() => deleteDoc(doc(db!, 'marketplace_services', s.id))} className="p-2 bg-red-500 rounded-lg text-white"><Trash2 size={14} /></button></div>
                 </div>
                 <p className="text-[9px] font-headline font-bold text-center uppercase truncate">{s.name}</p>
-                <div className="flex justify-center gap-1">
-                  <Badge variant="outline" className="text-[6px] text-primary">{s.category}</Badge>
-                  <Badge variant="outline" className={cn("text-[6px]", s.isActive ? "text-green-500" : "text-red-500")}>{s.isActive ? "ACTIVE" : "OFF"}</Badge>
-                </div>
+                <div className="flex justify-center gap-1"><Badge variant="outline" className="text-[6px] text-primary">{s.category}</Badge><Badge variant="outline" className={cn("text-[6px]", s.isActive ? "text-green-500" : "text-red-500")}>{s.isActive ? "ACTIVE" : "OFF"}</Badge></div>
               </div>
             ))}
           </div>
@@ -447,7 +430,7 @@ export default function AdminPage() {
                 {depositMethods.map((m: any) => (
                   <div key={m.id} className="p-4 glass-card rounded-2xl border-white/5 flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary border border-secondary/20">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover rounded-lg" /> : <Landmark size={16} />}</div>
+                      <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover rounded-lg" /> : <Landmark size={16} />}</div>
                       <div><p className="text-[9px] font-headline font-bold">{m.name}</p><p className="text-[7px] text-muted-foreground uppercase">{m.country}</p></div>
                     </div>
                     <button onClick={() => deleteDoc(doc(db!, 'deposit_methods', m.id))} className="text-red-500 hover:text-red-400 p-2"><Trash2 size={14} /></button>
@@ -461,7 +444,7 @@ export default function AdminPage() {
                 {withdrawalMethods.map((m: any) => (
                   <div key={m.id} className="p-4 glass-card rounded-2xl border-white/5 flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover rounded-lg" /> : <ArrowUpCircle size={16} />}</div>
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover rounded-lg" /> : <ArrowUpCircle size={16} />}</div>
                       <div><p className="text-[9px] font-headline font-bold">{m.name}</p><p className="text-[7px] text-muted-foreground uppercase">{m.country}</p></div>
                     </div>
                     <button onClick={() => deleteDoc(doc(db!, 'withdrawal_methods', m.id))} className="text-red-500 hover:text-red-400 p-2"><Trash2 size={14} /></button>
@@ -524,10 +507,7 @@ export default function AdminPage() {
                       </form>
                     </>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground space-y-4">
-                      <CircleDot size={48} className="opacity-10 animate-pulse" />
-                      <p className="text-[10px] font-headline uppercase font-bold tracking-widest opacity-20">Select an active channel to monitor</p>
-                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground space-y-4"><CircleDot size={48} className="opacity-10 animate-pulse" /><p className="text-[10px] font-headline uppercase font-bold tracking-widest opacity-20">Select an active channel to monitor</p></div>
                   )}
                 </div>
               </div>
@@ -538,17 +518,12 @@ export default function AdminPage() {
                 {chatSessions.filter((s:any) => s.status === 'archived' || s.status === 'closed').map((s: any) => (
                   <div key={s.id} className="glass-card p-5 rounded-[2rem] border-white/5 space-y-4">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-[10px] font-headline font-bold uppercase">Case #{s.caseId || s.id.slice(0,6)}</p>
-                        <p className="text-[8px] text-muted-foreground uppercase">By @{s.username}</p>
-                      </div>
+                      <div><p className="text-[10px] font-headline font-bold uppercase">Case #{s.caseId || s.id.slice(0,6)}</p><p className="text-[8px] text-muted-foreground uppercase">By @{s.username}</p></div>
                       <Badge className="bg-white/5 text-muted-foreground text-[7px] uppercase">{s.status}</Badge>
                     </div>
                     {s.rating && (
                       <div className="p-3 bg-primary/5 rounded-xl flex justify-between items-center border border-primary/10">
-                        <div className="flex gap-0.5 text-primary">
-                          {[...Array(5)].map((_, i) => <Star key={i} size={10} fill={i < s.rating ? "currentColor" : "none"} />)}
-                        </div>
+                        <div className="flex gap-0.5 text-primary">{[...Array(5)].map((_, i) => <Star key={i} size={10} fill={i < s.rating ? "currentColor" : "none"} />)}</div>
                         <span className="text-[8px] font-headline font-black text-primary uppercase">Score: {s.rating}/5</span>
                       </div>
                     )}
@@ -567,10 +542,7 @@ export default function AdminPage() {
         <DialogContent className="glass-card border-white/10 rounded-[2rem] max-w-sm">
           <DialogHeader><DialogTitle className="text-[10px] font-headline font-bold uppercase">Modify Entity Balance</DialogTitle></DialogHeader>
           <div className="space-y-6 pt-4">
-            <div className="space-y-2">
-              <Label className="text-[8px] uppercase">New Vault Total ($)</Label>
-              <Input type="number" value={editBalance} onChange={(e)=>setEditBalance(e.target.value)} className="h-14 bg-white/5 border-white/10 font-financial text-xl" />
-            </div>
+            <div className="space-y-2"><Label className="text-[8px] uppercase">New Vault Total ($)</Label><Input type="number" value={editBalance} onChange={(e)=>setEditBalance(e.target.value)} className="h-14 bg-white/5 border-white/10 font-financial text-xl" /></div>
             <Button onClick={handleUpdateBalance} className="w-full h-14 bg-primary text-background font-headline font-bold uppercase tracking-widest">Execute Update</Button>
           </div>
         </DialogContent>
@@ -583,30 +555,11 @@ export default function AdminPage() {
 }
 
 function AddServiceModal({ open, onOpenChange, db }: { open: boolean, onOpenChange: any, db: any }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    category: 'Games',
-    price: '',
-    type: 'fixed',
-    imageUrl: '',
-    isActive: true,
-    requiresInput: true,
-    inputLabel: 'Player ID',
-    variants: [] as any[]
-  });
-
+  const [formData, setFormData] = useState({ name: '', category: 'Games', price: '', type: 'fixed', imageUrl: '', isActive: true, requiresInput: true, inputLabel: 'Player ID', variants: [] as any[] });
   const handleSave = async () => {
     if (!formData.name || !db) return;
-    try {
-      await addDoc(collection(db, 'marketplace_services'), {
-        ...formData,
-        price: parseFloat(formData.price || '0'),
-        variants: formData.variants.map(v => ({ ...v, price: parseFloat(v.price) }))
-      });
-      onOpenChange(false);
-    } catch (e) {}
+    try { await addDoc(collection(db, 'marketplace_services'), { ...formData, price: parseFloat(formData.price || '0'), variants: formData.variants.map(v => ({ ...v, price: parseFloat(v.price) })) }); onOpenChange(false); } catch (e) {}
   };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-card border-white/10 rounded-[2rem] max-w-md max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -618,10 +571,7 @@ function AddServiceModal({ open, onOpenChange, db }: { open: boolean, onOpenChan
             <div className="space-y-1"><Label className="text-[8px] uppercase">Price ($)</Label><Input type="number" value={formData.price} onChange={(e)=>setFormData({...formData, price: e.target.value})} className="h-10 bg-white/5" /></div>
           </div>
           <div className="space-y-1"><Label className="text-[8px] uppercase">Image URL</Label><Input value={formData.imageUrl} onChange={(e)=>setFormData({...formData, imageUrl: e.target.value})} className="h-10 bg-white/5" /></div>
-          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
-            <span className="text-[8px] uppercase font-bold">Active Status</span>
-            <Switch checked={formData.isActive} onCheckedChange={(val)=>setFormData({...formData, isActive: val})} />
-          </div>
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10"><span className="text-[8px] uppercase font-bold">Active Status</span><Switch checked={formData.isActive} onCheckedChange={(val)=>setFormData({...formData, isActive: val})} /></div>
           <Button onClick={handleSave} className="w-full h-12 bg-primary text-background font-headline font-bold uppercase tracking-widest mt-4">Confirm Deployment</Button>
         </div>
       </DialogContent>
@@ -630,32 +580,12 @@ function AddServiceModal({ open, onOpenChange, db }: { open: boolean, onOpenChan
 }
 
 function AddGatewayModal({ open, onOpenChange, db, type }: { open: boolean, onOpenChange: any, db: any, type: 'dep' | 'wit' }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    country: 'SA',
-    currencyCode: 'SAR',
-    exchangeRate: '3.75',
-    iconUrl: '',
-    isActive: true,
-    fields: [] as any[]
-  });
-
-  const handleAddField = () => {
-    setFormData({ ...formData, fields: [...formData.fields, { label: '', value: '', type: 'text' }] });
-  };
-
+  const [formData, setFormData] = useState({ name: '', country: 'SA', currencyCode: 'SAR', exchangeRate: '3.75', iconUrl: '', isActive: true, fields: [] as any[] });
+  const handleAddField = () => { setFormData({ ...formData, fields: [...formData.fields, { label: '', value: '', type: 'text' }] }); };
   const handleSave = async () => {
     if (!formData.name || !db) return;
-    try {
-      const collectionName = type === 'dep' ? 'deposit_methods' : 'withdrawal_methods';
-      await addDoc(collection(db, collectionName), {
-        ...formData,
-        exchangeRate: parseFloat(formData.exchangeRate || '1')
-      });
-      onOpenChange(false);
-    } catch (e) {}
+    try { const collectionName = type === 'dep' ? 'deposit_methods' : 'withdrawal_methods'; await addDoc(collection(db, collectionName), { ...formData, exchangeRate: parseFloat(formData.exchangeRate || '1') }); onOpenChange(false); } catch (e) {}
   };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-card border-white/10 rounded-[2rem] max-w-md max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -673,16 +603,8 @@ function AddGatewayModal({ open, onOpenChange, db, type }: { open: boolean, onOp
             <div className="flex justify-between items-center"><Label className="text-[8px] uppercase">Required Fields</Label><Button size="sm" onClick={handleAddField} className="h-6 px-2 text-[7px]"><Plus size={10} /></Button></div>
             {formData.fields.map((f, i) => (
               <div key={i} className="flex gap-2">
-                <Input placeholder="Label" value={f.label} onChange={(e) => {
-                  const newFields = [...formData.fields];
-                  newFields[i].label = e.target.value;
-                  setFormData({ ...formData, fields: newFields });
-                }} className="h-8 bg-white/5 text-[8px]" />
-                <Input placeholder="Value (for deposit)" value={f.value} onChange={(e) => {
-                  const newFields = [...formData.fields];
-                  newFields[i].value = e.target.value;
-                  setFormData({ ...formData, fields: newFields });
-                }} className="h-8 bg-white/5 text-[8px]" />
+                <Input placeholder="Label" value={f.label} onChange={(e) => { const newFields = [...formData.fields]; newFields[i].label = e.target.value; setFormData({ ...formData, fields: newFields }); }} className="h-8 bg-white/5 text-[8px]" />
+                <Input placeholder="Value (for deposit)" value={f.value} onChange={(e) => { const newFields = [...formData.fields]; newFields[i].value = e.target.value; setFormData({ ...formData, fields: newFields }); }} className="h-8 bg-white/5 text-[8px]" />
               </div>
             ))}
           </div>
