@@ -29,6 +29,10 @@ import {
   Banknote,
   Plus,
   Landmark,
+  Database,
+  Download,
+  FileJson,
+  ShieldAlert,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -106,12 +110,9 @@ export default function AdminPage() {
     currencyCode: 'USD',
     isActive: true,
     iconUrl: '',
-    // For Deposit
     fields: [{ label: '', value: '' }],
-    // For Withdrawal
     feeType: 'fixed',
     feeValue: 0,
-    wFields: [{ label: '', type: 'text', options: '' }]
   });
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
@@ -195,6 +196,26 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
   };
 
+  // Backup Functions
+  const exportCollection = async (collectionName: string, fileName: string) => {
+    if (!db) return;
+    try {
+      const q = query(collection(db, collectionName));
+      const snap = await getDocs(q);
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FLASH_BACKUP_${fileName}_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "BACKUP CREATED", description: `${fileName} exported successfully.` });
+    } catch (e) {
+      toast({ variant: "destructive", title: "BACKUP FAILED" });
+    }
+  };
+
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
@@ -212,13 +233,11 @@ export default function AdminPage() {
           <TabsList className="grid grid-cols-4 w-full h-auto bg-card/40 border border-white/5 rounded-[2rem] p-2 gap-2">
             <TabsTrigger value="withdrawals" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ArrowUpCircle className="h-4 w-4" /> Withdraws</TabsTrigger>
             <TabsTrigger value="deposits" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ArrowDownCircle className="h-4 w-4" /> Deposits</TabsTrigger>
-            <TabsTrigger value="chats" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><MessageSquare className="h-4 w-4" /> Chats</TabsTrigger>
-            <TabsTrigger value="tickets" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Ticket className="h-4 w-4" /> Tickets</TabsTrigger>
-            <TabsTrigger value="orders" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><ClipboardList className="h-4 w-4" /> Orders</TabsTrigger>
             <TabsTrigger value="gateways" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Banknote className="h-4 w-4" /> Gateways</TabsTrigger>
             <TabsTrigger value="store" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><StoreIcon className="h-4 w-4" /> Store</TabsTrigger>
             <TabsTrigger value="users" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Users className="h-4 w-4" /> Entities</TabsTrigger>
-            <TabsTrigger value="kyc" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2 col-span-4"><ShieldCheck className="h-4 w-4" /> KYC Verification</TabsTrigger>
+            <TabsTrigger value="backup" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2"><Database className="h-4 w-4" /> System Backup</TabsTrigger>
+            <TabsTrigger value="kyc" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2 col-span-2"><ShieldCheck className="h-4 w-4" /> KYC Verification</TabsTrigger>
           </TabsList>
         </div>
 
@@ -246,6 +265,55 @@ export default function AdminPage() {
                 <div className="space-y-3"><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Vault Status:</span><span className="text-sm font-headline font-black text-primary">${u.balance?.toLocaleString()}</span></div></div>
               </div>
             ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="backup" className="space-y-8">
+          <div className="glass-card p-10 rounded-[2.5rem] border-primary/20 gold-glow flex flex-col items-center text-center space-y-8">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary animate-pulse">
+              <Database size={40} />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-headline font-bold uppercase tracking-tighter">System Intelligence Backup</h2>
+              <p className="text-[10px] text-muted-foreground uppercase max-w-md mx-auto leading-relaxed">
+                Generate cryptographic snapshots of the entire FLASH ecosystem. Store these files securely to enable full system restoration in case of data corruption.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
+              <Button onClick={() => exportCollection('users', 'USERS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-primary/40 hover:bg-primary/5 group transition-all">
+                <div className="flex flex-col items-center gap-2">
+                  <Users className="text-primary group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export User Entities</span>
+                </div>
+              </Button>
+              <Button onClick={() => exportCollection('withdrawals', 'WITHDRAWALS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-secondary/40 hover:bg-secondary/5 group transition-all">
+                <div className="flex flex-col items-center gap-2">
+                  <ArrowUpCircle className="text-secondary group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Withdrawal Ledger</span>
+                </div>
+              </Button>
+              <Button onClick={() => exportCollection('deposits', 'DEPOSITS')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-green-500/40 hover:bg-green-500/5 group transition-all">
+                <div className="flex flex-col items-center gap-2">
+                  <ArrowDownCircle className="text-green-500 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Deposit Ledger</span>
+                </div>
+              </Button>
+              <Button onClick={() => exportCollection('marketplace_services', 'STORE')} className="h-20 bg-white/5 border border-white/10 rounded-2xl hover:border-orange-500/40 hover:bg-orange-500/5 group transition-all">
+                <div className="flex flex-col items-center gap-2">
+                  <ShoppingBag className="text-orange-500 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-headline font-black uppercase tracking-widest">Export Store Protocol</span>
+                </div>
+              </Button>
+            </div>
+
+            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl w-full max-w-2xl flex items-start gap-4 text-left">
+              <ShieldAlert className="text-red-500 shrink-0" size={24} />
+              <div className="space-y-1">
+                <p className="text-[10px] font-headline font-bold text-red-500 uppercase">Warning: Data Sovereignty</p>
+                <p className="text-[8px] text-muted-foreground uppercase leading-tight">These files contain sensitive user metadata and financial records. Ensure they are stored in an encrypted offline environment.</p>
+              </div>
+            </div>
           </div>
         </TabsContent>
 
