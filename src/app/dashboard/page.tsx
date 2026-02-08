@@ -101,7 +101,7 @@ export default function Dashboard() {
   const { data: notifications = [] } = useCollection(notificationsQuery);
   const unreadCount = useMemo(() => notifications.filter((n: any) => !n.read).length, [notifications]);
 
-  // Support Chat Logic
+  // Ideal Support Chat Logic
   useEffect(() => {
     if (!db || !user || supportStep !== 'chat') return;
     
@@ -303,37 +303,7 @@ export default function Dashboard() {
         </section>
       </main>
 
-      {/* Scanner Modal */}
-      <Dialog open={isScannerOpen} onOpenChange={setScannerOpen}>
-        <DialogContent className="max-w-xs glass-card border-white/10 p-0 overflow-hidden rounded-[2.5rem] z-[1200]">
-          <div id="reader" className="w-full aspect-square"></div>
-          <div className="p-6 bg-card/80 backdrop-blur-md text-center border-t border-white/5">
-            <p className="text-[10px] font-headline font-bold uppercase tracking-widest mb-4">Scan Entity Protocol</p>
-            <Button onClick={() => setScannerOpen(false)} variant="outline" className="w-full h-12 rounded-xl border-white/10 text-[9px] font-headline uppercase font-black tracking-widest">Abort Scan</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* QR Code Modal */}
-      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-        <DialogContent className="max-w-xs glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[1100]">
-          <DialogHeader><DialogTitle className="text-[10px] font-headline font-bold tracking-widest uppercase mb-4">Your Identifier Protocol</DialogTitle></DialogHeader>
-          <div className="space-y-8">
-            <div className="p-6 bg-white rounded-[2rem] shadow-2xl inline-block border-4 border-primary/20">
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${profile?.customId}&bgcolor=ffffff&color=000000`} alt="QR" className="w-40 h-40" />
-            </div>
-            <div className="space-y-3">
-              <div className="p-4 bg-primary/10 rounded-2xl border border-primary/20">
-                <p className="text-[8px] text-primary font-black uppercase tracking-[0.2em] mb-1">Authenticated Flash ID</p>
-                <p className="text-xl font-headline font-black tracking-tight">{profile?.customId}</p>
-              </div>
-              <Button onClick={copyId} variant="outline" className="w-full h-12 rounded-xl border-white/5 text-[9px] font-headline font-bold uppercase tracking-widest hover:bg-white/5"><Copy size={14} className="mr-2" /> Duplicate Sequence</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Support Modal */}
+      {/* Support Modal with Ideal Flow */}
       <Dialog open={isSupportOpen} onOpenChange={setIsSupportOpen}>
         <DialogContent className="max-w-sm glass-card border-border/40 p-6 sm:p-8 rounded-[2.5rem] z-[1001] max-h-[90vh] overflow-y-auto no-scrollbar">
           <DialogHeader className="relative mb-6">

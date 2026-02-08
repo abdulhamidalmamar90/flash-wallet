@@ -69,6 +69,7 @@ export default function AdminPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [isProjectBackingUp, setIsProjectBackingUp] = useState(false);
+  const [isDataBackingUp, setIsDataBackingUp] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -76,7 +77,7 @@ export default function AdminPage() {
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
-  // Queries
+  // Queries for all sections
   const usersQuery = useMemo(() => (db ? query(collection(db, 'users'), orderBy('createdAt', 'desc')) : null), [db]);
   const { data: allUsers = [] } = useCollection(usersQuery);
 
@@ -239,9 +240,9 @@ export default function AdminPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `FLASH_MASTER_SNAPSHOT_${new Date().toISOString().slice(0,10)}.zip`;
+      a.download = `FLASH_CODE_MASTER_${new Date().toISOString().slice(0,10)}.zip`;
       a.click();
-      toast({ title: "SYSTEM SECURED" });
+      toast({ title: "CODEBASE ARCHIVED" });
     } catch (e) { toast({ variant: "destructive", title: "BACKUP FAILED" }); }
     finally { setIsProjectBackingUp(false); }
   };
@@ -258,7 +259,7 @@ export default function AdminPage() {
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="hidden sm:flex text-[8px] tracking-[0.2em] font-black uppercase text-primary border-primary/30 py-1">System Master</Badge>
           <Button onClick={handleProjectBackup} disabled={isProjectBackingUp} size="sm" className="h-8 text-[8px] font-headline bg-primary text-background">
-            {isProjectBackingUp ? <Loader2 className="animate-spin" /> : <FileArchive size={12} className="mr-1" />} Backup
+            {isProjectBackingUp ? <Loader2 className="animate-spin" /> : <FileArchive size={12} className="mr-1" />} Archive Code
           </Button>
         </div>
       </header>
@@ -534,14 +535,14 @@ export default function AdminPage() {
 
             <TabsContent value="chat_history">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {chatSessions.filter((s:any) => s.status === 'archived').map((s: any) => (
+                {chatSessions.filter((s:any) => s.status === 'archived' || s.status === 'closed').map((s: any) => (
                   <div key={s.id} className="glass-card p-5 rounded-[2rem] border-white/5 space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-[10px] font-headline font-bold uppercase">Case #{s.caseId || s.id.slice(0,6)}</p>
                         <p className="text-[8px] text-muted-foreground uppercase">By @{s.username}</p>
                       </div>
-                      <Badge className="bg-white/5 text-muted-foreground text-[7px] uppercase">Archived</Badge>
+                      <Badge className="bg-white/5 text-muted-foreground text-[7px] uppercase">{s.status}</Badge>
                     </div>
                     {s.rating && (
                       <div className="p-3 bg-primary/5 rounded-xl flex justify-between items-center border border-primary/10">
@@ -575,16 +576,12 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Service Modal */}
       <AddServiceModal open={isAddServiceOpen} onOpenChange={setIsAddServiceOpen} db={db} />
-
-      {/* Add Gateway Modal */}
       <AddGatewayModal open={isAddGatewayOpen} onOpenChange={setIsAddGatewayOpen} db={db} type={gatewayType} />
     </div>
   );
 }
 
-// Components for Modals
 function AddServiceModal({ open, onOpenChange, db }: { open: boolean, onOpenChange: any, db: any }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -673,7 +670,7 @@ function AddGatewayModal({ open, onOpenChange, db, type }: { open: boolean, onOp
             <div className="space-y-1"><Label className="text-[8px] uppercase">Exchange Rate (1 USD = ?)</Label><Input type="number" value={formData.exchangeRate} onChange={(e)=>setFormData({...formData, exchangeRate: e.target.value})} className="h-10 bg-white/5" /></div>
           </div>
           <div className="space-y-2">
-            <div className="flex justify-between items-center"><Label className="text-[8px] uppercase">Required Credentials/Fields</Label><Button size="sm" onClick={handleAddField} className="h-6 px-2 text-[7px]"><Plus size={10} /></Button></div>
+            <div className="flex justify-between items-center"><Label className="text-[8px] uppercase">Required Fields</Label><Button size="sm" onClick={handleAddField} className="h-6 px-2 text-[7px]"><Plus size={10} /></Button></div>
             {formData.fields.map((f, i) => (
               <div key={i} className="flex gap-2">
                 <Input placeholder="Label" value={f.label} onChange={(e) => {

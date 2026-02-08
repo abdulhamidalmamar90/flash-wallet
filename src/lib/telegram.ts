@@ -35,7 +35,6 @@ export async function sendTelegramPhoto(base64Image: string, caption: string, re
   const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`;
   
   try {
-    // If the base64Image doesn't start with data:, assume it's already a clean b64 or a fetchable resource
     const blob = await (await fetch(base64Image)).blob();
     
     const formData = new FormData();
