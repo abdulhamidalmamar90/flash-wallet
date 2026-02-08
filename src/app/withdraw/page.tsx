@@ -216,6 +216,7 @@ export default function WithdrawPage() {
   };
 
   const handleConfirmSubmit = async () => {
+    if (pinEntry.length < 4) return;
     if (pinEntry !== profile?.pin) {
       toast({ variant: "destructive", title: language === 'ar' ? "رمز PIN غير صحيح" : "Incorrect PIN" });
       setPinEntry('');
@@ -504,7 +505,7 @@ ${detailsText}
       <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {t.verifyVault}</DialogTitle></DialogHeader>
-          <div className="mt-8 space-y-8">
+          <div className="mt-8 space-y-8" dir="ltr">
             <div className="flex justify-center gap-4">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", pinEntry.length > i ? "bg-primary border-primary scale-110 shadow-[0_0_10px_rgba(250,218,122,0.5)]" : "border-white/20")} />
@@ -515,14 +516,16 @@ ${detailsText}
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button key={num} onClick={() => handleKeyClick(num.toString())} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">{num}</button>
               ))}
-              <div className="w-16 h-16" />
-              <button onClick={() => handleKeyClick("0")} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">0</button>
               <button onClick={handleDelete} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-red-500 hover:bg-red-500/10 active:scale-95 transition-all"><Delete size={24} /></button>
+              <button onClick={() => handleKeyClick("0")} className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-xl font-headline font-bold hover:bg-primary/20 hover:border-primary/40 active:scale-95 transition-all">0</button>
+              <button 
+                onClick={handleConfirmSubmit} 
+                disabled={loading || pinEntry.length < 4} 
+                className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-background active:scale-95 transition-all disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="animate-spin" size={24} /> : <Check size={24} />}
+              </button>
             </div>
-
-            <Button onClick={handleConfirmSubmit} disabled={loading || pinEntry.length < 4} className="w-full h-14 bg-primary text-background font-black rounded-xl gold-glow text-[10px] tracking-widest uppercase">
-              {loading ? <Loader2 className="animate-spin" /> : "AUTHORIZE"}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
