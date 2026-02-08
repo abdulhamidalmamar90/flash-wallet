@@ -317,7 +317,7 @@ ${detailsText}
                   <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase font-headline">
                     <SelectValue placeholder="CHOOSE LOCATION" />
                   </SelectTrigger>
-                  <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                  <SelectContent position="popper" side="bottom" sideOffset={4} className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
                     {availableCountries.length === 0 ? (
                       <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
                     ) : availableCountries.map(c => (
@@ -410,7 +410,7 @@ ${detailsText}
                   ) : field.type === 'select' ? (
                     <Select value={formData[field.label] || ''} onValueChange={(val) => handleInputChange(field.label, val)}>
                       <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl text-xs uppercase"><SelectValue placeholder={`CHOOSE ${field.label.toUpperCase()}`} /></SelectTrigger>
-                      <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                      <SelectContent position="popper" side="bottom" sideOffset={4} className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
                         {field.options?.split(',').map((opt: string) => (
                           <SelectItem 
                             key={opt.trim()} 
@@ -523,7 +523,7 @@ ${detailsText}
             {loading && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
           </div>
         </DialogContent>
-      </Dialog>
+      </div>
     </div>
   );
 }

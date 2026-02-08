@@ -178,7 +178,7 @@ export default function DepositPage() {
                   <SelectTrigger className="h-14 bg-card/40 border-white/10 rounded-2xl text-[10px] uppercase tracking-widest font-headline">
                     <SelectValue placeholder="CHOOSE COUNTRY" />
                   </SelectTrigger>
-                  <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                  <SelectContent position="popper" side="bottom" sideOffset={4} className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
                     {availableCountries.length === 0 ? (
                       <div className="p-4 text-center text-[10px] uppercase text-muted-foreground">{t.noMethods}</div>
                     ) : availableCountries.map(c => (

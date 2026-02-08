@@ -215,7 +215,7 @@ export default function MarketplacePage() {
                         <SelectTrigger className="h-14 bg-background/50 border-white/10 rounded-xl text-[10px] uppercase font-headline">
                           <SelectValue placeholder="CHOOSE PACKAGE" />
                         </SelectTrigger>
-                        <SelectContent position="popper" side="bottom" className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
+                        <SelectContent position="popper" side="bottom" sideOffset={4} className="bg-card border-white/10 z-[1100] mt-1 shadow-2xl">
                           {selectedService.variants.map((v: any, idx: number) => (
                             <SelectItem 
                               key={idx} 
