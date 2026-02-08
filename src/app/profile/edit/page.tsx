@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -19,18 +20,25 @@ import {
   Mail,
   RefreshCw,
   Check,
+  Lock,
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
-import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
+import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
 import { doc, updateDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
-import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, sendEmailVerification } from 'firebase/auth';
+import { 
+  updatePassword, 
+  RecaptchaVerifier, 
+  signInWithPhoneNumber, 
+  ConfirmationResult, 
+  sendEmailVerification,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/crop-image';
 import { Slider } from '@/components/ui/slider';
@@ -77,9 +85,9 @@ export default function EditProfilePage() {
   const [phone, setPhone] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetingPassword, setResetingPassword] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
   // Verification States
@@ -157,23 +165,33 @@ export default function EditProfilePage() {
     setLoading(true);
     try {
       const updates: any = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
         gender,
         birthDate: birthDate?.toISOString(),
-        username: username.trim().toLowerCase(),
         avatarUrl: selectedAvatar,
       };
       await updateDoc(doc(db, 'users', user.uid), updates);
-      if (newPassword.trim()) {
-        await updatePassword(user, newPassword.trim());
-      }
       toast({ title: language === 'ar' ? "تم تحديث البيانات" : "Profile updated" });
       router.push('/dashboard');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) return;
+    setResetingPassword(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ 
+        title: language === 'ar' ? "تم إرسال الرابط" : "Reset Link Sent",
+        description: language === 'ar' ? "تحقق من بريدك الإلكتروني" : "Check your inbox for reset instructions"
+      });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setResetingPassword(false);
     }
   };
 
@@ -322,12 +340,29 @@ export default function EditProfilePage() {
       <form onSubmit={handleSave} className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-[10px] uppercase text-white/40">First Name</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-12 bg-white/5 border-white/10" />
+            <div className="flex items-center justify-between px-1">
+              <Label className="text-[10px] uppercase text-white/40">First Name</Label>
+              <ShieldCheck size={10} className="text-primary/40" />
+            </div>
+            <Input value={firstName} disabled className="h-12 bg-white/5 border-white/10 opacity-60 cursor-not-allowed" />
           </div>
           <div className="space-y-2">
-            <Label className="text-[10px] uppercase text-white/40">Last Name</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-12 bg-white/5 border-white/10" />
+            <div className="flex items-center justify-between px-1">
+              <Label className="text-[10px] uppercase text-white/40">Last Name</Label>
+              <ShieldCheck size={10} className="text-primary/40" />
+            </div>
+            <Input value={lastName} disabled className="h-12 bg-white/5 border-white/10 opacity-60 cursor-not-allowed" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <Label className="text-[10px] uppercase text-white/40">Username</Label>
+            <ShieldCheck size={10} className="text-primary/40" />
+          </div>
+          <div className="relative">
+            <UserCircle className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-3' : 'left-3')} size={18} />
+            <Input value={username} disabled className={cn("h-12 bg-white/5 border-white/10 opacity-60 cursor-not-allowed", language === 'ar' ? 'pr-10' : 'pl-10')} />
           </div>
         </div>
 
@@ -356,18 +391,30 @@ export default function EditProfilePage() {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-[10px] uppercase text-white/40">Username</Label>
-          <div className="relative">
-            <UserCircle className={cn("absolute top-1/2 -translate-y-1/2 text-white/20", language === 'ar' ? 'right-3' : 'left-3')} size={18} />
-            <Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} className={cn("h-12 bg-white/5 border-white/10", language === 'ar' ? 'pr-10' : 'pl-10')} />
-          </div>
-        </div>
-
         <Button type="submit" disabled={loading} className="w-full h-14 bg-primary text-background font-headline font-black tracking-widest rounded-xl gold-glow">
-          {loading ? <Loader2 className="animate-spin" /> : "Save Profile"}
+          {loading ? <Loader2 className="animate-spin" /> : "Sync Base Info"}
         </Button>
       </form>
+
+      {/* Security Protocols Section */}
+      <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
+        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Lock size={14} /> Security Protocols</h2>
+        <div className="space-y-4">
+          <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
+            <p className="text-[10px] font-headline font-bold uppercase">Credential Management</p>
+            <p className="text-[8px] text-muted-foreground uppercase leading-relaxed">Initiate an encrypted password reset sequence via your verified terminal.</p>
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={handleResetPassword} 
+              disabled={resetingPassword}
+              className="w-full h-12 border-primary/20 text-primary text-[10px] font-headline uppercase tracking-widest hover:bg-primary/10"
+            >
+              {resetingPassword ? <Loader2 className="animate-spin" size={14} /> : "Reset Terminal Password"}
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* Email Verification Section */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
