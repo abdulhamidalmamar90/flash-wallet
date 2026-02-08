@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from 'next/link';
@@ -6,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Home, ArrowDownToLine, User, ScanLine, LayoutGrid, ShieldAlert, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/app/lib/store';
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useDoc, useUser, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
 
@@ -15,6 +14,11 @@ export function BottomNav() {
   const { language, setScannerOpen } = useStore();
   const { user } = useUser();
   const db = useFirestore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const userDocRef = useMemo(() => 
     (user && db) ? doc(db, 'users', user.uid) : null, 
@@ -23,7 +27,6 @@ export function BottomNav() {
   
   const { data: profile } = useDoc(userDocRef);
 
-  // Added '/admin' and '/agent' to hiddenPaths to hide bottom navigation
   const hiddenPaths = ['/', '/register', '/onboarding', '/splash', '/otp', '/profile/edit', '/admin', '/agent'];
   const isHiddenPage = hiddenPaths.some(path => {
     const normalizedPath = pathname?.replace(/\/$/, '') || '/';
@@ -31,7 +34,7 @@ export function BottomNav() {
     return normalizedPath === normalizedTarget;
   });
 
-  if (isHiddenPage) return null;
+  if (!mounted || isHiddenPage) return null;
 
   const navItems = [
     { label: language === 'ar' ? 'الرئيسية' : 'HOME', icon: Home, href: '/dashboard' },

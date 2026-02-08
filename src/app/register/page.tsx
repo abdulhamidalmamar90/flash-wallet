@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from 'react';
@@ -58,6 +57,7 @@ export default function RegisterPage() {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Step 1 Fields
   const [firstName, setFirstName] = useState('');
@@ -78,6 +78,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const passwordCriteria = {
     length: password.length >= 8,
@@ -124,11 +128,12 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
     const timer = setTimeout(() => {
       if (username) checkUsernameUniqueness(username);
     }, 500);
     return () => clearTimeout(timer);
-  }, [username]);
+  }, [username, mounted]);
 
   const handleNextStep = () => {
     if (!firstName || !lastName || !birthDate) {
@@ -254,6 +259,8 @@ export default function RegisterPage() {
     privacy: language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy',
     terms: language === 'ar' ? 'شروط الخدمة' : 'Terms of Service'
   };
+
+  if (!mounted) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0a0a0a]" onClick={() => setIsCountryOpen(false)}>

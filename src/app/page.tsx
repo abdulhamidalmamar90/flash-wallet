@@ -27,6 +27,7 @@ export default function LoginPage() {
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [identifier, setIdentifier] = useState(''); // Email or Username
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,6 +37,7 @@ export default function LoginPage() {
   const backgroundImage = PlaceHolderImages.find(img => img.id === 'login-bg');
 
   useEffect(() => {
+    setMounted(true);
     const checkBiometrics = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
@@ -135,7 +137,7 @@ export default function LoginPage() {
     } catch (e) { console.error(e); }
   };
 
-  if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+  if (!mounted || authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background p-6">
@@ -151,7 +153,6 @@ export default function LoginPage() {
         <div className="glass-card p-8 sm:p-10 rounded-[3rem] border-white/10 shadow-2xl backdrop-blur-3xl gold-glow overflow-visible">
           <form onSubmit={handleLogin} className="space-y-8">
             <div className="space-y-6">
-              {/* --- Futuristic Identifier Input --- */}
               <div className="futuristic-poda scale-[0.9] sm:scale-100">
                 <div className="futuristic-glow"></div>
                 <div className="futuristic-darkBorderBg"></div>
@@ -192,7 +193,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* --- Futuristic Password Input --- */}
               <div className="futuristic-poda scale-[0.9] sm:scale-100">
                 <div className="futuristic-glow"></div>
                 <div className="futuristic-darkBorderBg"></div>
@@ -213,7 +213,6 @@ export default function LoginPage() {
                     autoComplete="current-password"
                   />
                   
-                  {/* Password Toggle Button - Fixed position to right to align with futuristic design logic */}
                   <button 
                     type="button" 
                     onClick={() => setShowPassword(!showPassword)}
