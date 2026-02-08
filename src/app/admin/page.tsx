@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
@@ -26,6 +27,8 @@ import {
   ImageIcon,
   Trash2,
   Banknote,
+  Plus,
+  Landmark,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -75,7 +78,9 @@ export default function AdminPage() {
   const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false);
   
   const productFileInputRef = useRef<HTMLInputElement>(null);
+  const gatewayFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Store / Products States
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState<any>({
@@ -88,7 +93,25 @@ export default function AdminPage() {
     inputLabel: '',
     isActive: true,
     imageUrl: '',
-    color: 'bg-primary'
+  });
+
+  // Gateways States
+  const [isAddingGateway, setIsAddingGateway] = useState(false);
+  const [editingGatewayId, setEditingGatewayId] = useState<string | null>(null);
+  const [gatewayType, setGatewayType] = useState<'deposit' | 'withdrawal'>('deposit');
+  const [newGateway, setNewGateway] = useState<any>({
+    name: '',
+    country: 'GL',
+    exchangeRate: 1,
+    currencyCode: 'USD',
+    isActive: true,
+    iconUrl: '',
+    // For Deposit
+    fields: [{ label: '', value: '' }],
+    // For Withdrawal
+    feeType: 'fixed',
+    feeValue: 0,
+    wFields: [{ label: '', type: 'text', options: '' }]
   });
 
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
@@ -105,6 +128,12 @@ export default function AdminPage() {
 
   const productsQuery = useMemo(() => (db ? query(collection(db, 'marketplace_services')) : null), [db]);
   const { data: products = [] } = useCollection(productsQuery);
+
+  const depMethodsQuery = useMemo(() => (db ? query(collection(db, 'deposit_methods')) : null), [db]);
+  const { data: allDepositMethods = [] } = useCollection(depMethodsQuery);
+
+  const witMethodsQuery = useMemo(() => (db ? query(collection(db, 'withdrawal_methods')) : null), [db]);
+  const { data: allWithdrawMethods = [] } = useCollection(witMethodsQuery);
 
   const filteredUsers = useMemo(() => {
     const term = searchTerm.toLowerCase();
@@ -133,12 +162,24 @@ export default function AdminPage() {
     } catch (e) { toast({ variant: "destructive", title: "SAVE FAILED" }); }
   };
 
-  const handleProductImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSaveGateway = async () => {
+    if (!db) return;
+    const collectionName = gatewayType === 'deposit' ? 'deposit_methods' : 'withdrawal_methods';
+    try {
+      if (editingGatewayId) await updateDoc(doc(db, collectionName, editingGatewayId), newGateway);
+      else await addDoc(collection(db, collectionName), newGateway);
+      toast({ title: "GATEWAY DEPLOYED" });
+      setIsAddingGateway(false);
+      setEditingGatewayId(null);
+    } catch (e) { toast({ variant: "destructive", title: "DEPLOYMENT FAILED" }); }
+  };
+
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>, setter: any) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setNewProduct((prev: any) => ({ ...prev, imageUrl: reader.result as string }));
+        setter((prev: any) => ({ ...prev, [e.target.name === 'gatewayFile' ? 'iconUrl' : 'imageUrl']: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -208,10 +249,66 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="gateways" className="space-y-8">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Financial Gateways</h2><p className="text-[8px] text-muted-foreground uppercase">Configure Global Entry & Exit Protocols</p></div>
+            <div className="flex gap-2">
+              <Button onClick={() => { setGatewayType('deposit'); setEditingGatewayId(null); setIsAddingGateway(true); setNewGateway({ name: '', country: 'GL', exchangeRate: 1, currencyCode: 'USD', isActive: true, iconUrl: '', fields: [{ label: '', value: '' }] }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><Plus size={16} className="mr-2" /> New Deposit</Button>
+              <Button onClick={() => { setGatewayType('withdrawal'); setEditingGatewayId(null); setIsAddingGateway(true); setNewGateway({ name: '', country: 'GL', exchangeRate: 1, currencyCode: 'USD', isActive: true, iconUrl: '', feeType: 'fixed', feeValue: 0, fields: [{ label: '', type: 'text', options: '' }] }); }} className="bg-secondary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest cyan-glow"><Plus size={16} className="mr-2" /> New Withdraw</Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase text-primary border-l-2 border-primary pl-3">Deposit Pipelines</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {allDepositMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border-white/5 hover:border-primary/20 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary overflow-hidden">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <Landmark size={20} />}</div>
+                      <div>
+                        <p className="text-[10px] font-headline font-bold uppercase">{m.name} <span className="text-[7px] text-muted-foreground ml-2">({m.country})</span></p>
+                        <p className="text-[8px] text-primary font-black">RATE: {m.exchangeRate} {m.currencyCode}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={m.isActive} onCheckedChange={async (val) => { await updateDoc(doc(db, 'deposit_methods', m.id), { isActive: val }); }} />
+                      <button onClick={() => { setGatewayType('deposit'); setEditingGatewayId(m.id); setNewGateway(m); setIsAddingGateway(true); }} className="p-2 text-primary hover:bg-primary/10 rounded-lg"><Edit3 size={14} /></button>
+                      <button onClick={async () => { if(confirm("Purge pipeline?")) await deleteDoc(doc(db, 'deposit_methods', m.id)); }} className="p-2 text-red-500/40 hover:text-red-500"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase text-secondary border-l-2 border-secondary pl-3">Withdrawal Outlets</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {allWithdrawMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-4 rounded-2xl flex items-center justify-between border-white/5 hover:border-secondary/20 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary overflow-hidden">{m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : <Landmark size={20} />}</div>
+                      <div>
+                        <p className="text-[10px] font-headline font-bold uppercase">{m.name} <span className="text-[7px] text-muted-foreground ml-2">({m.country})</span></p>
+                        <p className="text-[8px] text-secondary font-black">FEE: {m.feeValue}{m.feeType === 'fixed' ? '$' : '%'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={m.isActive} onCheckedChange={async (val) => { await updateDoc(doc(db, 'withdrawal_methods', m.id), { isActive: val }); }} />
+                      <button onClick={() => { setGatewayType('withdrawal'); setEditingGatewayId(m.id); setNewGateway(m); setIsAddingGateway(true); }} className="p-2 text-secondary hover:bg-secondary/10 rounded-lg"><Edit3 size={14} /></button>
+                      <button onClick={async () => { if(confirm("Purge outlet?")) await deleteDoc(doc(db, 'withdrawal_methods', m.id)); }} className="p-2 text-red-500/40 hover:text-red-500"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="store" className="space-y-8">
           <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
             <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
-            <Button onClick={() => { setEditingProductId(null); setIsAddingProduct(true); setNewProduct({ name: '', category: '', price: 0, type: 'fixed', variants: [{ label: '', price: 0 }], requiresInput: false, inputLabel: '', isActive: true, imageUrl: '', color: 'bg-primary' }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
+            <Button onClick={() => { setEditingProductId(null); setIsAddingProduct(true); setNewProduct({ name: '', category: '', price: 0, type: 'fixed', variants: [{ label: '', price: 0 }], requiresInput: false, inputLabel: '', isActive: true, imageUrl: '' }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {products.map((p: any) => (
@@ -237,6 +334,70 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Gateway Dialog */}
+      <Dialog open={isAddingGateway} onOpenChange={setIsAddingGateway}>
+        <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1100] overflow-y-auto max-h-[90vh] no-scrollbar">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold uppercase text-center">{editingGatewayId ? "Modify Gateway" : "Gateway Factory"}</DialogTitle></DialogHeader>
+          <div className="mt-6 space-y-6">
+            <div className="space-y-2"><Label className="text-[8px] uppercase font-black">Method Name</Label><Input className="bg-background/50 border-white/10 h-12" value={newGateway.name} onChange={(e) => setNewGateway({...newGateway, name: e.target.value})} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label className="text-[8px] uppercase font-black">Country Code</Label><Input className="bg-background/50 border-white/10 h-12 uppercase" value={newGateway.country} onChange={(e) => setNewGateway({...newGateway, country: e.target.value.toUpperCase()})} /></div>
+              <div className="space-y-2"><Label className="text-[8px] uppercase font-black">Currency</Label><Input className="bg-background/50 border-white/10 h-12 uppercase" value={newGateway.currencyCode} onChange={(e) => setNewGateway({...newGateway, currencyCode: e.target.value.toUpperCase()})} /></div>
+            </div>
+            <div className="space-y-2"><Label className="text-[8px] uppercase font-black">Exchange Rate (1 USD = X Local)</Label><Input type="number" className="bg-background/50 border-white/10 h-12" value={newGateway.exchangeRate} onChange={(e) => setNewGateway({...newGateway, exchangeRate: parseFloat(e.target.value)})} /></div>
+            
+            {gatewayType === 'withdrawal' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[8px] uppercase font-black">Fee Type</Label>
+                  <Select value={newGateway.feeType} onValueChange={(val) => setNewGateway({...newGateway, feeType: val})}>
+                    <SelectTrigger className="h-12 bg-background/50 border-white/10 rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectContent position="popper" side="bottom" className="bg-card z-[1200]"><SelectItem value="fixed" className="focus:bg-primary/20">Fixed ($)</SelectItem><SelectItem value="percentage" className="focus:bg-primary/20">Percentage (%)</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label className="text-[8px] uppercase font-black">Fee Value</Label><Input type="number" className="bg-background/50 border-white/10 h-12" value={newGateway.feeValue} onChange={(e) => setNewGateway({...newGateway, feeValue: parseFloat(e.target.value)})} /></div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center"><Label className="text-[8px] uppercase font-black">{gatewayType === 'deposit' ? "Transfer Data" : "Required User Intel"}</Label><button onClick={() => { const fs = [...(newGateway.fields || [])]; fs.push(gatewayType === 'deposit' ? { label: '', value: '' } : { label: '', type: 'text', options: '' }); setNewGateway({...newGateway, fields: fs}); }} className="text-[8px] font-headline text-primary font-black">+ ADD FIELD</button></div>
+              <div className="space-y-3">
+                {newGateway.fields?.map((f: any, i: number) => (
+                  <div key={i} className="space-y-2 p-3 bg-white/5 rounded-xl border border-white/5">
+                    <div className="flex gap-2">
+                      <Input placeholder="Field Label (e.g. IBAN)" className="bg-background/50 h-10 text-[9px]" value={f.label} onChange={(e) => { const fs = [...newGateway.fields]; fs[i].label = e.target.value; setNewGateway({...newGateway, fields: fs}); }} />
+                      <button onClick={() => { const fs = newGateway.fields.filter((_: any, idx: number) => i !== idx); setNewGateway({...newGateway, fields: fs}); }} className="text-red-500/40"><Trash2 size={14} /></button>
+                    </div>
+                    {gatewayType === 'deposit' ? (
+                      <Input placeholder="Value / Data" className="bg-background/50 h-10 text-[9px]" value={f.value} onChange={(e) => { const fs = [...newGateway.fields]; fs[i].value = e.target.value; setNewGateway({...newGateway, fields: fs}); }} />
+                    ) : (
+                      <div className="flex gap-2">
+                        <Select value={f.type} onValueChange={(val) => { const fs = [...newGateway.fields]; fs[i].type = val; setNewGateway({...newGateway, fields: fs}); }}>
+                          <SelectTrigger className="h-10 bg-background/50 border-white/10 flex-1 text-[9px]"><SelectValue /></SelectTrigger>
+                          <SelectContent position="popper" side="bottom" className="bg-card z-[1200]"><SelectItem value="text" className="focus:bg-primary/20">Text</SelectItem><SelectItem value="textarea" className="focus:bg-primary/20">Long Text</SelectItem><SelectItem value="select" className="focus:bg-primary/20">Options</SelectItem></SelectContent>
+                        </Select>
+                        {f.type === 'select' && <Input placeholder="Opt1, Opt2..." className="bg-background/50 h-10 flex-1 text-[9px]" value={f.options} onChange={(e) => { const fs = [...newGateway.fields]; fs[i].options = e.target.value; setNewGateway({...newGateway, fields: fs}); }} />}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase font-black">Icon / Artwork</Label>
+              <div onClick={() => gatewayFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 transition-all overflow-hidden relative">
+                {newGateway.iconUrl ? <img src={newGateway.iconUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[7px] font-headline uppercase text-muted-foreground">Upload Protocol Icon</span></>}
+                <input type="file" name="gatewayFile" ref={gatewayFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, setNewGateway)} />
+              </div>
+            </div>
+
+            <Button onClick={handleSaveGateway} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] rounded-xl gold-glow uppercase tracking-widest">{editingGatewayId ? "Update Gateway" : "Deploy Gateway"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Edit Dialog */}
       <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
@@ -265,19 +426,7 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
-        <AlertDialogContent className="glass-card border-white/10 rounded-[2rem] p-8 max-w-sm z-[2000]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xs font-headline font-bold uppercase text-red-500 flex items-center gap-2"><AlertTriangle size={16} /> Critical Warning</AlertDialogTitle>
-            <AlertDialogDescription className="text-[10px] font-headline uppercase leading-relaxed text-white/60">This action will permanently purge the entity. Proceed?</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex flex-col gap-2">
-            <AlertDialogAction onClick={handleDeleteUserEntity} className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 font-headline font-black text-[10px] uppercase w-full">Confirm Purge</AlertDialogAction>
-            <AlertDialogCancel className="bg-white/5 border-white/10 text-white rounded-xl h-12 font-headline font-bold text-[9px] uppercase w-full">Abort</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
+      {/* Asset Dialog */}
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold uppercase text-center">{editingProductId ? "Modify Asset" : "Asset Foundry"}</DialogTitle></DialogHeader>
@@ -310,19 +459,9 @@ export default function AdminPage() {
             
             <div className="space-y-2">
               <Label className="text-[8px] uppercase font-black">Asset Image</Label>
-              <div 
-                onClick={() => productFileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all overflow-hidden relative"
-              >
-                {newProduct.imageUrl ? (
-                  <img src={newProduct.imageUrl} className="w-full h-full object-cover" alt="preview" />
-                ) : (
-                  <>
-                    <ImageIcon size={24} className="text-muted-foreground" />
-                    <span className="text-[7px] font-headline uppercase text-muted-foreground">Click to Upload Asset Art</span>
-                  </>
-                )}
-                <input type="file" ref={productFileInputRef} className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+              <div onClick={() => productFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 transition-all overflow-hidden relative">
+                {newProduct.imageUrl ? <img src={newProduct.imageUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[7px] font-headline uppercase text-muted-foreground">Upload Asset Art</span></>}
+                <input type="file" ref={productFileInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, setNewProduct)} />
               </div>
             </div>
 
@@ -330,6 +469,19 @@ export default function AdminPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
+        <AlertDialogContent className="glass-card border-white/10 rounded-[2rem] p-8 max-w-sm z-[2000]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xs font-headline font-bold uppercase text-red-500 flex items-center gap-2"><AlertTriangle size={16} /> Critical Warning</AlertDialogTitle>
+            <AlertDialogDescription className="text-[10px] font-headline uppercase leading-relaxed text-white/60">This action will permanently purge the entity. Proceed?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex flex-col gap-2">
+            <AlertDialogAction onClick={handleDeleteUserEntity} className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 font-headline font-black text-[10px] uppercase w-full">Confirm Purge</AlertDialogAction>
+            <AlertDialogCancel className="bg-white/5 border-white/10 text-white rounded-xl h-12 font-headline font-bold text-[9px] uppercase w-full">Abort</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
