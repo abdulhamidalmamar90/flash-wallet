@@ -56,6 +56,7 @@ import { Label } from '@/components/ui/label';
 import { sendTelegramNotification, sendTelegramPhoto } from '@/lib/telegram';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { submitTicketAndSendEmail } from '@/app/actions/support';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -130,23 +131,37 @@ export default function Dashboard() {
 
   const handleSupportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !db || !supportSubject.trim() || !supportMessage.trim()) return;
+    if (!user || !profile || !supportSubject.trim() || !supportMessage.trim()) return;
     setIsSubmittingSupport(true);
     try {
-      await addDoc(collection(db, 'support_tickets'), {
+      const result = await submitTicketAndSendEmail({
         userId: user.uid,
-        username: profile?.username || 'unknown',
-        email: profile?.email || 'unknown',
+        username: profile.username || 'unknown',
+        email: profile.email || 'unknown',
         subject: supportSubject.trim(),
         message: supportMessage.trim(),
         imageUrl: supportImage,
-        status: 'open',
-        date: new Date().toISOString()
+        language: language as 'ar' | 'en'
       });
-      toast({ title: "Ticket Submitted" });
-      setIsSupportOpen(false);
-      setSupportStep('options');
-    } catch (err: any) { toast({ variant: "destructive", title: "Error" }); } finally { setIsSubmittingSupport(false); }
+
+      if (result.success) {
+        toast({ 
+          title: language === 'ar' ? "تم إرسال التذكرة" : "Ticket Deployed",
+          description: language === 'ar' ? "تم إرسال بريد تأكيد إلى عنوانك المسجل." : "A confirmation email has been sent to your inbox."
+        });
+        setIsSupportOpen(false);
+        setSupportStep('options');
+        setSupportSubject('');
+        setSupportMessage('');
+        setSupportImage(null);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err: any) { 
+      toast({ variant: "destructive", title: "Protocol Error", description: err.message }); 
+    } finally { 
+      setIsSubmittingSupport(false); 
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
