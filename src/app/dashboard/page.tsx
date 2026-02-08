@@ -27,6 +27,7 @@ import {
   Trash2,
   ArrowDownLeft,
   ClipboardList,
+  HelpCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -203,7 +204,7 @@ export default function Dashboard() {
       <main className="px-8 space-y-10">
         <section className="text-center py-10 glass-card rounded-[2.5rem] gold-glow border-primary/20">
           <p className="text-muted-foreground text-[10px] uppercase tracking-[0.4em] font-headline mb-4">{language === 'ar' ? 'إجمالي الأصول' : 'Current Asset Value'}</p>
-          <h1 className="text-5xl font-headline font-bold text-foreground tracking-tighter">${profile?.balance?.toLocaleString()}<span className="textxl opacity-20">.00</span></h1>
+          <h1 className="text-5xl font-headline font-bold text-foreground tracking-tighter">${profile?.balance?.toLocaleString()}<span className="text-xl opacity-20">.00</span></h1>
           <div className="mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20"><div className="w-1.5 h-1.5 bg-primary animate-pulse rounded-full"></div><span className="text-[8px] text-primary tracking-[0.2em] font-headline font-bold uppercase">Vault Secure v2.5.0</span></div>
         </section>
 
@@ -290,9 +291,11 @@ export default function Dashboard() {
           <div className="space-y-6 sm:space-y-8 mt-4">
             <div className="flex flex-col items-center gap-4 text-center"><div className={cn("w-20 h-20 rounded-2xl border-2 flex items-center justify-center relative overflow-hidden shadow-xl", profile?.verified ? "border-green-500" : "border-red-500")}>{profile?.avatarUrl ? <img src={profile.avatarUrl} className="w-full h-full object-cover" alt="profile" /> : <User size={32} />}</div><div className="space-y-2"><h3 className="text-md font-headline font-bold tracking-tight">@{profile?.username}</h3><button onClick={copyId} className="px-4 py-2 bg-muted text-[9px] font-headline font-bold uppercase tracking-widest rounded-full border border-border/40 flex items-center gap-2">ID: {profile?.customId} <Copy size={12} /></button></div></div>
             <div className="space-y-3 pb-4">
-              <ThemeToggle /><button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><Camera size={18} className="text-primary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">My Flash Identifier</span></button>
+              <ThemeToggle />
+              <button onClick={() => { setIsSettingsOpen(false); setIsQrOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><Camera size={18} className="text-primary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">My Flash Identifier</span></button>
               <Link href="/profile/edit" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><Settings size={18} className="text-muted-foreground" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Configure Account</span></Link>
               <Link href="/orders" className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-primary transition-all"><ClipboardList size={18} className="text-muted-foreground" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Asset Orders</span></Link>
+              <button onClick={() => { setIsSettingsOpen(false); setIsSupportOpen(true); }} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:border-secondary transition-all"><HelpCircle size={18} className="text-secondary" /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Support Command</span></button>
               <button onClick={toggleLanguage} className="w-full h-14 glass-card rounded-2xl flex items-center px-6 gap-4 hover:bg-muted/20 transition-all"><MessageSquare size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Language: {language === 'en' ? 'Arabic' : 'English'}</span></button>
               <button onClick={() => signOut(auth)} className="w-full h-14 glass-card rounded-2xl border-red-500/20 text-red-500 flex items-center px-6 gap-4 hover:bg-red-500 hover:text-white transition-all"><LogOut size={18} /><span className="text-[10px] font-headline font-bold uppercase tracking-widest">Terminate Access</span></button>
             </div>
