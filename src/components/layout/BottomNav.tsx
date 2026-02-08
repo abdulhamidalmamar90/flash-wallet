@@ -27,7 +27,20 @@ export function BottomNav() {
   
   const { data: profile } = useDoc(userDocRef);
 
-  const hiddenPaths = ['/', '/register', '/onboarding', '/splash', '/otp', '/profile/edit', '/admin', '/agent'];
+  // Added /privacy and /terms to hidden paths to clean up the UI on legal pages
+  const hiddenPaths = [
+    '/', 
+    '/register', 
+    '/onboarding', 
+    '/splash', 
+    '/otp', 
+    '/profile/edit', 
+    '/admin', 
+    '/agent',
+    '/privacy',
+    '/terms'
+  ];
+
   const isHiddenPage = hiddenPaths.some(path => {
     const normalizedPath = pathname?.replace(/\/$/, '') || '/';
     const normalizedTarget = path.replace(/\/$/, '') || '/';
