@@ -477,7 +477,6 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        {/* Other Tabs content omitted for brevity but remain functional */}
         <TabsContent value="orders" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {allOrders.map((order: any) => (
@@ -503,7 +502,7 @@ export default function AdminPage() {
 
       {/* Shared Modals */}
       <Dialog open={!!fulfillingOrderId} onOpenChange={() => { setFulfillingOrderId(null); setIsRejectingOrder(false); }}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1100]">
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2.5rem] z-[1100]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold uppercase text-center">{isRejectingOrder ? "REJECT PROTOCOL" : "FULFILL PROTOCOL"}</DialogTitle></DialogHeader>
           <div className="mt-6 space-y-6">
             {!isRejectingOrder ? (
