@@ -38,7 +38,7 @@ function TransferContent() {
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
-  // Auto-lookup recipient
+  // Auto-lookup recipient whenever ID changes
   useEffect(() => {
     const lookup = async () => {
       if (recipient.length >= 5 && db) {
