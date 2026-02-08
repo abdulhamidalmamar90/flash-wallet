@@ -77,6 +77,9 @@ export default function EditProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const otpInputs = useRef<HTMLInputElement[]>([]);
   
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const userDocRef = useMemo(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userDocRef);
 
@@ -352,6 +355,8 @@ export default function EditProfilePage() {
     }
   };
 
+  if (!mounted) return null;
+
   return (
     <div className="max-w-lg mx-auto p-6 space-y-8 animate-in fade-in duration-500 pb-32" onClick={() => setIsCountryOpen(false)}>
       <header className="flex items-center gap-4">
@@ -528,6 +533,7 @@ export default function EditProfilePage() {
                 value={phone} 
                 onChange={(e) => setPhone(e.target.value)} 
                 disabled={isPhoneVerified} 
+                inputMode="tel"
                 className={cn("h-12 bg-white/5 border-white/10 pl-12", isPhoneVerified && "opacity-60 cursor-not-allowed")} 
                 placeholder="123456789" 
               />
@@ -674,6 +680,9 @@ export default function EditProfilePage() {
                   key={i} 
                   ref={el => { if(el) otpInputs.current[i] = el; }} 
                   type="text" 
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
                   maxLength={1} 
                   value={digit} 
                   onChange={(e) => {
