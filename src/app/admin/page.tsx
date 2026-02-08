@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useMemo, useEffect, useState, useRef } from 'react';
+import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -15,31 +14,18 @@ import {
   ArrowDownCircle,
   LayoutDashboard,
   ShieldCheck,
-  FileText,
-  Globe,
-  DollarSign,
-  Trash2,
   Settings2,
-  Plus,
-  CircleDot,
-  SendHorizontal,
-  LogOut,
-  Star,
-  History,
-  Info,
-  ArrowRight,
+  PlusCircle,
   MessageSquare,
   ShoppingBag,
   Ticket,
-  ChevronDown,
-  PlusCircle,
-  Banknote,
   ClipboardList,
   Store as StoreIcon,
   AlertTriangle,
-  Keyboard,
   Edit3,
   ImageIcon,
+  Trash2,
+  Banknote,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -51,7 +37,6 @@ import {
   query, 
   orderBy, 
   runTransaction, 
-  setDoc, 
   increment, 
   deleteDoc, 
   addDoc, 
@@ -61,9 +46,8 @@ import {
 } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -79,18 +63,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 
-const COUNTRIES = [
-  { code: 'GL', name: 'Global' },
-  { code: 'CR', name: 'Crypto' },
-  { code: 'SA', name: 'Saudi Arabia' },
-  { code: 'EG', name: 'Egypt' },
-  { code: 'AE', name: 'UAE' },
-  { code: 'KW', name: 'Kuwait' },
-  { code: 'QA', name: 'Qatar' },
-  { code: 'JO', name: 'Jordan' },
-  { code: 'IQ', name: 'Iraq' },
-];
-
 export default function AdminPage() {
   const router = useRouter();
   const db = useFirestore();
@@ -102,36 +74,7 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<any>({});
   const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false);
   
-  // Product Image Ref
   const productFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Chat Admin States
-  const [chatConfig, setChatConfig] = useState<any>(null);
-  const [activeChat, setActiveChat] = useState<any>(null);
-  const [chatReply, setChatMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [isJoiningChat, setIsJoiningChat] = useState(false);
-  const [isClosingChat, setIsClosingChat] = useState(false);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
-
-  // Archive State
-  const [selectedArchive, setSelectedArchive] = useState<any>(null);
-  const [archiveMessages, setArchiveMessages] = useState<any[]>([]);
-  const [showFullArchive, setShowFullArchive] = useState(false);
-
-  // Management States
-  const [isAddingMethod, setIsAddingMethod] = useState(false);
-  const [methodType, setMethodType] = useState<'deposit' | 'withdraw'>('deposit');
-  const [newMethod, setNewMethod] = useState<any>({
-    name: '',
-    country: 'GL',
-    currencyCode: 'USD',
-    exchangeRate: 1,
-    feeType: 'fixed',
-    feeValue: 0,
-    isActive: true,
-    fields: [{ label: '', value: '', type: 'text' }]
-  });
 
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -151,60 +94,25 @@ export default function AdminPage() {
   const userDocRef = useMemo(() => (user && db) ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile, loading: profileLoading } = useDoc(userDocRef);
 
-  // Queries
-  const allWithdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals')), [db]);
-  const { data: allWithdrawals = [] } = useCollection(allWithdrawalsQuery);
-  const withdrawals = useMemo(() => [...allWithdrawals].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allWithdrawals]);
+  // Optimized Collections with useMemo
+  const withdrawalsQuery = useMemo(() => query(collection(db, 'withdrawals'), orderBy('date', 'desc')), [db]);
+  const { data: withdrawals = [] } = useCollection(withdrawalsQuery);
 
-  const allDepositsQuery = useMemo(() => query(collection(db, 'deposits')), [db]);
-  const { data: allDeposits = [] } = useCollection(allDepositsQuery);
-  const deposits = useMemo(() => [...allDeposits].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allDeposits]);
+  const depositsQuery = useMemo(() => query(collection(db, 'deposits'), orderBy('date', 'desc')), [db]);
+  const { data: deposits = [] } = useCollection(depositsQuery);
 
-  const allUsersQuery = useMemo(() => query(collection(db, 'users')), [db]);
-  const { data: allUsers = [] } = useCollection(allUsersQuery);
-
-  const allVerificationsQuery = useMemo(() => query(collection(db, 'verifications')), [db]);
-  const { data: allVerifications = [] } = useCollection(allVerificationsQuery);
-  const verifications = useMemo(() => [...allVerifications].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allVerifications]);
-
-  const allTicketsQuery = useMemo(() => query(collection(db, 'support_tickets')), [db]);
-  const { data: allTickets = [] } = useCollection(allTicketsQuery);
-  const tickets = useMemo(() => [...allTickets].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allTickets]);
-
-  const allOrdersQuery = useMemo(() => query(collection(db, 'service_requests')), [db]);
-  const { data: allOrders = [] } = useCollection(allOrdersQuery);
-  const orders = useMemo(() => [...allOrders].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()), [allOrders]);
-
-  const chatSessionsQuery = useMemo(() => query(collection(db, 'chat_sessions')), [db]);
-  const { data: allChatSessions = [] } = useCollection(chatSessionsQuery);
-
-  const depositMethodsQuery = useMemo(() => query(collection(db, 'deposit_methods')), [db]);
-  const { data: depositMethods = [] } = useCollection(depositMethodsQuery);
-
-  const withdrawalMethodsQuery = useMemo(() => query(collection(db, 'withdrawal_methods')), [db]);
-  const { data: withdrawalMethods = [] } = useCollection(withdrawalMethodsQuery);
+  const usersQuery = useMemo(() => query(collection(db, 'users')), [db]);
+  const { data: allUsers = [] } = useCollection(usersQuery);
 
   const productsQuery = useMemo(() => query(collection(db, 'marketplace_services')), [db]);
   const { data: products = [] } = useCollection(productsQuery);
 
-  // Processed Chat Data
-  const chatSessions = useMemo(() => {
-    return allChatSessions
-      .filter((s: any) => ['open', 'active', 'closed'].includes(s.status))
-      .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }, [allChatSessions]);
-
-  const archivedSessions = useMemo(() => {
-    return allChatSessions
-      .filter((s: any) => s.status === 'archived')
-      .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }, [allChatSessions]);
-
   const filteredUsers = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return allUsers.filter((u: any) => 
-      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      u.customId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      u.username?.toLowerCase().includes(term) || 
+      u.customId?.toLowerCase().includes(term) ||
+      u.email?.toLowerCase().includes(term)
     );
   }, [allUsers, searchTerm]);
 
@@ -214,68 +122,6 @@ export default function AdminPage() {
       router.push('/dashboard');
     }
   }, [profile, profileLoading, authLoading, router, toast]);
-
-  useEffect(() => {
-    if (!db) return;
-    const unsub = onSnapshot(doc(db, 'system_settings', 'chat_config'), (doc) => {
-      if (doc.exists()) setChatConfig(doc.data());
-    });
-    return () => unsub();
-  }, [db]);
-
-  useEffect(() => {
-    if (!db || !activeChat) return;
-    const qMsg = query(collection(db, 'chat_sessions', activeChat.id, 'messages'), orderBy('timestamp', 'asc'));
-    const unsub = onSnapshot(qMsg, (snap) => {
-      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setTimeout(() => chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    });
-    return () => unsub();
-  }, [db, activeChat]);
-
-  // Handlers
-  const handleAction = async (type: 'deposit' | 'withdraw' | 'kyc' | 'order', id: string, action: 'approve' | 'reject', extra?: any) => {
-    if (!db) return;
-    try {
-      const collectionName = type === 'kyc' ? 'verifications' : type === 'deposit' ? 'deposits' : type === 'withdraw' ? 'withdrawals' : 'service_requests';
-      const docRef = doc(db, collectionName, id);
-      const snap = await getDocs(query(collection(db, collectionName), where('__name__', '==', id)));
-      if (snap.empty) return;
-      const data = snap.docs[0].data();
-
-      if (action === 'approve') {
-        await runTransaction(db, async (transaction) => {
-          const userRef = doc(db, 'users', data.userId);
-          transaction.update(docRef, { status: 'approved', ...extra });
-          if (type === 'deposit') {
-            transaction.update(userRef, { balance: increment(data.amount) });
-            transaction.set(doc(collection(db, 'users', data.userId, 'transactions')), { type: 'deposit', amount: data.amount, status: 'completed', date: new Date().toISOString() });
-          } else if (type === 'kyc') transaction.update(userRef, { verified: true });
-          transaction.set(doc(collection(db, 'users', data.userId, 'notifications')), {
-            title: type === 'deposit' ? "Assets Credited" : type === 'kyc' ? "Authority Verified" : type === 'order' ? "Order Fulfilled" : "Withdrawal Success",
-            message: type === 'deposit' ? `$${data.amount} added to vault.` : "Protocol executed successfully.",
-            read: false,
-            date: new Date().toISOString()
-          });
-        });
-      } else {
-        await runTransaction(db, async (transaction) => {
-          transaction.update(docRef, { status: 'rejected', rejectionReason: extra?.reason || 'Protocol Denied' });
-          if (type === 'withdraw' || type === 'order') transaction.update(doc(db, 'users', data.userId), { balance: increment(data.amountUsd || data.price) });
-        });
-      }
-      toast({ title: "ACTION EXECUTED" });
-    } catch (e: any) { toast({ variant: "destructive", title: "FAILED", description: e.message }); }
-  };
-
-  const handleSaveMethod = async () => {
-    if (!db) return;
-    try {
-      await addDoc(collection(db, methodType === 'deposit' ? 'deposit_methods' : 'withdrawal_methods'), newMethod);
-      toast({ title: "METHOD DEPLOYED" });
-      setIsAddingMethod(false);
-    } catch (e) { toast({ variant: "destructive", title: "DEPLOY FAILED" }); }
-  };
 
   const handleSaveProduct = async () => {
     if (!db) return;
@@ -288,13 +134,7 @@ export default function AdminPage() {
     } catch (e) { toast({ variant: "destructive", title: "SAVE FAILED" }); }
   };
 
-  const handleEditProduct = (product: any) => {
-    setEditingProductId(product.id);
-    setNewProduct({ ...product });
-    setIsAddingProduct(true);
-  };
-
-  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -303,11 +143,7 @@ export default function AdminPage() {
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const toggleStatus = async (coll: string, id: string, status: boolean) => {
-    try { await updateDoc(doc(db, coll, id), { isActive: status }); toast({ title: "STATUS SYNCED" }); } catch (e) { }
-  };
+  }, []);
 
   const handleDeleteUserEntity = async () => {
     if (!editingUserId || !db) return;
@@ -316,13 +152,13 @@ export default function AdminPage() {
       toast({ title: "ENTITY PURGED" });
       setEditingUserId(null);
       setIsUserDeleteDialogOpen(false);
-    } catch (e: any) { toast({ variant: "destructive", title: "PURGE FAILED", description: e.message }); }
+    } catch (e: any) { toast({ variant: "destructive", title: "PURGE FAILED" }); }
   };
 
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 pb-32">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in duration-500 pb-32">
       <header className="flex justify-between items-center p-5 glass-card rounded-[2rem] border-primary/20 gold-glow">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="p-2 hover:bg-primary/10 rounded-xl transition-all text-primary group"><LayoutDashboard className="h-6 w-6 group-hover:scale-110" /></Link>
@@ -346,11 +182,10 @@ export default function AdminPage() {
           </TabsList>
         </div>
 
-        {/* User Content Example */}
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
             <div className="relative w-full sm:max-w-md group"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" /><Input placeholder="SEARCH INTEL LEDGER..." className="pl-12 h-12 bg-card/40 border-white/10 rounded-2xl text-[10px] font-headline uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-            <div className="flex gap-4"><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Active Entities</p><p className="text-lg font-headline font-black text-white">{allUsers.length}</p></div><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Managed Liquidity</p><p className="text-lg font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p></div></div>
+            <div className="flex gap-4"><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Active Entities</p><p className="text-lg font-headline font-black text-white">{allUsers.length}</p></div><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Liquidity</p><p className="text-lg font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p></div></div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredUsers.map((u: any) => (
@@ -368,13 +203,12 @@ export default function AdminPage() {
                   </div>
                   <button onClick={() => { setEditingUserId(u.id); setEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
                 </div>
-                <div className="space-y-3"><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Vault Status:</span><span className="text-sm font-headline font-black text-primary">${u.balance?.toLocaleString()}</span></div><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Role:</span><Badge variant="outline" className="text-[6px] uppercase border-primary/20 text-primary">{u.role}</Badge></div></div>
+                <div className="space-y-3"><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Vault Status:</span><span className="text-sm font-headline font-black text-primary">${u.balance?.toLocaleString()}</span></div></div>
               </div>
             ))}
           </div>
         </TabsContent>
 
-        {/* Store Content Example */}
         <TabsContent value="store" className="space-y-8">
           <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
             <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
@@ -386,7 +220,7 @@ export default function AdminPage() {
                 <div className="aspect-video relative bg-white/5">
                   {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
                   <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
-                  <button onClick={() => handleEditProduct(p)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Edit3 size={14} /></button>
+                  <button onClick={() => { setEditingProductId(p.id); setNewProduct(p); setIsAddingProduct(true); }} className="absolute top-3 right-3 p-2 bg-black/60 rounded-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Edit3 size={14} /></button>
                 </div>
                 <div className="p-5 space-y-4">
                   <div>
@@ -394,7 +228,7 @@ export default function AdminPage() {
                     <div className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</div>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <Switch checked={p.isActive} onCheckedChange={(val) => toggleStatus('marketplace_services', p.id, val)} />
+                    <Switch checked={p.isActive} onCheckedChange={async (val) => { await updateDoc(doc(db, 'marketplace_services', p.id), { isActive: val }); }} />
                     <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                   </div>
                 </div>
@@ -404,7 +238,6 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Entity Edit Modal */}
       <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
@@ -431,12 +264,11 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete User Confirmation Popup */}
       <AlertDialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
         <AlertDialogContent className="glass-card border-white/10 rounded-[2rem] p-8 max-w-sm z-[2000]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xs font-headline font-bold uppercase text-red-500 flex items-center gap-2"><AlertTriangle size={16} /> Critical Warning</AlertDialogTitle>
-            <AlertDialogDescription className="text-[10px] font-headline uppercase leading-relaxed text-white/60">This action will permanently purge the entity from the ledger. Proceed?</AlertDialogDescription>
+            <AlertDialogDescription className="text-[10px] font-headline uppercase leading-relaxed text-white/60">This action will permanently purge the entity. Proceed?</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6 flex flex-col gap-2">
             <AlertDialogAction onClick={handleDeleteUserEntity} className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-12 font-headline font-black text-[10px] uppercase w-full">Confirm Purge</AlertDialogAction>
@@ -445,7 +277,6 @@ export default function AdminPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Asset Foundry Modal */}
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2rem] z-[1000] overflow-y-auto max-h-[90vh]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold uppercase text-center">{editingProductId ? "Modify Asset" : "Asset Foundry"}</DialogTitle></DialogHeader>
