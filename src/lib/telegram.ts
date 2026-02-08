@@ -2,7 +2,7 @@
 'use client';
 
 /**
- * @fileOverview Telegram Notification Service with hardcoded credentials for consistent delivery.
+ * @fileOverview Telegram Notification Service with core credentials.
  */
 
 const TELEGRAM_TOKEN = '8236708164:AAHi0AYmvf3_IJEpYAgug-GYdf4O9AkvZY4';
