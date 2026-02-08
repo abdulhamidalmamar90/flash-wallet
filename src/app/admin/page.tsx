@@ -37,6 +37,8 @@ import {
   SendHorizontal,
   CircleDot,
   FileArchive,
+  Code2,
+  Cpu,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -73,6 +75,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Link from 'next/link';
+import { exportProjectSource } from '@/app/actions/project-backup';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -90,6 +93,7 @@ export default function AdminPage() {
 
   // System States
   const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isProjectBackingUp, setIsProjectBackingUp] = useState(false);
 
   // Store / Products States
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -339,14 +343,33 @@ export default function AdminPage() {
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `FLASH_MASTER_BACKUP_${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+      a.download = `FLASH_DATA_SNAPSHOT_${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
       a.click();
       URL.revokeObjectURL(url);
-      toast({ title: "MASTER ARCHIVE GENERATED" });
+      toast({ title: "DATA ARCHIVE GENERATED" });
     } catch (e) {
       toast({ variant: "destructive", title: "ARCHIVE FAILED" });
     } finally {
       setIsBackingUp(false);
+    }
+  };
+
+  const handleProjectBackup = async () => {
+    setIsProjectBackingUp(true);
+    try {
+      const base64 = await exportProjectSource();
+      const blob = await (await fetch(`data:application/zip;base64,${base64}`)).blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `FLASH_FULL_PROJECT_BACKUP_${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "FULL PROJECT SNAPSHOT SECURED" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "PROJECT BACKUP FAILED" });
+    } finally {
+      setIsProjectBackingUp(false);
     }
   };
 
@@ -525,30 +548,43 @@ export default function AdminPage() {
         <TabsContent value="backup" className="space-y-8">
           <div className="glass-card p-10 rounded-[2.5rem] border-primary/20 gold-glow flex flex-col items-center text-center space-y-8">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center text-primary animate-pulse">
-              <Database size={40} />
+              <Cpu size={40} />
             </div>
             <div className="space-y-2">
               <h2 className="text-xl font-headline font-bold uppercase tracking-tighter">System Intelligence Backup</h2>
               <p className="text-[10px] text-muted-foreground uppercase max-w-md mx-auto leading-relaxed">
-                Generate cryptographic snapshots of the entire FLASH ecosystem. Store these files securely to enable full system restoration in case of data corruption.
+                Generate cryptographic snapshots of the entire FLASH ecosystem including source code, design protocols, and database entities.
               </p>
             </div>
 
             <div className="w-full max-w-2xl space-y-6">
-              <Button 
-                onClick={handleFullSystemBackup} 
-                disabled={isBackingUp}
-                className="w-full h-20 bg-primary text-background border border-primary/40 rounded-2xl hover:bg-primary/90 transition-all gold-glow"
-              >
-                <div className="flex flex-col items-center gap-2">
-                  {isBackingUp ? <Loader2 className="animate-spin" /> : <FileArchive size={24} />}
-                  <span className="text-[10px] font-headline font-black uppercase tracking-[0.2em]">Generate Master Encrypted Archive (ZIP)</span>
-                </div>
-              </Button>
+              <div className="grid grid-cols-1 gap-4">
+                <Button 
+                  onClick={handleProjectBackup} 
+                  disabled={isProjectBackingUp}
+                  className="w-full h-24 bg-secondary text-background border border-secondary/40 rounded-2xl hover:bg-secondary/90 transition-all cyan-glow"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    {isProjectBackingUp ? <Loader2 className="animate-spin" /> : <Code2 size={28} />}
+                    <span className="text-[10px] font-headline font-black uppercase tracking-[0.2em]">Archive Full Codebase & Design (ZIP)</span>
+                  </div>
+                </Button>
+
+                <Button 
+                  onClick={handleFullSystemBackup} 
+                  disabled={isBackingUp}
+                  className="w-full h-24 bg-primary text-background border border-primary/40 rounded-2xl hover:bg-primary/90 transition-all gold-glow"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    {isBackingUp ? <Loader2 className="animate-spin" /> : <FileArchive size={28} />}
+                    <span className="text-[10px] font-headline font-black uppercase tracking-[0.2em]">Generate Master Data Archive (ZIP)</span>
+                  </div>
+                </Button>
+              </div>
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5"></span></div>
-                <div className="relative flex justify-center"><span className="bg-background px-4 text-[8px] text-white/30 uppercase tracking-widest">Individual Nodes</span></div>
+                <div className="relative flex justify-center"><span className="bg-background px-4 text-[8px] text-white/30 uppercase tracking-widest">Granular Node Extraction</span></div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
