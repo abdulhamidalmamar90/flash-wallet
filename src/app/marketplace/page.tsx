@@ -277,7 +277,17 @@ export default function MarketplacePage() {
         <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Verify Vault PIN</DialogTitle></DialogHeader>
           <div className="mt-8 space-y-6">
-            <Input type="password" maxLength={4} value={pinEntry} onChange={(e) => setPinEntry(e.target.value)} className="h-16 text-3xl text-center font-headline bg-background/50 border-white/10" />
+            <Input 
+              type="password" 
+              inputMode="numeric" 
+              pattern="[0-9]*" 
+              maxLength={4} 
+              value={pinEntry} 
+              onChange={(e) => setPinEntry(e.target.value.replace(/[^0-9]/g, ''))} 
+              className="h-16 text-3xl text-center font-headline bg-background/50 border-white/10 tracking-[0.5em]" 
+              placeholder="0000"
+              autoFocus
+            />
             <Button onClick={handleConfirmPurchase} disabled={isBuying || pinEntry.length < 4} className="w-full h-14 bg-primary text-background font-black rounded-xl gold-glow text-[10px] tracking-widest uppercase">
               {isBuying ? <Loader2 className="animate-spin" /> : "VALIDATE ACCESS"}
             </Button>

@@ -278,28 +278,6 @@ ${detailsText}
     }
   };
 
-  const VirtualPad = ({ value, onChange, onComplete }: any) => {
-    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
-    const handleClear = () => onChange(value.slice(0, -1));
-    return (
-      <div className="space-y-8" dir="ltr">
-        <div className="flex justify-center gap-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
-          ))}
-          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
-          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
-          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
-        </div>
-      </div>
-    );
-  };
-
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -518,9 +496,21 @@ ${detailsText}
       <Dialog open={isPinVerificationOpen} onOpenChange={setIsPinVerificationOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {t.verifyVault}</DialogTitle></DialogHeader>
-          <div className="mt-8">
-            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={handleConfirmSubmit} />
-            {loading && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+          <div className="mt-8 space-y-6">
+            <Input 
+              type="password" 
+              inputMode="numeric" 
+              pattern="[0-9]*" 
+              maxLength={4} 
+              value={pinEntry} 
+              onChange={(e) => setPinEntry(e.target.value.replace(/[^0-9]/g, ''))} 
+              className="h-16 text-3xl text-center font-headline bg-background/50 border-white/10 tracking-[0.5em]" 
+              placeholder="0000"
+              autoFocus
+            />
+            <Button onClick={handleConfirmSubmit} disabled={loading || pinEntry.length < 4} className="w-full h-14 bg-primary text-background font-black rounded-xl gold-glow text-[10px] tracking-widest uppercase">
+              {loading ? <Loader2 className="animate-spin" /> : "AUTHORIZE"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -23,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth, useCollection } from '@/firebase';
-import { doc, updateDoc, collection, query, where, limit } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { updatePassword, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, sendEmailVerification } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -200,7 +199,6 @@ export default function EditProfilePage() {
     try {
       const fullPhone = `${selectedCountry.prefix}${phone.trim()}`;
       
-      // Prevent Duplicate Phone
       const q = query(collection(db, 'users'), where('phone', '==', fullPhone), limit(1));
       const snap = await getDocs(q);
       if (!snap.empty && snap.docs[0].id !== user?.uid) {
@@ -248,28 +246,6 @@ export default function EditProfilePage() {
         setIsCropDialogOpen(false);
       }
     }
-  };
-
-  const VirtualPad = ({ value, onChange, onComplete }: any) => {
-    const handleAdd = (num: string) => { if (value.length < 4) onChange(value + num); };
-    const handleClear = () => onChange(value.slice(0, -1));
-    return (
-      <div className="space-y-8" dir="ltr">
-        <div className="flex justify-center gap-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", value.length > i ? "bg-primary border-primary scale-125" : "border-white/20")} />
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-            <button key={n} type="button" onClick={() => handleAdd(n.toString())} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">{n}</button>
-          ))}
-          <button type="button" onClick={handleClear} className="h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500 transition-all"><Delete size={24} /></button>
-          <button type="button" onClick={() => handleAdd('0')} className="h-16 rounded-2xl bg-white/5 border border-white/10 text-xl font-headline font-bold hover:bg-primary hover:text-background transition-all">0</button>
-          <button type="button" disabled={value.length !== 4} onClick={onComplete} className="h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary disabled:opacity-20 hover:bg-primary hover:text-background transition-all"><Check size={24} /></button>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -410,7 +386,7 @@ export default function EditProfilePage() {
             </button>
             <div className="relative flex-1">
               <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
-              <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border-white/10 pl-10" />
+              <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border border-white/10 pl-10" />
             </div>
           </div>
           {isCountryOpen && (
@@ -447,8 +423,19 @@ export default function EditProfilePage() {
       <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-10 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> Authorize PIN</DialogTitle></DialogHeader>
-          <div className="mt-8">
-            <VirtualPad value={pinEntry} onChange={setPinEntry} onComplete={async () => {
+          <div className="mt-8 space-y-6">
+            <Input 
+              type="password" 
+              inputMode="numeric" 
+              pattern="[0-9]*" 
+              maxLength={4} 
+              value={pinEntry} 
+              onChange={(e) => setPinEntry(e.target.value.replace(/[^0-9]/g, ''))} 
+              className="h-16 text-3xl text-center font-headline bg-background/50 border-white/10 tracking-[0.5em]" 
+              placeholder="0000"
+              autoFocus
+            />
+            <Button onClick={async () => {
               if (pinEntry.length === 4 && user && db) {
                 setSubmittingPin(true);
                 await updateDoc(doc(db, 'users', user.uid), { pin: pinEntry });
@@ -456,8 +443,9 @@ export default function EditProfilePage() {
                 setIsPinModalOpen(false);
                 toast({ title: "PIN Saved" });
               }
-            }} />
-            {submittingPin && <div className="mt-4 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+            }} disabled={submittingPin || pinEntry.length < 4} className="w-full h-14 bg-primary text-background font-black rounded-xl gold-glow text-[10px] tracking-widest uppercase">
+              {submittingPin ? <Loader2 className="animate-spin" /> : "SAVE PIN"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
