@@ -24,6 +24,7 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { useStore } from '@/app/lib/store';
 import { useUser, useFirestore, useDoc, useAuth } from '@/firebase';
@@ -130,6 +131,16 @@ export default function EditProfilePage() {
   const isFirstNameLocked = useMemo(() => !!profile?.firstName, [profile?.firstName]);
   const isLastNameLocked = useMemo(() => !!profile?.lastName, [profile?.lastName]);
 
+  // Password criteria logic
+  const passwordCriteria = useMemo(() => ({
+    length: newPassword.length >= 8,
+    upper: /[A-Z]/.test(newPassword),
+    number: /[0-9]/.test(newPassword),
+    special: /[@$!%*?&]/.test(newPassword)
+  }), [newPassword]);
+
+  const isPasswordStrong = Object.values(passwordCriteria).every(Boolean);
+
   useEffect(() => {
     if (profile) {
       setFirstName(profile.firstName || '');
@@ -197,7 +208,6 @@ export default function EditProfilePage() {
         avatarUrl: selectedAvatar,
       };
       
-      // Only allow updating names if they were empty
       if (!isFirstNameLocked) updates.firstName = firstName;
       if (!isLastNameLocked) updates.lastName = lastName;
 
@@ -227,8 +237,8 @@ export default function EditProfilePage() {
       toast({ variant: "destructive", title: "Passwords Mismatch" });
       return;
     }
-    if (newPassword.length < 8) {
-      toast({ variant: "destructive", title: "Password too short" });
+    if (!isPasswordStrong) {
+      toast({ variant: "destructive", title: "Password Too Weak" });
       return;
     }
     setPinEntry('');
@@ -353,7 +363,6 @@ export default function EditProfilePage() {
 
       <div id="recaptcha-container"></div>
 
-      {/* Verification Summary Section */}
       <div className="grid grid-cols-3 gap-2">
         <div className={cn("p-3 rounded-2xl border text-center space-y-1 transition-all", isKycVerified ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")}>
           <ShieldCheck size={16} className="mx-auto" />
@@ -463,7 +472,6 @@ export default function EditProfilePage() {
         </Button>
       </form>
 
-      {/* Security Protocols Section */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Lock size={14} /> Security Protocols</h2>
         <div className="space-y-4">
@@ -482,7 +490,6 @@ export default function EditProfilePage() {
         </div>
       </div>
 
-      {/* Email Verification Section */}
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><Mail size={14} /> Email Authority</h2>
         <div className="space-y-4">
@@ -507,39 +514,6 @@ export default function EditProfilePage() {
         </div>
       </div>
 
-      {/* Phone Verification Section */}
-      <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5">
-        <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-blue-400 flex items-center gap-2"><Phone size={14} /> Phone Identity</h2>
-        <div className="space-y-4">
-          <div className="flex gap-2" dir="ltr">
-            <button type="button" onClick={(e) => { e.stopPropagation(); setIsCountryOpen(!isCountryOpen); }} className="h-12 bg-white/5 border border-white/10 rounded-xl px-3 flex items-center gap-2">
-              <span className="text-xs">{selectedCountry.flag}</span>
-              <ChevronDown size={14} className={cn(isCountryOpen && "rotate-180")} />
-            </button>
-            <div className="relative flex-1">
-              <Phone className="absolute top-1/2 -translate-y-1/2 left-3 h-4 w-4 text-white/20" />
-              <Input type="tel" dir="ltr" value={phone} onChange={(e) => { setPhone(e.target.value); setIsPhoneVerified(false); }} className="h-12 bg-white/5 border border-white/10 pl-10" />
-            </div>
-          </div>
-          {isCountryOpen && (
-            <div className="absolute z-[110] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-48 w-48">
-              {COUNTRIES.map(c => (
-                <button key={c.code} type="button" onClick={() => { setSelectedCountry(c); setIsCountryOpen(false); }} className="w-full flex items-center justify-between p-3 hover:bg-white/5 border-b border-white/5 last:border-0"><span className="text-xs">{language === 'ar' ? c.nameAr : c.nameEn}</span><span className="text-xs text-white/40">{c.prefix}</span></button>
-              ))}
-            </div>
-          )}
-          {!isPhoneVerified ? (
-            <Button type="button" onClick={handleSendOtp} disabled={verifyingPhone || !phone} className="w-full h-12 bg-secondary/10 border border-secondary/20 text-secondary text-[10px] font-headline uppercase tracking-widest">
-              {verifyingPhone ? <Loader2 className="animate-spin" size={14} /> : "Verify Number"}
-            </Button>
-          ) : (
-            <div className="h-12 flex items-center justify-center gap-2 text-blue-500 font-headline font-bold text-[10px] uppercase px-3 bg-blue-500/10 rounded-xl border border-blue-500/20 w-full">
-              <CheckCircle2 size={14} /> Phone Verified
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="glass-card p-6 rounded-3xl space-y-6 border-white/5 shadow-2xl gold-glow">
         <h2 className="text-[10px] font-headline font-bold uppercase tracking-widest text-primary flex items-center gap-2"><KeyRound size={14} /> Security PIN</h2>
         <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
@@ -552,7 +526,7 @@ export default function EditProfilePage() {
         </div>
       </div>
 
-      {/* Change Password Dialog */}
+      {/* Change Password Dialog with criteria */}
       <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Lock size={14} className="text-primary" /> Update Terminal</DialogTitle></DialogHeader>
@@ -571,6 +545,17 @@ export default function EditProfilePage() {
                   <Input type={showNewPass ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 bg-white/5 border-white/10" />
                   <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors">{showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                 </div>
+                {/* Password Criteria indicators */}
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {Object.entries(passwordCriteria).map(([key, valid]) => (
+                    <div key={key} className="flex items-center gap-1.5">
+                      {valid ? <ShieldCheck className="text-green-500" size={10} /> : <AlertCircle className="text-white/20" size={10} />}
+                      <span className={cn("text-[8px] uppercase font-bold", valid ? "text-green-500" : "text-white/30")}>
+                        {key === 'length' ? '8+ Chars' : key === 'upper' ? 'Uppercase' : key === 'number' ? 'Number' : 'Special Symbol'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[8px] uppercase tracking-widest text-white/40">Confirm New Password</Label>
@@ -579,7 +564,7 @@ export default function EditProfilePage() {
             </div>
             <Button 
               onClick={handleRequestPasswordUpdate} 
-              disabled={!oldPassword || !newPassword || newPassword !== confirmPassword || updatingPassword}
+              disabled={!oldPassword || !newPassword || newPassword !== confirmPassword || !isPasswordStrong || updatingPassword}
               className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow"
             >
               {updatingPassword ? <Loader2 className="animate-spin" /> : "PROCEED TO AUTH"}
@@ -588,7 +573,6 @@ export default function EditProfilePage() {
         </DialogContent>
       </Dialog>
 
-      {/* PIN Verification Modal */}
       <Dialog open={isPinModalOpen} onOpenChange={setIsPinModalOpen}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 text-center rounded-[2.5rem] z-[2000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-primary flex items-center justify-center gap-2"><Fingerprint size={16} /> {pinActionType === 'set' ? 'Set Vault PIN' : 'Authorize Protocol'}</DialogTitle></DialogHeader>
