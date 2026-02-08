@@ -113,19 +113,25 @@ export default function Dashboard() {
           scannerRef.current = scanner;
           await scanner.start(
             { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
+            { 
+              fps: 10, 
+              qrbox: { width: 250, height: 250 },
+              aspectRatio: 1.0 
+            },
             (decodedText) => {
-              scanner.stop().then(() => {
-                setScannerOpen(false);
-                router.push(`/transfer?id=${decodedText}`);
-              });
+              if (scannerRef.current) {
+                scannerRef.current.stop().then(() => {
+                  setScannerOpen(false);
+                  router.push(`/transfer?id=${encodeURIComponent(decodedText.trim())}`);
+                }).catch(e => console.error("Stop failed", e));
+              }
             },
             () => {}
           );
         } catch (err) {
           console.error("Scanner failed", err);
           setScannerOpen(false);
-          toast({ variant: "destructive", title: "Camera Error", description: "Failed to access imaging sensor." });
+          toast({ variant: "destructive", title: "Imaging Error", description: "Protocol failed to initialize sensor." });
         }
       };
       startScanner();
