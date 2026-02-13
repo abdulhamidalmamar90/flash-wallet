@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useEffect, useState, useRef } from 'react';
@@ -204,7 +203,7 @@ export default function AdminPage() {
   const { data: withdrawalMethods = [] } = useCollection(withdrawalMethodsQuery);
 
   const productsQuery = useMemo(() => query(collection(db, 'marketplace_services')), [db]);
-  const { data: products = [] } = useCollection(productsQuery);
+  const { data: products = [], loading: productsLoading } = useCollection(productsQuery);
 
   // Processed Chat Data
   const chatSessions = useMemo(() => {
@@ -309,7 +308,6 @@ export default function AdminPage() {
             const userRef = doc(db, 'users', data.userId);
             transaction.update(userRef, { balance: increment(refundAmount) });
             
-            // Add refund to history
             transaction.set(doc(collection(db, 'users', data.userId, 'transactions')), {
               type: 'receive',
               amount: refundAmount,
@@ -608,7 +606,7 @@ export default function AdminPage() {
                 {archivedSessions.length === 0 ? <p className="text-[8px] text-muted-foreground uppercase p-4 glass-card rounded-2xl text-center">Archive is empty.</p> : archivedSessions.map((s: any) => (
                   <div key={s.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground font-headline text-[10px]">@{s.username[0]}</div>
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white font-headline text-[10px]">@{s.username[0]}</div>
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-[10px] font-headline font-bold text-white/60">@{s.username}</p>
@@ -807,6 +805,44 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="store" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
+            <Button onClick={() => { setEditingProductId(null); setIsAddingProduct(true); setNewProduct({ name: '', category: '', price: 0, type: 'fixed', variants: [{ label: '', price: 0 }], requiresInput: false, inputLabel: '', isActive: true, imageUrl: '', color: 'bg-primary' }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
+          </div>
+          
+          {productsLoading ? (
+            <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-primary" size={32} /></div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-20 glass-card rounded-3xl border-dashed border-white/10">
+              <AlertTriangle className="mx-auto text-muted-foreground mb-3" />
+              <p className="text-[10px] font-headline font-bold text-muted-foreground uppercase tracking-widest">No products found in marketplace.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {products.map((p: any) => (
+                <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group relative">
+                  <div className="aspect-video relative bg-white/5">
+                    {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
+                    <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
+                    <button onClick={() => handleEditProduct(p)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Edit3 size={14} /></button>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    <div>
+                      <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
+                      <div className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                      <Switch checked={p.isActive} onCheckedChange={(val) => toggleStatus('marketplace_services', p.id, val)} />
+                      <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
             <div className="relative w-full sm:max-w-md group"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" /><Input placeholder="SEARCH INTEL LEDGER..." className="pl-12 h-12 bg-card/40 border-white/10 rounded-2xl text-[10px] font-headline uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
@@ -837,8 +873,8 @@ export default function AdminPage() {
         <TabsContent value="kyc" className="space-y-4">
           <div className="grid gap-4">
             {verifications.length === 0 ? <p className="text-center py-20 text-muted-foreground uppercase font-headline text-[10px]">No pending verification requests.</p> : verifications.map((v: any) => (
-              <div key={v.id} className="glass-card p-6 rounded-3xl border-white/5 flex flex-col sm:flex-row justify-between gap-6">
-                <div className="space-y-3">
+              <div key={v.id} className="glass-card p-6 rounded-3xl border-white/5 space-y-4">
+                <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
                     <p className="text-[10px] font-headline font-bold uppercase">@{v.username}</p>
                     <Badge variant={v.status === 'pending' ? 'outline' : v.status === 'approved' ? 'default' : 'destructive'} className="text-[7px] uppercase">{v.status}</Badge>
@@ -872,7 +908,7 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Admin Dialogs */}
+      {/* ADMIN DIALOGS */}
       <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar">
           <DialogHeader>
