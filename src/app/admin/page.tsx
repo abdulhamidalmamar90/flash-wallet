@@ -418,15 +418,12 @@ export default function AdminPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Category</Label>
-              <Select value={newProduct.category} onValueChange={(val) => setNewProduct({...newProduct, category: val})}>
-                <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue placeholder="CHOOSE CATEGORY" /></SelectTrigger>
-                <SelectContent className="bg-card border-white/10 z-[1100]">
-                  <SelectItem value="GAMES">GAMES</SelectItem>
-                  <SelectItem value="CARDS">CARDS</SelectItem>
-                  <SelectItem value="SOFTWARE">SOFTWARE</SelectItem>
-                  <SelectItem value="SOCIAL">SOCIAL</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input 
+                className="h-12 bg-background border-white/10 rounded-xl font-headline text-xs uppercase" 
+                value={newProduct.category} 
+                onChange={(e) => setNewProduct({...newProduct, category: e.target.value.toUpperCase()})} 
+                placeholder="ENTER CATEGORY (e.g. GAMES, CARDS)" 
+              />
             </div>
             
             <div className="space-y-2">
