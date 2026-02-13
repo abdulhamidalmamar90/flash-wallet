@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase/init';
 import { doc, getDoc, runTransaction, increment, collection, setDoc, updateDoc } from 'firebase/firestore';
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
             const notifRef = doc(collection(firestore, 'users', witData.userId, 'notifications'));
             await setDoc(notifRef, {
               title: "Withdrawal Confirmed",
-              message: `Your request for $${witData.amount} has been processed.`,
+              message: `Your request for $${witData.amountUsd} has been processed.`,
               type: 'transaction',
               read: false,
               date: new Date().toISOString()
@@ -78,13 +79,22 @@ export async function POST(request: Request) {
             await runTransaction(firestore, async (transaction) => {
               const userRef = doc(firestore, 'users', witData.userId);
               const txRef = doc(collection(firestore, 'users', witData.userId, 'transactions'));
+              const notifRef = doc(collection(firestore, 'users', witData.userId, 'notifications'));
+              
               transaction.update(withdrawalRef, { status: 'rejected' });
-              transaction.update(userRef, { balance: increment(witData.amount) });
+              transaction.update(userRef, { balance: increment(witData.amountUsd) });
               transaction.set(txRef, {
                 type: 'receive',
-                amount: witData.amount,
+                amount: witData.amountUsd,
                 status: 'completed',
                 sender: 'SYSTEM REFUND',
+                date: new Date().toISOString()
+              });
+              transaction.set(notifRef, {
+                title: "Withdrawal Rejected",
+                message: `Your request for $${witData.amountUsd} was rejected and the funds have been refunded.`,
+                type: 'transaction',
+                read: false,
                 date: new Date().toISOString()
               });
             });

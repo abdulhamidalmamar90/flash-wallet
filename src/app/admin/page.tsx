@@ -327,8 +327,17 @@ export default function AdminPage() {
         });
       } else {
         await runTransaction(db, async (transaction) => {
+          const amountToRefund = data.amountUsd || data.price || 0;
           transaction.update(docRef, { status: 'rejected', rejectionReason: extra?.reason || 'Protocol Denied' });
-          if (type === 'withdraw' || type === 'order') transaction.update(doc(db, 'users', data.userId), { balance: increment(data.amountUsd || data.price) });
+          if (type === 'withdraw' || type === 'order') {
+            transaction.update(doc(db, 'users', data.userId), { balance: increment(amountToRefund) });
+            transaction.set(doc(collection(db, 'users', data.userId, 'notifications')), {
+              title: "Transaction Rejected",
+              message: `Your ${type === 'withdraw' ? 'withdrawal' : 'order'} was rejected. $${amountToRefund} has been refunded to your vault.`,
+              read: false,
+              date: new Date().toISOString()
+            });
+          }
         });
       }
       toast({ title: "ACTION EXECUTED" });
@@ -512,7 +521,7 @@ export default function AdminPage() {
                 {w.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('withdraw', w.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('withdraw', w.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('withdraw', w.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -542,7 +551,7 @@ export default function AdminPage() {
                 {d.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('deposit', d.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('deposit', d.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('deposit', d.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -724,7 +733,7 @@ export default function AdminPage() {
                 {o.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => { const code = prompt("Enter fulfillment code/key?"); if(code) handleAction('order', o.id, 'approve', {resultCode: code}); }} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('order', o.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('order', o.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -793,34 +802,6 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="store" className="space-y-8">
-          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
-            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
-            <Button onClick={() => { setEditingProductId(null); setIsAddingProduct(true); setNewProduct({ name: '', category: '', price: 0, type: 'fixed', variants: [{ label: '', price: 0 }], requiresInput: false, inputLabel: '', isActive: true, imageUrl: '', color: 'bg-primary' }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {products.map((p: any) => (
-              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group relative">
-                <div className="aspect-video relative bg-white/5">
-                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
-                  <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
-                  <button onClick={() => handleEditProduct(p)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Edit3 size={14} /></button>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
-                    <div className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</div>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <Switch checked={p.isActive} onCheckedChange={(val) => toggleStatus('marketplace_services', p.id, val)} />
-                    <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
-
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
             <div className="relative w-full sm:max-w-md group"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" /><Input placeholder="SEARCH INTEL LEDGER..." className="pl-12 h-12 bg-card/40 border-white/10 rounded-2xl text-[10px] font-headline uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
@@ -873,7 +854,7 @@ export default function AdminPage() {
                 {v.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('kyc', v.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('kyc', v.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('kyc', v.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
