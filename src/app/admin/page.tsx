@@ -399,10 +399,166 @@ export default function AdminPage() {
             ))}
           </div>
         </TabsContent>
+
+        <TabsContent value="gateways" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div>
+              <h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Financial Gateways</h2>
+              <p className="text-[8px] text-muted-foreground uppercase">Configure Deposit & Withdrawal Protocols</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => { setMethodType('deposit'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, fields: [{ label: '', value: '', type: 'text' }] }); }} className="bg-secondary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest cyan-glow"><PlusCircle size={16} className="mr-2" /> Add Deposit</Button>
+              <Button onClick={() => { setMethodType('withdraw'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, fields: [{ label: '', type: 'text' }] }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add Withdraw</Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-[0.2em] text-secondary flex items-center gap-2 px-2"><ArrowDownCircle size={14} /> Deposit Methods</h3>
+              <div className="grid gap-3">
+                {depositMethods.length === 0 ? <p className="text-[8px] text-muted-foreground uppercase p-4">No deposit channels established.</p> : depositMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary border border-secondary/20 uppercase font-headline text-xs">{m.country}</div>
+                      <div>
+                        <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
+                        <p className="text-[7px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('deposit_methods', m.id, val)} />
+                      <button onClick={async () => { if(confirm("Purge method?")) await deleteDoc(doc(db, 'deposit_methods', m.id)); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2 px-2"><ArrowUpCircle size={14} /> Withdrawal Methods</h3>
+              <div className="grid gap-3">
+                {withdrawalMethods.length === 0 ? <p className="text-[8px] text-muted-foreground uppercase p-4">No withdrawal channels established.</p> : withdrawalMethods.map((m: any) => (
+                  <div key={m.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 uppercase font-headline text-xs">{m.country}</div>
+                      <div>
+                        <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
+                        <p className="text-[7px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('withdrawal_methods', m.id, val)} />
+                      <button onClick={async () => { if(confirm("Purge method?")) await deleteDoc(doc(db, 'withdrawal_methods', m.id)); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
-      {/* Modals */}
-      
+      {/* Gateway Add/Edit Dialog */}
+      <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
+        <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
+              <Banknote size={14} className="text-primary" /> {methodType === 'deposit' ? 'New Deposit Gateway' : 'New Withdrawal Gateway'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Gateway Name</Label>
+                <Input className="h-12 bg-background border-white/10 rounded-xl font-headline text-xs" value={newMethod.name} onChange={(e) => setNewMethod({...newMethod, name: e.target.value})} placeholder="e.g. Bank Transfer" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Country Code</Label>
+                <Select value={newMethod.country} onValueChange={(val) => setNewMethod({...newMethod, country: val})}>
+                  <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-card border-white/10 z-[1100]">
+                    {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Currency Code</Label>
+                <Input className="h-12 bg-background border-white/10 rounded-xl font-headline text-xs uppercase" value={newMethod.currencyCode} onChange={(e) => setNewMethod({...newMethod, currencyCode: e.target.value.toUpperCase()})} placeholder="USD / SAR / EGP" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Exchange Rate (vs USD)</Label>
+                <Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-xs" value={newMethod.exchangeRate} onChange={(e) => setNewMethod({...newMethod, exchangeRate: parseFloat(e.target.value)})} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Fee Type</Label>
+                <Select value={newMethod.feeType} onValueChange={(val) => setNewMethod({...newMethod, feeType: val})}>
+                  <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-card border-white/10 z-[1100]">
+                    <SelectItem value="fixed">Fixed Amount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Fee Value</Label>
+                <Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-xs" value={newMethod.feeValue} onChange={(e) => setNewMethod({...newMethod, feeValue: parseFloat(e.target.value)})} />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{methodType === 'deposit' ? 'Payment Details (Visible to user)' : 'Required Fields (From user)'}</Label><Button variant="ghost" onClick={() => setNewMethod({...newMethod, fields: [...newMethod.fields, {label: '', value: '', type: 'text'}]})} className="h-6 text-[7px] uppercase"><Plus size={10} /> Add Field</Button></div>
+              {newMethod.fields.map((f: any, idx: number) => (
+                <div key={idx} className="space-y-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                  <div className="flex gap-2">
+                    <Input placeholder="Label (e.g. IBAN)" className="h-10 text-[10px] bg-background border-white/5" value={f.label} onChange={(e) => {
+                      const updated = [...newMethod.fields];
+                      updated[idx].label = e.target.value;
+                      setNewMethod({...newMethod, fields: updated});
+                    }} />
+                    {methodType === 'deposit' ? (
+                      <Input placeholder="Value (e.g. SA123...)" className="h-10 text-[10px] bg-background border-white/5" value={f.value} onChange={(e) => {
+                        const updated = [...newMethod.fields];
+                        updated[idx].value = e.target.value;
+                        setNewMethod({...newMethod, fields: updated});
+                      }} />
+                    ) : (
+                      <Select value={f.type} onValueChange={(val) => {
+                        const updated = [...newMethod.fields];
+                        updated[idx].type = val;
+                        setNewMethod({...newMethod, fields: updated});
+                      }}>
+                        <SelectTrigger className="h-10 text-[10px] w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-card border-white/10 z-[1100]">
+                          <SelectItem value="text">Text</SelectItem>
+                          <SelectItem value="textarea">Textarea</SelectItem>
+                          <SelectItem value="select">Select</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <button onClick={() => setNewMethod({...newMethod, fields: newMethod.fields.filter((_: any, i: number) => i !== idx)})} className="text-red-500"><X size={14} /></button>
+                  </div>
+                  {methodType === 'withdraw' && f.type === 'select' && (
+                    <Input placeholder="Options (comma separated)" className="h-8 text-[8px] bg-background border-white/5" value={f.options || ''} onChange={(e) => {
+                      const updated = [...newMethod.fields];
+                      updated[idx].options = e.target.value;
+                      setNewMethod({...newMethod, fields: updated});
+                    }} />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <Button onClick={handleSaveMethod} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Gateway</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Product Add/Edit Dialog */}
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar">
