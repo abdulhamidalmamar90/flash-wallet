@@ -57,7 +57,8 @@ import {
   addDoc, 
   onSnapshot, 
   where, 
-  getDocs 
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -306,9 +307,9 @@ export default function AdminPage() {
     try {
       const collectionName = type === 'kyc' ? 'verifications' : type === 'deposit' ? 'deposits' : type === 'withdraw' ? 'withdrawals' : 'service_requests';
       const docRef = doc(db, collectionName, id);
-      const snap = await getDocs(query(collection(db, collectionName), where('__name__', '==', id)));
-      if (snap.empty) return;
-      const data = snap.docs[0].data();
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return;
+      const data = docSnap.data();
 
       if (action === 'approve') {
         await runTransaction(db, async (transaction) => {
@@ -333,7 +334,15 @@ export default function AdminPage() {
             transaction.update(doc(db, 'users', data.userId), { balance: increment(amountToRefund) });
             transaction.set(doc(collection(db, 'users', data.userId, 'notifications')), {
               title: "Transaction Rejected",
-              message: `Your ${type === 'withdraw' ? 'withdrawal' : 'order'} was rejected. $${amountToRefund} has been refunded to your vault.`,
+              message: `Your ${type === 'withdraw' ? 'withdrawal' : 'order'} was rejected. Reason: ${extra?.reason || 'Denied'}. $${amountToRefund} has been refunded to your vault.`,
+              read: false,
+              date: new Date().toISOString()
+            });
+          } else {
+            // Rejection for non-monetary items (KYC, Deposit)
+            transaction.set(doc(collection(db, 'users', data.userId, 'notifications')), {
+              title: "Request Rejected",
+              message: `Your ${type} request was denied. Reason: ${extra?.reason || 'Denied'}.`,
               read: false,
               date: new Date().toISOString()
             });
@@ -699,7 +708,7 @@ export default function AdminPage() {
                   <span className="text-[7px] text-muted-foreground uppercase">{new Date(t.date).toLocaleString()}</span>
                   <div className="flex items-center gap-2">
                     {t.status === 'open' && <Button size="sm" onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), {status: 'resolved'}); toast({title: "TICKET RESOLVED"}); }} className="h-8 text-[7px] uppercase bg-primary text-background font-black">Mark Resolved</Button>}
-                    <button onClick={async () => { if(confirm("Purge record?")) await deleteDoc(doc(db, 'support_tickets', t.id)); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                    <button onClick={async () => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('kyc', t.id, 'reject', {reason}); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                   </div>
                 </div>
               </div>

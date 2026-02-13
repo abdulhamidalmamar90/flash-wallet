@@ -54,6 +54,14 @@ export async function POST(request: Request) {
             await answerTelegram(callbackQueryId, `✅ Approved for @${depData.username}`);
           } else if (action === 'rej') {
             await updateDoc(depositRef, { status: 'rejected' });
+            const notifRef = doc(collection(firestore, 'users', depData.userId, 'notifications'));
+            await setDoc(notifRef, {
+              title: "Deposit Rejected",
+              message: `Your deposit request was denied by the security protocol.`,
+              type: 'transaction',
+              read: false,
+              date: new Date().toISOString()
+            });
             await answerTelegram(callbackQueryId, `❌ Rejected for @${depData.username}`);
           }
         }
