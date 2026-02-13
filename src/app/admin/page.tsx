@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useEffect, useState, useRef } from 'react';
@@ -402,7 +401,100 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Modals from original file */}
+      {/* Modals */}
+      
+      {/* Product Add/Edit Dialog */}
+      <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
+        <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2">
+              <ShoppingBag size={14} className="text-primary" /> {editingProductId ? "Update Asset" : "Deploy New Asset"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-6 space-y-6">
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Asset Name</Label>
+              <Input className="h-12 bg-background border-white/10 rounded-xl font-headline text-xs" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name: e.target.value})} placeholder="e.g. PUBG MOBILE 660 UC" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Category</Label>
+              <Select value={newProduct.category} onValueChange={(val) => setNewProduct({...newProduct, category: val})}>
+                <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue placeholder="CHOOSE CATEGORY" /></SelectTrigger>
+                <SelectContent className="bg-card border-white/10 z-[1100]">
+                  <SelectItem value="GAMES">GAMES</SelectItem>
+                  <SelectItem value="CARDS">CARDS</SelectItem>
+                  <SelectItem value="SOFTWARE">SOFTWARE</SelectItem>
+                  <SelectItem value="SOCIAL">SOCIAL</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Pricing Strategy</Label>
+              <Select value={newProduct.type} onValueChange={(val) => setNewProduct({...newProduct, type: val})}>
+                <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-card border-white/10 z-[1100]">
+                  <SelectItem value="fixed">FIXED PRICE</SelectItem>
+                  <SelectItem value="variable">MULTIPLE PACKAGES</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {newProduct.type === 'fixed' ? (
+              <div className="space-y-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Price ($)</Label>
+                <Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-lg text-primary text-center" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Variants & Packages</Label>
+                {newProduct.variants.map((v: any, idx: number) => (
+                  <div key={idx} className="flex gap-2 items-center bg-black/20 p-3 rounded-xl border border-white/5">
+                    <Input placeholder="Label (e.g. 100 UC)" className="h-10 text-[10px] bg-background border-white/5" value={v.label} onChange={(e) => {
+                      const updated = [...newProduct.variants];
+                      updated[idx].label = e.target.value;
+                      setNewProduct({...newProduct, variants: updated});
+                    }} />
+                    <Input type="number" placeholder="Price" className="h-10 w-24 text-[10px] bg-background border-white/5" value={v.price} onChange={(e) => {
+                      const updated = [...newProduct.variants];
+                      updated[idx].price = parseFloat(e.target.value);
+                      setNewProduct({...newProduct, variants: updated});
+                    }} />
+                    <button onClick={() => {
+                      const updated = newProduct.variants.filter((_: any, i: number) => i !== idx);
+                      setNewProduct({...newProduct, variants: updated});
+                    }} className="text-red-500 p-1"><X size={14} /></button>
+                  </div>
+                ))}
+                <Button variant="outline" onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, {label: '', price: 0}]})} className="w-full h-10 border-dashed border-white/10 text-[8px] uppercase"><Plus size={12} className="mr-1" /> Add Variant</Button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between p-4 bg-card/40 rounded-2xl border border-white/10">
+              <div className="space-y-1"><Label className="text-[10px] font-headline font-bold uppercase">Requires Input</Label><p className="text-[7px] text-muted-foreground uppercase">Ask user for Player ID / Email</p></div>
+              <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
+            </div>
+
+            {newProduct.requiresInput && (
+              <div className="space-y-2 animate-in slide-in-from-top-2">
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Input Label</Label>
+                <Input className="h-12 bg-background border-white/10 rounded-xl text-xs" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} placeholder="e.g. Player ID" />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Cover Image</Label>
+              <div onClick={() => productFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-all overflow-hidden">
+                {newProduct.imageUrl ? <img src={newProduct.imageUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[8px] uppercase font-headline text-muted-foreground">Upload Visual Protocol</span></>}
+                <input type="file" ref={productFileInputRef} className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+              </div>
+            </div>
+
+            <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync to Marketplace</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
         <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
           <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
