@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useStore } from '@/app/lib/store';
 import { useFirestore, useCollection, useUser, useDoc } from '@/firebase';
 import { 
   collection, 
@@ -111,12 +112,18 @@ export default function AdminPage() {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
+  const { language } = useStore();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false);
   
+  // Rejection Dialog State
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [pendingAction, setPendingAction] = useState<any>(null);
+
   // Refs
   const productFileInputRef = useRef<HTMLInputElement>(null);
   const gatewayFileInputRef = useRef<HTMLInputElement>(null);
@@ -246,26 +253,45 @@ export default function AdminPage() {
   }, [db, activeChat]);
 
   // Handlers
-  const handleAction = async (type: 'deposit' | 'withdraw' | 'kyc' | 'order', id: string, action: 'approve' | 'reject', extra?: any) => {
+  const handleAction = async (type: 'deposit' | 'withdraw' | 'kyc' | 'order' | 'ticket', id: string, action: 'approve' | 'reject', extra?: any) => {
     if (!db) return;
     try {
-      const collectionName = type === 'kyc' ? 'verifications' : type === 'deposit' ? 'deposits' : type === 'withdraw' ? 'withdrawals' : 'service_requests';
+      const collectionName = 
+        type === 'kyc' ? 'verifications' : 
+        type === 'deposit' ? 'deposits' : 
+        type === 'withdraw' ? 'withdrawals' : 
+        type === 'order' ? 'service_requests' : 'support_tickets';
+
       const docRef = doc(db, collectionName, id);
       const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) return;
+      if (!docSnap.exists()) {
+        toast({ variant: "destructive", title: "NOT FOUND", description: "Record is missing from ledger." });
+        return;
+      }
       const data = docSnap.data();
 
       if (action === 'approve') {
         await runTransaction(db, async (transaction) => {
           const userRef = doc(db, 'users', data.userId);
           transaction.update(docRef, { status: 'approved', ...extra });
+          
           if (type === 'deposit') {
             transaction.update(userRef, { balance: increment(data.amount) });
-            transaction.set(doc(collection(db, 'users', data.userId, 'transactions')), { type: 'deposit', amount: data.amount, status: 'completed', date: new Date().toISOString() });
-          } else if (type === 'kyc') transaction.update(userRef, { verified: true });
+            transaction.set(doc(collection(db, 'users', data.userId, 'transactions')), { 
+              type: 'deposit', 
+              amount: data.amount, 
+              status: 'completed', 
+              date: new Date().toISOString() 
+            });
+          } else if (type === 'kyc') {
+            transaction.update(userRef, { verified: true });
+          } else if (type === 'ticket') {
+            transaction.update(docRef, { status: 'resolved' });
+          }
+
           transaction.set(doc(collection(db, 'users', data.userId, 'notifications')), {
-            title: type === 'deposit' ? "Assets Credited" : type === 'kyc' ? "Authority Verified" : type === 'order' ? "Order Fulfilled" : "Withdrawal Success",
-            message: type === 'deposit' ? `$${data.amount} added to vault.` : "Protocol executed successfully.",
+            title: type === 'deposit' ? "Assets Credited" : type === 'kyc' ? "Authority Verified" : type === 'order' ? "Order Fulfilled" : "Protocol Executed",
+            message: type === 'deposit' ? `$${data.amount} added to vault.` : "Operation successful.",
             read: false,
             date: new Date().toISOString()
           });
@@ -273,24 +299,52 @@ export default function AdminPage() {
       } else {
         const reason = extra?.reason || 'Protocol Denied';
         await runTransaction(db, async (transaction) => {
-          const amountToRefund = data.amountUsd || data.price || 0;
           transaction.update(docRef, { status: 'rejected', rejectionReason: reason });
           
-          if (type === 'withdraw' || type === 'order') {
-            transaction.update(doc(db, 'users', data.userId), { balance: increment(amountToRefund) });
+          let refundAmount = 0;
+          if (type === 'withdraw') refundAmount = data.amountUsd || 0;
+          if (type === 'order') refundAmount = data.price || 0;
+
+          if (refundAmount > 0) {
+            const userRef = doc(db, 'users', data.userId);
+            transaction.update(userRef, { balance: increment(refundAmount) });
+            
+            // Add refund to history
+            transaction.set(doc(collection(db, 'users', data.userId, 'transactions')), {
+              type: 'receive',
+              amount: refundAmount,
+              sender: 'SYSTEM REFUND',
+              status: 'completed',
+              date: new Date().toISOString()
+            });
           }
 
           const notifRef = doc(collection(db, 'users', data.userId, 'notifications'));
           transaction.set(notifRef, {
             title: "Transaction Rejected",
-            message: `Your ${type} request was rejected. Reason: ${reason}. ${amountToRefund > 0 ? `$${amountToRefund} has been refunded.` : ''}`,
+            message: `Your ${type} request was denied. Reason: ${reason}. ${refundAmount > 0 ? `$${refundAmount} returned to vault.` : ''}`,
             read: false,
             date: new Date().toISOString()
           });
         });
       }
       toast({ title: "ACTION EXECUTED" });
-    } catch (e: any) { toast({ variant: "destructive", title: "FAILED", description: e.message }); }
+    } catch (e: any) { 
+      toast({ variant: "destructive", title: "FAILED", description: e.message }); 
+    }
+  };
+
+  const openRejectionDialog = (type: any, id: string) => {
+    setPendingAction({ type, id });
+    setRejectionReason('');
+    setIsRejectDialogOpen(true);
+  };
+
+  const confirmRejection = async () => {
+    if (!pendingAction) return;
+    setIsRejectDialogOpen(false);
+    await handleAction(pendingAction.type, pendingAction.id, 'reject', { reason: rejectionReason || 'Protocol Denied' });
+    setPendingAction(null);
   };
 
   const handleSaveMethod = async () => {
@@ -470,7 +524,7 @@ export default function AdminPage() {
                 {w.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('withdraw', w.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('withdraw', w.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => openRejectionDialog('withdraw', w.id)} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -495,14 +549,14 @@ export default function AdminPage() {
                 </div>
                 {d.proofUrl && (
                   <a href={d.proofUrl} target="_blank" rel="noopener noreferrer" className="flex-1 max-w-[200px] aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5 relative group block cursor-pointer">
-                    <img src={d.proofUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                    <img src={d.proofUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="Proof" />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Info size={24} /></div>
                   </a>
                 )}
                 {d.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('deposit', d.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('deposit', d.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => openRejectionDialog('deposit', d.id)} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -643,14 +697,14 @@ export default function AdminPage() {
                 </div>
                 {t.imageUrl && (
                   <a href={t.imageUrl} target="_blank" rel="noopener noreferrer" className="max-w-[200px] rounded-xl overflow-hidden border border-white/5 block cursor-pointer">
-                    <img src={t.imageUrl} className="w-full h-auto" />
+                    <img src={t.imageUrl} className="w-full h-auto" alt="Attachment" />
                   </a>
                 )}
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-[7px] text-muted-foreground uppercase">{new Date(t.date).toLocaleString()}</span>
                   <div className="flex items-center gap-2">
-                    {t.status === 'open' && <Button size="sm" onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), {status: 'resolved'}); toast({title: "TICKET RESOLVED"}); }} className="h-8 text-[7px] uppercase bg-primary text-background font-black">Mark Resolved</Button>}
-                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('kyc', t.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                    {t.status === 'open' && <Button size="sm" onClick={() => handleAction('ticket', t.id, 'approve')} className="h-8 text-[7px] uppercase bg-primary text-background font-black">Mark Resolved</Button>}
+                    <button onClick={() => openRejectionDialog('ticket', t.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                   </div>
                 </div>
               </div>
@@ -684,7 +738,7 @@ export default function AdminPage() {
                 {o.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => { const code = window.prompt("Enter fulfillment code/key?"); if(code) handleAction('order', o.id, 'approve', {resultCode: code}); }} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('order', o.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => openRejectionDialog('order', o.id)} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -699,8 +753,8 @@ export default function AdminPage() {
               <p className="text-[8px] text-muted-foreground uppercase">Configure Deposit & Withdrawal Protocols</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => { setMethodType('deposit'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, iconUrl: '', fields: [{ label: '', value: '', type: 'text' }] }); }} className="bg-secondary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest cyan-glow"><PlusCircle size={16} className="mr-2" /> Add Deposit</Button>
-              <Button onClick={() => { setMethodType('withdraw'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, iconUrl: '', fields: [{ label: '', type: 'text' }] }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add Withdraw</Button>
+              <Button onClick={() => { setMethodType('deposit'); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, iconUrl: '', fields: [{ label: '', value: '', type: 'text' }] }); setIsAddingMethod(true); }} className="bg-secondary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest cyan-glow"><PlusCircle size={16} className="mr-2" /> Add Deposit</Button>
+              <Button onClick={() => { setMethodType('withdraw'); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, iconUrl: '', fields: [{ label: '', type: 'text' }] }); setIsAddingMethod(true); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add Withdraw</Button>
             </div>
           </div>
 
@@ -712,7 +766,7 @@ export default function AdminPage() {
                   <div key={m.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between group">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary border border-secondary/20 uppercase font-headline text-xs overflow-hidden">
-                        {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : m.country}
+                        {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" alt="Icon" /> : m.country}
                       </div>
                       <div>
                         <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
@@ -735,7 +789,7 @@ export default function AdminPage() {
                   <div key={m.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between group">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 uppercase font-headline text-xs overflow-hidden">
-                        {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : m.country}
+                        {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" alt="Icon" /> : m.country}
                       </div>
                       <div>
                         <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
@@ -797,19 +851,19 @@ export default function AdminPage() {
                 <div className="flex gap-3">
                   {v.frontUrl && (
                     <a href={v.frontUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
-                      <img src={v.frontUrl} className="w-full h-full object-cover" />
+                      <img src={v.frontUrl} className="w-full h-full object-cover" alt="ID Front" />
                     </a>
                   )}
                   {v.backUrl && (
                     <a href={v.backUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
-                      <img src={v.backUrl} className="w-full h-full object-cover" />
+                      <img src={v.backUrl} className="w-full h-full object-cover" alt="ID Back" />
                     </a>
                   )}
                 </div>
                 {v.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('kyc', v.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('kyc', v.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => openRejectionDialog('kyc', v.id)} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -830,7 +884,7 @@ export default function AdminPage() {
             <div className="space-y-2">
               <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Gateway Icon</Label>
               <div onClick={() => gatewayFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-all overflow-hidden">
-                {newMethod.iconUrl ? <img src={newMethod.iconUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[8px] uppercase font-headline text-muted-foreground">Upload Gateway Logo</span></>}
+                {newMethod.iconUrl ? <img src={newMethod.iconUrl} className="w-full h-full object-cover" alt="Icon" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[8px] uppercase font-headline text-muted-foreground">Upload Gateway Logo</span></>}
                 <input type="file" ref={gatewayFileInputRef} className="hidden" accept="image/*" onChange={handleGatewayImageUpload} />
               </div>
             </div>
@@ -997,11 +1051,37 @@ export default function AdminPage() {
             <div className="space-y-2">
               <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Cover Image</Label>
               <div onClick={() => productFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-all overflow-hidden">
-                {newProduct.imageUrl ? <img src={newProduct.imageUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[8px] uppercase font-headline text-muted-foreground">Upload Visual Protocol</span></>}
+                {newProduct.imageUrl ? <img src={newProduct.imageUrl} className="w-full h-full object-cover" alt="Product" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[8px] uppercase font-headline text-muted-foreground">Upload Visual Protocol</span></>}
                 <input type="file" ref={productFileInputRef} className="hidden" accept="image/*" onChange={handleProductImageUpload} />
               </div>
             </div>
             <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync to Marketplace</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
+          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
+          <div className="mt-6 space-y-6">
+            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Adjust Balance ($)</Label><Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-lg text-primary text-center" value={editForm.balance} onChange={(e) => setEditForm({...editForm, balance: e.target.value})} /></div>
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority Role</Label>
+              <Select value={editForm.role} onValueChange={(val) => setEditForm({...editForm, role: val})}>
+                <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-card border-white/10 z-[1100]">
+                  <SelectItem value="user">User</SelectItem><SelectItem value="agent">Agent</SelectItem><SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between p-5 bg-card/40 rounded-2xl border border-white/10" dir="ltr">
+              <div className="space-y-1"><Label className="text-[10px] font-headline font-bold uppercase tracking-widest">Verified Entity</Label><p className="text-[7px] text-muted-foreground uppercase">Enable high-authority status</p></div>
+              <Switch checked={editForm.verified} onCheckedChange={(val) => setEditForm({...editForm, verified: val})} className="data-[state=checked]:bg-green-500" />
+            </div>
+            <div className="pt-4 space-y-3">
+              <Button onClick={async () => { try { await updateDoc(doc(db, 'users', editingUserId!), { balance: parseFloat(editForm.balance), role: editForm.role, verified: editForm.verified }); toast({ title: "SYNCED" }); setEditingUserId(null); } catch (e) {} }} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
+              <button onClick={() => setIsUserDeleteDialogOpen(true)} className="w-full py-3 flex items-center justify-center gap-2 text-red-500/60 hover:text-red-500 transition-all text-[8px] font-headline font-bold uppercase tracking-[0.2em]"><AlertTriangle size={14} /> Purge Entity</button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1018,6 +1098,31 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* REJECTION REASON DIALOG */}
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[3000]">
+          <DialogHeader>
+            <DialogTitle className="text-xs font-headline font-bold uppercase text-red-500 flex items-center gap-2">
+              <X size={16} /> {language === 'ar' ? 'سبب الرفض' : 'Rejection Reason'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-6 space-y-6">
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">{language === 'ar' ? 'اكتب السبب للمستخدم' : 'Provide context for the user'}</Label>
+              <Textarea 
+                placeholder={language === 'ar' ? 'مثال: الوصل غير واضح أو البيانات خاطئة' : 'e.g. Receipt unclear or invalid details'} 
+                className="bg-background/50 border-white/10 min-h-[100px] text-xs font-headline uppercase pt-3"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+              />
+            </div>
+            <Button onClick={confirmRejection} className="w-full h-14 bg-red-600 text-white font-headline font-black text-[10px] uppercase tracking-widest rounded-xl">
+              {language === 'ar' ? 'تأكيد الرفض والاسترداد' : 'Authorize Denial & Refund'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
