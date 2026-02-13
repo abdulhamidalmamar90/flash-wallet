@@ -79,8 +79,8 @@ import {
 import Link from 'next/link';
 
 const COUNTRIES = [
-  { code: 'GL', name: 'Global' },
-  { code: 'CR', name: 'Crypto' },
+  { code: 'GL', name: 'Global / Worldwide' },
+  { code: 'CR', name: 'Crypto Assets' },
   { code: 'SA', name: 'Saudi Arabia' },
   { code: 'EG', name: 'Egypt' },
   { code: 'AE', name: 'UAE' },
@@ -88,7 +88,36 @@ const COUNTRIES = [
   { code: 'QA', name: 'Qatar' },
   { code: 'JO', name: 'Jordan' },
   { code: 'IQ', name: 'Iraq' },
-];
+  { code: 'LY', name: 'Libya' },
+  { code: 'DZ', name: 'Algeria' },
+  { code: 'MA', name: 'Morocco' },
+  { code: 'PS', name: 'Palestine' },
+  { code: 'LB', name: 'Lebanon' },
+  { code: 'SY', name: 'Syria' },
+  { code: 'OM', name: 'Oman' },
+  { code: 'YE', name: 'Yemen' },
+  { code: 'BH', name: 'Bahrain' },
+  { code: 'TN', name: 'Tunisia' },
+  { code: 'SD', name: 'Sudan' },
+  { code: 'TR', name: 'Turkey' },
+  { code: 'US', name: 'USA' },
+  { code: 'GB', name: 'UK' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'FR', name: 'France' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'RU', name: 'Russia' },
+  { code: 'CN', name: 'China' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'IN', name: 'India' },
+  { code: 'BR', name: 'Brazil' },
+  { code: 'MY', name: 'Malaysia' },
+  { code: 'ID', name: 'Indonesia' },
+  { code: 'PK', name: 'Pakistan' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'ZA', name: 'South Africa' }
+].sort((a, b) => a.name.localeCompare(b.name));
 
 export default function AdminPage() {
   const router = useRouter();
@@ -101,8 +130,9 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<any>({});
   const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false);
   
-  // Product Image Ref
+  // Refs
   const productFileInputRef = useRef<HTMLInputElement>(null);
+  const gatewayFileInputRef = useRef<HTMLInputElement>(null);
 
   // Chat Admin States
   const [chatConfig, setChatConfig] = useState<any>(null);
@@ -129,6 +159,7 @@ export default function AdminPage() {
     feeType: 'fixed',
     feeValue: 0,
     isActive: true,
+    iconUrl: '',
     fields: [{ label: '', value: '', type: 'text' }]
   });
 
@@ -304,6 +335,17 @@ export default function AdminPage() {
     }
   };
 
+  const handleGatewayImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewMethod((prev: any) => ({ ...prev, iconUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const toggleStatus = async (coll: string, id: string, status: boolean) => {
     try { await updateDoc(doc(db, coll, id), { isActive: status }); toast({ title: "STATUS SYNCED" }); } catch (e) { }
   };
@@ -407,8 +449,8 @@ export default function AdminPage() {
               <p className="text-[8px] text-muted-foreground uppercase">Configure Deposit & Withdrawal Protocols</p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => { setMethodType('deposit'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, fields: [{ label: '', value: '', type: 'text' }] }); }} className="bg-secondary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest cyan-glow"><PlusCircle size={16} className="mr-2" /> Add Deposit</Button>
-              <Button onClick={() => { setMethodType('withdraw'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, fields: [{ label: '', type: 'text' }] }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add Withdraw</Button>
+              <Button onClick={() => { setMethodType('deposit'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, iconUrl: '', fields: [{ label: '', value: '', type: 'text' }] }); }} className="bg-secondary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest cyan-glow"><PlusCircle size={16} className="mr-2" /> Add Deposit</Button>
+              <Button onClick={() => { setMethodType('withdraw'); setIsAddingMethod(true); setNewMethod({ name: '', country: 'GL', currencyCode: 'USD', exchangeRate: 1, feeType: 'fixed', feeValue: 0, isActive: true, iconUrl: '', fields: [{ label: '', type: 'text' }] }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add Withdraw</Button>
             </div>
           </div>
 
@@ -419,7 +461,9 @@ export default function AdminPage() {
                 {depositMethods.length === 0 ? <p className="text-[8px] text-muted-foreground uppercase p-4">No deposit channels established.</p> : depositMethods.map((m: any) => (
                   <div key={m.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between group">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary border border-secondary/20 uppercase font-headline text-xs">{m.country}</div>
+                      <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary border border-secondary/20 uppercase font-headline text-xs overflow-hidden">
+                        {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : m.country}
+                      </div>
                       <div>
                         <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
                         <p className="text-[7px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p>
@@ -440,7 +484,9 @@ export default function AdminPage() {
                 {withdrawalMethods.length === 0 ? <p className="text-[8px] text-muted-foreground uppercase p-4">No withdrawal channels established.</p> : withdrawalMethods.map((m: any) => (
                   <div key={m.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between group">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 uppercase font-headline text-xs">{m.country}</div>
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20 uppercase font-headline text-xs overflow-hidden">
+                        {m.iconUrl ? <img src={m.iconUrl} className="w-full h-full object-cover" /> : m.country}
+                      </div>
                       <div>
                         <p className="text-[10px] font-headline font-bold uppercase">{m.name}</p>
                         <p className="text-[7px] text-muted-foreground uppercase">Rate: 1 USD = {m.exchangeRate} {m.currencyCode}</p>
@@ -467,17 +513,25 @@ export default function AdminPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="mt-6 space-y-6">
+            <div className="space-y-2">
+              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Gateway Icon</Label>
+              <div onClick={() => gatewayFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-all overflow-hidden">
+                {newMethod.iconUrl ? <img src={newMethod.iconUrl} className="w-full h-full object-cover" /> : <><ImageIcon size={24} className="text-muted-foreground" /><span className="text-[8px] uppercase font-headline text-muted-foreground">Upload Gateway Logo</span></>}
+                <input type="file" ref={gatewayFileInputRef} className="hidden" accept="image/*" onChange={handleGatewayImageUpload} />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Gateway Name</Label>
                 <Input className="h-12 bg-background border-white/10 rounded-xl font-headline text-xs" value={newMethod.name} onChange={(e) => setNewMethod({...newMethod, name: e.target.value})} placeholder="e.g. Bank Transfer" />
               </div>
               <div className="space-y-2">
-                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Country Code</Label>
+                <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Country</Label>
                 <Select value={newMethod.country} onValueChange={(val) => setNewMethod({...newMethod, country: val})}>
                   <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-card border-white/10 z-[1100]">
-                    {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
+                    {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
