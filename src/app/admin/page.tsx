@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState, useRef } from 'react';
@@ -75,48 +76,89 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/AlertDialog";
+} from "@/components/ui/alert-dialog";
 import Link from 'next/link';
 
 const COUNTRIES = [
-  { code: 'GL', name: 'Global / Worldwide' },
-  { code: 'CR', name: 'Crypto Assets' },
-  { code: 'SA', name: 'Saudi Arabia' },
-  { code: 'EG', name: 'Egypt' },
-  { code: 'AE', name: 'UAE' },
-  { code: 'KW', name: 'Kuwait' },
-  { code: 'QA', name: 'Qatar' },
-  { code: 'JO', name: 'Jordan' },
-  { code: 'IQ', name: 'Iraq' },
-  { code: 'LY', name: 'Libya' },
-  { code: 'DZ', name: 'Algeria' },
-  { code: 'MA', name: 'Morocco' },
-  { code: 'PS', name: 'Palestine' },
-  { code: 'LB', name: 'Lebanon' },
-  { code: 'SY', name: 'Syria' },
-  { code: 'OM', name: 'Oman' },
-  { code: 'YE', name: 'Yemen' },
-  { code: 'BH', name: 'Bahrain' },
-  { code: 'TN', name: 'Tunisia' },
-  { code: 'SD', name: 'Sudan' },
-  { code: 'TR', name: 'Turkey' },
-  { code: 'US', name: 'USA' },
-  { code: 'GB', name: 'UK' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'RU', name: 'Russia' },
-  { code: 'CN', name: 'China' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'IN', name: 'India' },
-  { code: 'BR', name: 'Brazil' },
-  { code: 'MY', name: 'Malaysia' },
-  { code: 'ID', name: 'Indonesia' },
-  { code: 'PK', name: 'Pakistan' },
-  { code: 'NG', name: 'Nigeria' },
-  { code: 'ZA', name: 'South Africa' }
+  { code: 'AF', name: 'Afghanistan' }, { code: 'AL', name: 'Albania' }, { code: 'DZ', name: 'Algeria' },
+  { code: 'AS', name: 'American Samoa' }, { code: 'AD', name: 'Andorra' }, { code: 'AO', name: 'Angola' },
+  { code: 'AI', name: 'Anguilla' }, { code: 'AQ', name: 'Antarctica' }, { code: 'AG', name: 'Antigua and Barbuda' },
+  { code: 'AR', name: 'Argentina' }, { code: 'AM', name: 'Armenia' }, { code: 'AW', name: 'Aruba' },
+  { code: 'AU', name: 'Australia' }, { code: 'AT', name: 'Austria' }, { code: 'AZ', name: 'Azerbaijan' },
+  { code: 'BS', name: 'Bahamas' }, { code: 'BH', name: 'Bahrain' }, { code: 'BD', name: 'Bangladesh' },
+  { code: 'BB', name: 'Barbados' }, { code: 'BY', name: 'Belarus' }, { code: 'BE', name: 'Belgium' },
+  { code: 'BZ', name: 'Belize' }, { code: 'BJ', name: 'Benin' }, { code: 'BM', name: 'Bermuda' },
+  { code: 'BT', name: 'Bhutan' }, { code: 'BO', name: 'Bolivia' }, { code: 'BA', name: 'Bosnia and Herzegovina' },
+  { code: 'BW', name: 'Botswana' }, { code: 'BV', name: 'Bouvet Island' }, { code: 'BR', name: 'Brazil' },
+  { code: 'IO', name: 'British Indian Ocean Territory' }, { code: 'BN', name: 'Brunei Darussalam' }, { code: 'BG', name: 'Bulgaria' },
+  { code: 'BF', name: 'Burkina Faso' }, { code: 'BI', name: 'Burundi' }, { code: 'KH', name: 'Cambodia' },
+  { code: 'CM', name: 'Cameroon' }, { code: 'CA', name: 'Canada' }, { code: 'CV', name: 'Cape Verde' },
+  { code: 'KY', name: 'Cayman Islands' }, { code: 'CF', name: 'Central African Republic' }, { code: 'TD', name: 'Chad' },
+  { code: 'CL', name: 'Chile' }, { code: 'CN', name: 'China' }, { code: 'CX', name: 'Christmas Island' },
+  { code: 'CC', name: 'Cocos (Keeling) Islands' }, { code: 'CO', name: 'Colombia' }, { code: 'KM', name: 'Comoros' },
+  { code: 'CG', name: 'Congo' }, { code: 'CD', name: 'Congo, Democratic Republic' }, { code: 'CK', name: 'Cook Islands' },
+  { code: 'CR', name: 'Costa Rica' }, { code: 'CI', name: 'Cote D\'Ivoire' }, { code: 'HR', name: 'Croatia' },
+  { code: 'CU', name: 'Cuba' }, { code: 'CY', name: 'Cyprus' }, { code: 'CZ', name: 'Czech Republic' },
+  { code: 'DK', name: 'Denmark' }, { code: 'DJ', name: 'Djibouti' }, { code: 'DM', name: 'Dominica' },
+  { code: 'DO', name: 'Dominican Republic' }, { code: 'EC', name: 'Ecuador' }, { code: 'EG', name: 'Egypt' },
+  { code: 'SV', name: 'El Salvador' }, { code: 'GQ', name: 'Equatorial Guinea' }, { code: 'ER', name: 'Eritrea' },
+  { code: 'EE', name: 'Estonia' }, { code: 'ET', name: 'Ethiopia' }, { code: 'FK', name: 'Falkland Islands' },
+  { code: 'FO', name: 'Faroe Islands' }, { code: 'FJ', name: 'Fiji' }, { code: 'FI', name: 'Finland' },
+  { code: 'FR', name: 'France' }, { code: 'GF', name: 'French Guiana' }, { code: 'PF', name: 'French Polynesia' },
+  { code: 'TF', name: 'French Southern Territories' }, { code: 'GA', name: 'Gabon' }, { code: 'GM', name: 'Gambia' },
+  { code: 'GE', name: 'Georgia' }, { code: 'DE', name: 'Germany' }, { code: 'GH', name: 'Ghana' },
+  { code: 'GI', name: 'Gibraltar' }, { code: 'GR', name: 'Greece' }, { code: 'GL', name: 'Greenland' },
+  { code: 'GD', name: 'Grenada' }, { code: 'GP', name: 'Guadeloupe' }, { code: 'GU', name: 'Guam' },
+  { code: 'GT', name: 'Guatemala' }, { code: 'GN', name: 'Guinea' }, { code: 'GW', name: 'Guinea-Bissau' },
+  { code: 'GY', name: 'Guyana' }, { code: 'HT', name: 'Haiti' }, { code: 'HM', name: 'Heard Island and Mcdonald Islands' },
+  { code: 'VA', name: 'Holy See (Vatican City State)' }, { code: 'HN', name: 'Honduras' }, { code: 'HK', name: 'Hong Kong' },
+  { code: 'HU', name: 'Hungary' }, { code: 'IS', name: 'Iceland' }, { code: 'IN', name: 'India' },
+  { code: 'ID', name: 'Indonesia' }, { code: 'IR', name: 'Iran' }, { code: 'IQ', name: 'Iraq' },
+  { code: 'IE', name: 'Ireland' }, { code: 'IL', name: 'Israel' }, { code: 'IT', name: 'Italy' },
+  { code: 'JM', name: 'Jamaica' }, { code: 'JP', name: 'Japan' }, { code: 'JO', name: 'Jordan' },
+  { code: 'KZ', name: 'Kazakhstan' }, { code: 'KE', name: 'Kenya' }, { code: 'KI', name: 'Kiribati' },
+  { code: 'KP', name: 'North Korea' }, { code: 'KR', name: 'South Korea' }, { code: 'KW', name: 'Kuwait' },
+  { code: 'KG', name: 'Kyrgyzstan' }, { code: 'LA', name: 'Lao People\'s Democratic Republic' }, { code: 'LV', name: 'Latvia' },
+  { code: 'LB', name: 'Lebanon' }, { code: 'LS', name: 'Lesotho' }, { code: 'LR', name: 'Liberia' },
+  { code: 'LY', name: 'Libya' }, { code: 'LI', name: 'Liechtenstein' }, { code: 'LT', name: 'Lithuania' },
+  { code: 'LU', name: 'Luxembourg' }, { code: 'MO', name: 'Macao' }, { code: 'MK', name: 'Macedonia' },
+  { code: 'MG', name: 'Madagascar' }, { code: 'MW', name: 'Malawi' }, { code: 'MY', name: 'Malaysia' },
+  { code: 'MV', name: 'Maldives' }, { code: 'ML', name: 'Mali' }, { code: 'MT', name: 'Malta' },
+  { code: 'MH', name: 'Marshall Islands' }, { code: 'MQ', name: 'Martinique' }, { code: 'MR', name: 'Mauritania' },
+  { code: 'MU', name: 'Mauritius' }, { code: 'YT', name: 'Mayotte' }, { code: 'MX', name: 'Mexico' },
+  { code: 'FM', name: 'Micronesia' }, { code: 'MD', name: 'Moldova' }, { code: 'MC', name: 'Monaco' },
+  { code: 'MN', name: 'Mongolia' }, { code: 'MS', name: 'Montserrat' }, { code: 'MA', name: 'Morocco' },
+  { code: 'MZ', name: 'Mozambique' }, { code: 'MM', name: 'Myanmar' }, { code: 'NA', name: 'Namibia' },
+  { code: 'NR', name: 'Nauru' }, { code: 'NP', name: 'Nepal' }, { code: 'NL', name: 'Netherlands' },
+  { code: 'NC', name: 'New Caledonia' }, { code: 'NZ', name: 'New Zealand' }, { code: 'NI', name: 'Nicaragua' },
+  { code: 'NE', name: 'Niger' }, { code: 'NG', name: 'Nigeria' }, { code: 'NU', name: 'Niue' },
+  { code: 'NF', name: 'Norfolk Island' }, { code: 'MP', name: 'Northern Mariana Islands' }, { code: 'NO', name: 'Norway' },
+  { code: 'OM', name: 'Oman' }, { code: 'PK', name: 'Pakistan' }, { code: 'PW', name: 'Palau' },
+  { code: 'PS', name: 'Palestine' }, { code: 'PA', name: 'Panama' }, { code: 'PG', name: 'Papua New Guinea' },
+  { code: 'PY', name: 'Paraguay' }, { code: 'PE', name: 'Peru' }, { code: 'PH', name: 'Philippines' },
+  { code: 'PN', name: 'Pitcairn' }, { code: 'PL', name: 'Poland' }, { code: 'PT', name: 'Portugal' },
+  { code: 'PR', name: 'Puerto Rico' }, { code: 'QA', name: 'Qatar' }, { code: 'RE', name: 'Reunion' },
+  { code: 'RO', name: 'Romania' }, { code: 'RU', name: 'Russian Federation' }, { code: 'RW', name: 'Rwanda' },
+  { code: 'SH', name: 'Saint Helena' }, { code: 'KN', name: 'Saint Kitts and Nevis' }, { code: 'LC', name: 'Saint Lucia' },
+  { code: 'PM', name: 'Saint Pierre and Miquelon' }, { code: 'VC', name: 'Saint Vincent and The Grenadines' }, { code: 'WS', name: 'Samoa' },
+  { code: 'SM', name: 'San Marino' }, { code: 'ST', name: 'Sao Tome and Principe' }, { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'SN', name: 'Senegal' }, { code: 'CS', name: 'Serbia and Montenegro' }, { code: 'SC', name: 'Seychelles' },
+  { code: 'SL', name: 'Sierra Leone' }, { code: 'SG', name: 'Singapore' }, { code: 'SK', name: 'Slovakia' },
+  { code: 'SI', name: 'Slovenia' }, { code: 'SB', name: 'Solomon Islands' }, { code: 'SO', name: 'Somalia' },
+  { code: 'ZA', name: 'South Africa' }, { code: 'ES', name: 'Spain' }, { code: 'LK', name: 'Sri Lanka' },
+  { code: 'SD', name: 'Sudan' }, { code: 'SR', name: 'Suriname' }, { code: 'SZ', name: 'Swaziland' },
+  { code: 'SE', name: 'Sweden' }, { code: 'CH', name: 'Switzerland' }, { code: 'SY', name: 'Syrian Arab Republic' },
+  { code: 'TW', name: 'Taiwan' }, { code: 'TJ', name: 'Tajikistan' }, { code: 'TZ', name: 'Tanzania' },
+  { code: 'TH', name: 'Thailand' }, { code: 'TL', name: 'Timor-Leste' }, { code: 'TG', name: 'Togo' },
+  { code: 'TK', name: 'Tokelau' }, { code: 'TO', name: 'Tonga' }, { code: 'TT', name: 'Trinidad and Tobago' },
+  { code: 'TN', name: 'Tunisia' }, { code: 'TR', name: 'Turkey' }, { code: 'TM', name: 'Turkmenistan' },
+  { code: 'TC', name: 'Turks and Caicos Islands' }, { code: 'TV', name: 'Tuvalu' }, { code: 'UG', name: 'Uganda' },
+  { code: 'UA', name: 'Ukraine' }, { code: 'AE', name: 'United Arab Emirates' }, { code: 'GB', name: 'United Kingdom' },
+  { code: 'US', name: 'United States' }, { code: 'UY', name: 'Uruguay' }, { code: 'UZ', name: 'Uzbekistan' },
+  { code: 'VU', name: 'Vanuatu' }, { code: 'VE', name: 'Venezuela' }, { code: 'VN', name: 'Vietnam' },
+  { code: 'VG', name: 'Virgin Islands, British' }, { code: 'VI', name: 'Virgin Islands, U.S.' }, { code: 'WF', name: 'Wallis and Futuna' },
+  { code: 'EH', name: 'Western Sahara' }, { code: 'YE', name: 'Yemen' }, { code: 'ZM', name: 'Zambia' },
+  { code: 'ZW', name: 'Zimbabwe' }, { code: 'CR', name: 'Crypto Assets' }, { code: 'GL', name: 'Global / Worldwide' }
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 export default function AdminPage() {
@@ -446,6 +488,68 @@ export default function AdminPage() {
           </TabsList>
         </div>
 
+        <TabsContent value="withdrawals" className="space-y-4">
+          <div className="grid gap-4">
+            {withdrawals.length === 0 ? <p className="text-center py-20 text-muted-foreground uppercase font-headline text-[10px]">No withdrawal requests in ledger.</p> : withdrawals.map((w: any) => (
+              <div key={w.id} className="glass-card p-6 rounded-3xl border-white/5 flex flex-col sm:flex-row justify-between gap-6">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <p className="text-[10px] font-headline font-bold uppercase">@{w.username}</p>
+                    <Badge variant={w.status === 'pending' ? 'outline' : w.status === 'approved' ? 'default' : 'destructive'} className="text-[7px] uppercase">{w.status}</Badge>
+                  </div>
+                  <p className="text-2xl font-headline font-black text-primary">${w.amountUsd}</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-widest">{new Date(w.date).toLocaleString()}</p>
+                </div>
+                <div className="bg-black/20 p-4 rounded-2xl flex-1 max-w-md">
+                  <p className="text-[7px] text-muted-foreground uppercase font-black mb-2">Payout Protocol: {w.methodName}</p>
+                  <p className="text-[10px] font-headline text-white font-bold">{w.localAmount} {w.currencyCode}</p>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    {Object.entries(w.details || {}).map(([k, v]: any) => (
+                      <div key={k}><p className="text-[6px] text-muted-foreground uppercase">{k}:</p><p className="text-[8px] font-headline truncate">{v}</p></div>
+                    ))}
+                  </div>
+                </div>
+                {w.status === 'pending' && (
+                  <div className="flex sm:flex-col gap-2 justify-center">
+                    <button onClick={() => handleAction('withdraw', w.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('withdraw', w.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="deposits" className="space-y-4">
+          <div className="grid gap-4">
+            {deposits.length === 0 ? <p className="text-center py-20 text-muted-foreground uppercase font-headline text-[10px]">No deposit signals detected.</p> : deposits.map((d: any) => (
+              <div key={d.id} className="glass-card p-6 rounded-3xl border-white/5 flex flex-col sm:flex-row justify-between gap-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <p className="text-[10px] font-headline font-bold uppercase">@{d.username}</p>
+                    <Badge variant={d.status === 'pending' ? 'outline' : d.status === 'approved' ? 'default' : 'destructive'} className="text-[7px] uppercase">{d.status}</Badge>
+                  </div>
+                  <p className="text-2xl font-headline font-black text-primary">${d.amount}</p>
+                  <div className="space-y-1">
+                    <p className="text-[7px] text-muted-foreground uppercase">Method: {d.method}</p>
+                    <p className="text-[7px] text-muted-foreground uppercase">Sender: {d.senderName}</p>
+                  </div>
+                </div>
+                <div className="flex-1 max-w-[200px] aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5 relative group cursor-pointer" onClick={() => window.open(d.proofUrl, '_blank')}>
+                  <img src={d.proofUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Info size={24} /></div>
+                </div>
+                {d.status === 'pending' && (
+                  <div className="flex sm:flex-col gap-2 justify-center">
+                    <button onClick={() => handleAction('deposit', d.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('deposit', d.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
         <TabsContent value="chats" className="space-y-8">
           <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
             <div>
@@ -462,13 +566,10 @@ export default function AdminPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Active Sessions List */}
             <div className="lg:col-span-4 space-y-4">
               <h3 className="text-[10px] font-headline font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-2"><CircleDot size={14} className="text-primary animate-pulse" /> Live Channels</h3>
               <div className="grid gap-3">
-                {chatSessions.length === 0 ? (
-                  <p className="text-[8px] text-muted-foreground uppercase p-4 glass-card rounded-2xl text-center">No active signals detected.</p>
-                ) : chatSessions.map((s: any) => (
+                {chatSessions.length === 0 ? <p className="text-[8px] text-muted-foreground uppercase p-4 glass-card rounded-2xl text-center">No active signals detected.</p> : chatSessions.map((s: any) => (
                   <button key={s.id} onClick={() => setActiveChat(s)} className={cn("w-full glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between hover:border-primary/40 transition-all text-left", activeChat?.id === s.id && "border-primary/60 bg-primary/5")}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-primary font-headline text-xs">@{s.username[0]}</div>
@@ -488,12 +589,9 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              {/* Archived Sessions List */}
               <h3 className="text-[10px] font-headline font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-2 pt-4"><History size={14} /> Chat Archive History</h3>
               <div className="grid gap-3 max-h-[400px] overflow-y-auto no-scrollbar">
-                {archivedSessions.length === 0 ? (
-                  <p className="text-[8px] text-muted-foreground uppercase p-4 glass-card rounded-2xl text-center">Archive is empty.</p>
-                ) : archivedSessions.map((s: any) => (
+                {archivedSessions.length === 0 ? <p className="text-[8px] text-muted-foreground uppercase p-4 glass-card rounded-2xl text-center">Archive is empty.</p> : archivedSessions.map((s: any) => (
                   <div key={s.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground font-headline text-[10px]">@{s.username[0]}</div>
@@ -513,7 +611,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Chat Interface */}
             <div className="lg:col-span-8">
               {activeChat ? (
                 <div className="glass-card rounded-[2.5rem] border-white/5 flex flex-col h-[650px] overflow-hidden relative">
@@ -566,56 +663,70 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="users" className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
-            <div className="relative w-full sm:max-w-md group"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" /><Input placeholder="SEARCH INTEL LEDGER..." className="pl-12 h-12 bg-card/40 border-white/10 rounded-2xl text-[10px] font-headline uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-            <div className="flex gap-4"><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Active Entities</p><p className="text-lg font-headline font-black text-white">{allUsers.length}</p></div><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Managed Liquidity</p><p className="text-lg font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p></div></div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredUsers.map((u: any) => (
-              <div key={u.id} className="glass-card p-5 rounded-[2rem] border-white/5 hover:border-primary/20 transition-all group">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="avatar" /> : <UserIcon className="text-muted-foreground" />}</div>
+        <TabsContent value="tickets" className="space-y-4">
+          <div className="grid gap-4">
+            {tickets.length === 0 ? <p className="text-center py-20 text-muted-foreground uppercase font-headline text-[10px]">Registry clear of support tickets.</p> : tickets.map((t: any) => (
+              <div key={t.id} className="glass-card p-6 rounded-3xl border-white/5 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-muted-foreground font-headline text-lg">@{t.username[0]}</div>
                     <div>
-                      <div className="text-[10px] font-headline font-bold uppercase">@{u.username}</div>
-                      <div className="text-[7px] text-muted-foreground font-black tracking-widest flex flex-col gap-0.5 mt-1">
-                        <span>ID: {u.customId}</span>
-                        <span className="lowercase opacity-60 truncate max-w-[120px]">{u.email}</span>
-                      </div>
+                      <p className="text-[10px] font-headline font-bold uppercase">@{t.username}</p>
+                      <p className="text-[8px] text-muted-foreground uppercase font-black">{t.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => { setEditingUserId(u.id); setEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
+                  <Badge variant={t.status === 'open' ? 'outline' : 'default'} className="text-[7px] uppercase">{t.status}</Badge>
                 </div>
-                <div className="space-y-3"><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Vault Status:</span><span className="text-sm font-headline font-black text-primary">${u.balance?.toLocaleString()}</span></div><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Role:</span><Badge variant="outline" className="text-[6px] uppercase border-primary/20 text-primary">{u.role}</Badge></div></div>
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <p className="text-[8px] text-primary font-black uppercase mb-1">{t.subject}</p>
+                  <p className="text-[10px] text-white/80 leading-relaxed">{t.message}</p>
+                </div>
+                {t.imageUrl && (
+                  <div className="max-w-[200px] rounded-xl overflow-hidden border border-white/5">
+                    <img src={t.imageUrl} className="w-full h-auto" onClick={() => window.open(t.imageUrl, '_blank')} />
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-[7px] text-muted-foreground uppercase">{new Date(t.date).toLocaleString()}</span>
+                  <div className="flex gap-2">
+                    {t.status === 'open' && <Button size="sm" onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), {status: 'resolved'}); toast({title: "TICKET RESOLVED"}); }} className="h-8 text-[7px] uppercase bg-primary text-background font-black">Mark Resolved</Button>}
+                    <button onClick={async () => { if(confirm("Purge record?")) await deleteDoc(doc(db, 'support_tickets', t.id)); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </TabsContent>
 
-        <TabsContent value="store" className="space-y-8">
-          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
-            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
-            <Button onClick={() => { setEditingProductId(null); setIsAddingProduct(true); setNewProduct({ name: '', category: '', price: 0, type: 'fixed', variants: [{ label: '', price: 0 }], requiresInput: false, inputLabel: '', isActive: true, imageUrl: '', color: 'bg-primary' }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {products.map((p: any) => (
-              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group relative">
-                <div className="aspect-video relative bg-white/5">
-                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
-                  <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
-                  <button onClick={() => handleEditProduct(p)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Edit3 size={14} /></button>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
-                    <div className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</div>
+        <TabsContent value="orders" className="space-y-4">
+          <div className="grid gap-4">
+            {orders.length === 0 ? <p className="text-center py-20 text-muted-foreground uppercase font-headline text-[10px]">Marketplace ledger is empty.</p> : orders.map((o: any) => (
+              <div key={o.id} className="glass-card p-6 rounded-3xl border-white/5 flex flex-col sm:flex-row justify-between gap-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <p className="text-[10px] font-headline font-bold uppercase">@{o.username}</p>
+                    <Badge variant={o.status === 'pending' ? 'outline' : o.status === 'approved' ? 'default' : 'destructive'} className="text-[7px] uppercase">{o.status}</Badge>
                   </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <Switch checked={p.isActive} onCheckedChange={(val) => toggleStatus('marketplace_services', p.id, val)} />
-                    <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary"><ShoppingBag size={16} /></div>
+                    <div>
+                      <p className="text-[10px] font-headline font-bold uppercase">{o.serviceName}</p>
+                      <p className="text-[8px] text-muted-foreground uppercase font-black">{o.selectedVariant || "FIXED UNIT"}</p>
+                    </div>
                   </div>
+                  <p className="text-xl font-headline font-black text-primary">${o.price}</p>
                 </div>
+                <div className="1 bg-black/20 p-4 rounded-2xl">
+                  <p className="text-[7px] text-muted-foreground uppercase font-black mb-2">User Intel Provisioned:</p>
+                  <code className="text-xs text-primary font-bold block bg-black/40 p-3 rounded-lg border border-white/5">{o.userInput || "N/A"}</code>
+                  <p className="text-[6px] text-muted-foreground uppercase mt-3">{new Date(o.date).toLocaleString()}</p>
+                </div>
+                {o.status === 'pending' && (
+                  <div className="flex sm:flex-col gap-2 justify-center">
+                    <button onClick={() => { const code = prompt("Enter fulfillment code/key?"); if(code) handleAction('order', o.id, 'approve', {resultCode: code}); }} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('order', o.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -650,7 +761,7 @@ export default function AdminPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('deposit_methods', m.id, val)} />
-                      <button onClick={async () => { if(confirm("Purge method?")) await deleteDoc(doc(db, 'deposit_methods', m.id)); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                      <button onClick={async () => { if(confirm("Purge method?")) await deleteDoc(doc(db, 'deposit_methods', m.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
@@ -673,7 +784,7 @@ export default function AdminPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <Switch checked={m.isActive} onCheckedChange={(val) => toggleStatus('withdrawal_methods', m.id, val)} />
-                      <button onClick={async () => { if(confirm("Purge method?")) await deleteDoc(doc(db, 'withdrawal_methods', m.id)); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                      <button onClick={async () => { if(confirm("Purge method?")) await deleteDoc(doc(db, 'withdrawal_methods', m.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
@@ -681,9 +792,97 @@ export default function AdminPage() {
             </div>
           </div>
         </TabsContent>
+
+        <TabsContent value="store" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div><h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Marketplace Core</h2><p className="text-[8px] text-muted-foreground uppercase">Deploy and Manage Global Digital Assets</p></div>
+            <Button onClick={() => { setEditingProductId(null); setIsAddingProduct(true); setNewProduct({ name: '', category: '', price: 0, type: 'fixed', variants: [{ label: '', price: 0 }], requiresInput: false, inputLabel: '', isActive: true, imageUrl: '', color: 'bg-primary' }); }} className="bg-primary text-background h-12 rounded-xl font-headline text-[9px] font-black uppercase tracking-widest gold-glow"><PlusCircle size={16} className="mr-2" /> Add New Asset</Button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {products.map((p: any) => (
+              <div key={p.id} className="glass-card rounded-[2rem] overflow-hidden border-white/5 group relative">
+                <div className="aspect-video relative bg-white/5">
+                  {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={p.name} /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ShoppingBag size={32} /></div>}
+                  <div className="absolute top-3 left-3"><Badge className="text-[6px] uppercase border-white/10 bg-black/40">{p.category}</Badge></div>
+                  <button onClick={() => handleEditProduct(p)} className="absolute top-3 right-3 p-2 bg-black/60 rounded-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Edit3 size={14} /></button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <h4 className="text-[10px] font-headline font-bold uppercase truncate">{p.name}</h4>
+                    <div className="text-lg font-headline font-black text-primary">${p.price || (p.variants && p.variants[0]?.price)}</div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <Switch checked={p.isActive} onCheckedChange={(val) => toggleStatus('marketplace_services', p.id, val)} />
+                    <button onClick={async () => { if(confirm("Purge asset?")) await deleteDoc(doc(db, 'marketplace_services', p.id)); }} className="p-2 text-red-500/40 hover:bg-red-500/10 rounded-lg hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
+            <div className="relative w-full sm:max-w-md group"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" /><Input placeholder="SEARCH INTEL LEDGER..." className="pl-12 h-12 bg-card/40 border-white/10 rounded-2xl text-[10px] font-headline uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+            <div className="flex gap-4"><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Active Entities</p><p className="text-lg font-headline font-black text-white">{allUsers.length}</p></div><div className="glass-card px-6 py-2 rounded-2xl text-center"><p className="text-[7px] text-muted-foreground uppercase font-black">Managed Liquidity</p><p className="text-lg font-headline font-black text-primary">${allUsers.reduce((acc: any, u: any) => acc + (u.balance || 0), 0).toLocaleString()}</p></div></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredUsers.map((u: any) => (
+              <div key={u.id} className="glass-card p-5 rounded-[2rem] border-white/5 hover:border-primary/20 transition-all group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-xl border flex items-center justify-center relative overflow-hidden", u.verified ? "border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]" : "border-red-500")}>{u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" alt="avatar" /> : <UserIcon className="text-muted-foreground" />}</div>
+                    <div>
+                      <div className="text-[10px] font-headline font-bold uppercase">@{u.username}</div>
+                      <div className="text-[7px] text-muted-foreground font-black tracking-widest flex flex-col gap-0.5 mt-1">
+                        <span>ID: {u.customId}</span>
+                        <span className="lowercase opacity-60 truncate max-w-[120px]">{u.email}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => { setEditingUserId(u.id); setEditForm(u); }} className="p-2 hover:bg-primary/10 rounded-xl text-primary transition-all"><Settings2 size={16} /></button>
+                </div>
+                <div className="space-y-3"><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Vault Status:</span><span className="text-sm font-headline font-black text-primary">${u.balance?.toLocaleString()}</span></div><div className="flex justify-between items-center"><span className="text-[8px] text-muted-foreground uppercase font-black">Role:</span><Badge variant="outline" className="text-[6px] uppercase border-primary/20 text-primary">{u.role}</Badge></div></div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="kyc" className="space-y-4">
+          <div className="grid gap-4">
+            {verifications.length === 0 ? <p className="text-center py-20 text-muted-foreground uppercase font-headline text-[10px]">No pending verification requests.</p> : verifications.map((v: any) => (
+              <div key={v.id} className="glass-card p-6 rounded-3xl border-white/5 flex flex-col sm:flex-row justify-between gap-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <p className="text-[10px] font-headline font-bold uppercase">@{v.username}</p>
+                    <Badge variant={v.status === 'pending' ? 'outline' : v.status === 'approved' ? 'default' : 'destructive'} className="text-[7px] uppercase">{v.status}</Badge>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[8px] text-muted-foreground uppercase font-black">Full Name: {v.fullName}</p>
+                    <p className="text-[8px] text-muted-foreground uppercase font-black">Document: {v.idType}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <div className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 cursor-pointer" onClick={() => window.open(v.frontUrl, '_blank')}>
+                    <img src={v.frontUrl} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 cursor-pointer" onClick={() => window.open(v.backUrl, '_blank')}>
+                    <img src={v.backUrl} className="w-full h-full object-cover" />
+                  </div>
+                </div>
+                {v.status === 'pending' && (
+                  <div className="flex sm:flex-col gap-2 justify-center">
+                    <button onClick={() => handleAction('kyc', v.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
+                    <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('kyc', v.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </TabsContent>
       </Tabs>
 
-      {/* Gateway Add/Edit Dialog */}
+      {/* Admin Dialogs */}
       <Dialog open={isAddingMethod} onOpenChange={setIsAddingMethod}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar">
           <DialogHeader>
@@ -792,7 +991,6 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Product Add/Edit Dialog */}
       <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
         <DialogContent className="max-w-md glass-card border-white/10 p-8 rounded-[2.5rem] z-[1000] max-h-[90vh] overflow-y-auto no-scrollbar">
           <DialogHeader>
@@ -814,7 +1012,6 @@ export default function AdminPage() {
                 placeholder="ENTER CATEGORY (e.g. GAMES, CARDS)" 
               />
             </div>
-            
             <div className="space-y-2">
               <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Pricing Strategy</Label>
               <Select value={newProduct.type} onValueChange={(val) => setNewProduct({...newProduct, type: val})}>
@@ -825,7 +1022,6 @@ export default function AdminPage() {
                 </SelectContent>
               </Select>
             </div>
-
             {newProduct.type === 'fixed' ? (
               <div className="space-y-2">
                 <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Price ($)</Label>
@@ -846,28 +1042,22 @@ export default function AdminPage() {
                       updated[idx].price = parseFloat(e.target.value);
                       setNewProduct({...newProduct, variants: updated});
                     }} />
-                    <button onClick={() => {
-                      const updated = newProduct.variants.filter((_: any, i: number) => i !== idx);
-                      setNewProduct({...newProduct, variants: updated});
-                    }} className="text-red-500 p-1"><X size={14} /></button>
+                    <button onClick={() => { const updated = newProduct.variants.filter((_: any, i: number) => i !== idx); setNewProduct({...newProduct, variants: updated}); }} className="text-red-500 p-1"><X size={14} /></button>
                   </div>
                 ))}
                 <Button variant="outline" onClick={() => setNewProduct({...newProduct, variants: [...newProduct.variants, {label: '', price: 0}]})} className="w-full h-10 border-dashed border-white/10 text-[8px] uppercase"><Plus size={12} className="mr-1" /> Add Variant</Button>
               </div>
             )}
-
             <div className="flex items-center justify-between p-4 bg-card/40 rounded-2xl border border-white/10">
               <div className="space-y-1"><Label className="text-[10px] font-headline font-bold uppercase">Requires Input</Label><p className="text-[7px] text-muted-foreground uppercase">Ask user for Player ID / Email</p></div>
               <Switch checked={newProduct.requiresInput} onCheckedChange={(val) => setNewProduct({...newProduct, requiresInput: val})} />
             </div>
-
             {newProduct.requiresInput && (
               <div className="space-y-2 animate-in slide-in-from-top-2">
                 <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Input Label</Label>
                 <Input className="h-12 bg-background border-white/10 rounded-xl text-xs" value={newProduct.inputLabel} onChange={(e) => setNewProduct({...newProduct, inputLabel: e.target.value})} placeholder="e.g. Player ID" />
               </div>
             )}
-
             <div className="space-y-2">
               <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Cover Image</Label>
               <div onClick={() => productFileInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-all overflow-hidden">
@@ -875,7 +1065,6 @@ export default function AdminPage() {
                 <input type="file" ref={productFileInputRef} className="hidden" accept="image/*" onChange={handleProductImageUpload} />
               </div>
             </div>
-
             <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync to Marketplace</Button>
           </div>
         </DialogContent>
