@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useEffect, useState, useRef } from 'react';
@@ -530,7 +529,7 @@ export default function AdminPage() {
                 {w.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('withdraw', w.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('withdraw', w.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('withdraw', w.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -553,14 +552,16 @@ export default function AdminPage() {
                     <p className="text-[7px] text-muted-foreground uppercase">Sender: {d.senderName}</p>
                   </div>
                 </div>
-                <a href={d.proofUrl} target="_blank" rel="noopener noreferrer" className="flex-1 max-w-[200px] aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5 relative group block cursor-pointer">
-                  <img src={d.proofUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Info size={24} /></div>
-                </a>
+                {d.proofUrl && (
+                  <a href={d.proofUrl} target="_blank" rel="noopener noreferrer" className="flex-1 max-w-[200px] aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5 relative group block cursor-pointer">
+                    <img src={d.proofUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Info size={24} /></div>
+                  </a>
+                )}
                 {d.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('deposit', d.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('deposit', d.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('deposit', d.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -700,7 +701,7 @@ export default function AdminPage() {
                   <p className="text-[10px] text-white/80 leading-relaxed">{t.message}</p>
                 </div>
                 {t.imageUrl && (
-                  <a href={t.imageUrl} target="_blank" rel="noopener noreferrer" className="max-w-[200px] rounded-xl overflow-hidden border border-white/5 block">
+                  <a href={t.imageUrl} target="_blank" rel="noopener noreferrer" className="max-w-[200px] rounded-xl overflow-hidden border border-white/5 block cursor-pointer">
                     <img src={t.imageUrl} className="w-full h-auto" />
                   </a>
                 )}
@@ -708,7 +709,7 @@ export default function AdminPage() {
                   <span className="text-[7px] text-muted-foreground uppercase">{new Date(t.date).toLocaleString()}</span>
                   <div className="flex items-center gap-2">
                     {t.status === 'open' && <Button size="sm" onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), {status: 'resolved'}); toast({title: "TICKET RESOLVED"}); }} className="h-8 text-[7px] uppercase bg-primary text-background font-black">Mark Resolved</Button>}
-                    <button onClick={async () => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('kyc', t.id, 'reject', {reason}); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('kyc', t.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                   </div>
                 </div>
               </div>
@@ -741,8 +742,8 @@ export default function AdminPage() {
                 </div>
                 {o.status === 'pending' && (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { const code = prompt("Enter fulfillment code/key?"); if(code) handleAction('order', o.id, 'approve', {resultCode: code}); }} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('order', o.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const code = window.prompt("Enter fulfillment code/key?"); if(code) handleAction('order', o.id, 'approve', {resultCode: code}); }} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
+                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('order', o.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -853,17 +854,21 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <a href={v.frontUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
-                    <img src={v.frontUrl} className="w-full h-full object-cover" />
-                  </a>
-                  <a href={v.backUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
-                    <img src={v.backUrl} className="w-full h-full object-cover" />
-                  </a>
+                  {v.frontUrl && (
+                    <a href={v.frontUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
+                      <img src={v.frontUrl} className="w-full h-full object-cover" />
+                    </a>
+                  )}
+                  {v.backUrl && (
+                    <a href={v.backUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
+                      <img src={v.backUrl} className="w-full h-full object-cover" />
+                    </a>
+                  )}
                 </div>
                 {v.status === 'pending' && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('kyc', v.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
-                    <button onClick={() => { const reason = prompt("Enter rejection reason (optional):") || "Protocol Denied"; handleAction('kyc', v.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                    <button onClick={() => { const reason = window.prompt("PLEASE ENTER REJECTION REASON:"); if(reason !== null) handleAction('kyc', v.id, 'reject', {reason: reason || 'Protocol Denied'}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
                 )}
               </div>
@@ -1056,32 +1061,6 @@ export default function AdminPage() {
               </div>
             </div>
             <Button onClick={handleSaveProduct} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync to Marketplace</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editingUserId} onOpenChange={() => setEditingUserId(null)}>
-        <DialogContent className="max-w-sm glass-card border-white/10 p-8 rounded-[2rem] z-[1000]">
-          <DialogHeader><DialogTitle className="text-xs font-headline font-bold tracking-widest uppercase text-center flex items-center justify-center gap-2"><Settings2 size={14} className="text-primary" /> Edit Entity Protocol</DialogTitle></DialogHeader>
-          <div className="mt-6 space-y-6">
-            <div className="space-y-2"><Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Adjust Balance ($)</Label><Input type="number" className="h-12 bg-background border-white/10 rounded-xl font-headline text-lg text-primary text-center" value={editForm.balance} onChange={(e) => setEditForm({...editForm, balance: e.target.value})} /></div>
-            <div className="space-y-2">
-              <Label className="text-[8px] uppercase tracking-widest text-muted-foreground">Authority Role</Label>
-              <Select value={editForm.role} onValueChange={(val) => setEditForm({...editForm, role: val})}>
-                <SelectTrigger className="h-12 rounded-xl bg-background border-white/10"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-card border-white/10 z-[1100]">
-                  <SelectItem value="user">User</SelectItem><SelectItem value="agent">Agent</SelectItem><SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between p-5 bg-card/40 rounded-2xl border border-white/10" dir="ltr">
-              <div className="space-y-1"><Label className="text-[10px] font-headline font-bold uppercase tracking-widest">Verified Entity</Label><p className="text-[7px] text-muted-foreground uppercase">Enable high-authority status</p></div>
-              <Switch checked={editForm.verified} onCheckedChange={(val) => setEditForm({...editForm, verified: val})} className="data-[state=checked]:bg-green-500" />
-            </div>
-            <div className="pt-4 space-y-3">
-              <Button onClick={async () => { try { await updateDoc(doc(db, 'users', editingUserId!), { balance: parseFloat(editForm.balance), role: editForm.role, verified: editForm.verified }); toast({ title: "SYNCED" }); setEditingUserId(null); } catch (e) {} }} className="w-full h-14 bg-primary text-background font-headline font-black text-[10px] tracking-widest rounded-xl gold-glow">Sync Changes</Button>
-              <button onClick={() => setIsUserDeleteDialogOpen(true)} className="w-full py-3 flex items-center justify-center gap-2 text-red-500/60 hover:text-red-500 transition-all text-[8px] font-headline font-bold uppercase tracking-[0.2em]"><AlertTriangle size={14} /> Purge Entity</button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
