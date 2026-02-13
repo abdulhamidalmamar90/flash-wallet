@@ -510,7 +510,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 {w.status === 'pending' && (
-                  <div className="flex sm:flex-col gap-2 justify-center">
+                  <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('withdraw', w.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
                     <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('withdraw', w.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
@@ -535,12 +535,12 @@ export default function AdminPage() {
                     <p className="text-[7px] text-muted-foreground uppercase">Sender: {d.senderName}</p>
                   </div>
                 </div>
-                <div className="flex-1 max-w-[200px] aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5 relative group cursor-pointer" onClick={() => window.open(d.proofUrl, '_blank')}>
+                <a href={d.proofUrl} target="_blank" rel="noopener noreferrer" className="flex-1 max-w-[200px] aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5 relative group block cursor-pointer">
                   <img src={d.proofUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Info size={24} /></div>
-                </div>
+                </a>
                 {d.status === 'pending' && (
-                  <div className="flex sm:flex-col gap-2 justify-center">
+                  <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('deposit', d.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
                     <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('deposit', d.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
@@ -682,13 +682,13 @@ export default function AdminPage() {
                   <p className="text-[10px] text-white/80 leading-relaxed">{t.message}</p>
                 </div>
                 {t.imageUrl && (
-                  <div className="max-w-[200px] rounded-xl overflow-hidden border border-white/5">
-                    <img src={t.imageUrl} className="w-full h-auto" onClick={() => window.open(t.imageUrl, '_blank')} />
-                  </div>
+                  <a href={t.imageUrl} target="_blank" rel="noopener noreferrer" className="max-w-[200px] rounded-xl overflow-hidden border border-white/5 block">
+                    <img src={t.imageUrl} className="w-full h-auto" />
+                  </a>
                 )}
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-[7px] text-muted-foreground uppercase">{new Date(t.date).toLocaleString()}</span>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     {t.status === 'open' && <Button size="sm" onClick={async () => { await updateDoc(doc(db, 'support_tickets', t.id), {status: 'resolved'}); toast({title: "TICKET RESOLVED"}); }} className="h-8 text-[7px] uppercase bg-primary text-background font-black">Mark Resolved</Button>}
                     <button onClick={async () => { if(confirm("Purge record?")) await deleteDoc(doc(db, 'support_tickets', t.id)); }} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                   </div>
@@ -716,13 +716,13 @@ export default function AdminPage() {
                   </div>
                   <p className="text-xl font-headline font-black text-primary">${o.price}</p>
                 </div>
-                <div className="1 bg-black/20 p-4 rounded-2xl">
+                <div className="bg-black/20 p-4 rounded-2xl flex-1 max-w-md">
                   <p className="text-[7px] text-muted-foreground uppercase font-black mb-2">User Intel Provisioned:</p>
                   <code className="text-xs text-primary font-bold block bg-black/40 p-3 rounded-lg border border-white/5">{o.userInput || "N/A"}</code>
                   <p className="text-[6px] text-muted-foreground uppercase mt-3">{new Date(o.date).toLocaleString()}</p>
                 </div>
                 {o.status === 'pending' && (
-                  <div className="flex sm:flex-col gap-2 justify-center">
+                  <div className="flex items-center gap-2">
                     <button onClick={() => { const code = prompt("Enter fulfillment code/key?"); if(code) handleAction('order', o.id, 'approve', {resultCode: code}); }} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
                     <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('order', o.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
@@ -863,15 +863,15 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <div className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 cursor-pointer" onClick={() => window.open(v.frontUrl, '_blank')}>
+                  <a href={v.frontUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
                     <img src={v.frontUrl} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 cursor-pointer" onClick={() => window.open(v.backUrl, '_blank')}>
+                  </a>
+                  <a href={v.backUrl} target="_blank" rel="noopener noreferrer" className="w-[120px] aspect-square rounded-xl overflow-hidden bg-black/40 border border-white/5 block cursor-pointer">
                     <img src={v.backUrl} className="w-full h-full object-cover" />
-                  </div>
+                  </a>
                 </div>
                 {v.status === 'pending' && (
-                  <div className="flex sm:flex-col gap-2 justify-center">
+                  <div className="flex items-center gap-2">
                     <button onClick={() => handleAction('kyc', v.id, 'approve')} className="p-3 bg-green-500/10 text-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all"><Check size={20} /></button>
                     <button onClick={() => { const reason = prompt("Rejection reason?"); if(reason) handleAction('kyc', v.id, 'reject', {reason}); }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                   </div>
