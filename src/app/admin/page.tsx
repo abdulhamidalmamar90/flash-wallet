@@ -75,7 +75,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/AlertDialog";
 import Link from 'next/link';
 
 const COUNTRIES = [
@@ -137,16 +137,11 @@ export default function AdminPage() {
   // Chat Admin States
   const [chatConfig, setChatConfig] = useState<any>(null);
   const [activeChat, setActiveChat] = useState<any>(null);
-  const [chatReply, setChatMessage] = useState('');
+  const [chatReply, setChatReply] = useState('');
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [isJoiningChat, setIsJoiningChat] = useState(false);
   const [isClosingChat, setIsClosingChat] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
-
-  // Archive State
-  const [selectedArchive, setSelectedArchive] = useState<any>(null);
-  const [archiveMessages, setArchiveMessages] = useState<any[]>([]);
-  const [showFullArchive, setShowFullArchive] = useState(false);
 
   // Management States
   const [isAddingMethod, setIsAddingMethod] = useState(false);
@@ -360,6 +355,70 @@ export default function AdminPage() {
     } catch (e: any) { toast({ variant: "destructive", title: "PURGE FAILED", description: e.message }); }
   };
 
+  const handleJoinChat = async (session: any) => {
+    if (!db || !profile) return;
+    setIsJoiningChat(true);
+    try {
+      await updateDoc(doc(db, 'chat_sessions', session.id), {
+        status: 'active',
+        joinedBy: profile.username,
+        updatedAt: new Date().toISOString()
+      });
+      await addDoc(collection(db, 'chat_sessions', session.id, 'messages'), {
+        text: `Agent @${profile.username} joined the protocol. Reviewing your intel...`,
+        senderId: 'system',
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+      setActiveChat(session);
+    } catch (e) { toast({ variant: "destructive", title: "Join Failed" }); } finally { setIsJoiningChat(false); }
+  };
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatReply.trim() || !activeChat || !db) return;
+    try {
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: chatReply.trim(),
+        senderId: 'admin',
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        lastMessage: chatReply.trim(),
+        updatedAt: new Date().toISOString()
+      });
+      setChatReply('');
+    } catch (e) { }
+  };
+
+  const handleCloseChat = async () => {
+    if (!activeChat || !db) return;
+    setIsClosingChat(true);
+    try {
+      await updateDoc(doc(db, 'chat_sessions', activeChat.id), {
+        status: 'closed',
+        updatedAt: new Date().toISOString()
+      });
+      await addDoc(collection(db, 'chat_sessions', activeChat.id, 'messages'), {
+        text: "Support Protocol Terminated. Please authorize service evaluation.",
+        senderId: 'system',
+        isAdmin: true,
+        timestamp: new Date().toISOString()
+      });
+      setActiveChat(null);
+      toast({ title: "SESSION TERMINATED" });
+    } catch (e) { } finally { setIsClosingChat(false); }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!db || !confirm("Are you sure you want to purge this session from the ledger?")) return;
+    try {
+      await deleteDoc(doc(db, 'chat_sessions', sessionId));
+      toast({ title: "PROTOCOL PURGED" });
+    } catch (e) { toast({ variant: "destructive", title: "Delete Failed" }); }
+  };
+
   if (authLoading || profileLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 text-primary animate-spin" /></div>;
 
   return (
@@ -386,6 +445,126 @@ export default function AdminPage() {
             <TabsTrigger value="kyc" className="rounded-2xl font-headline text-[10px] uppercase data-[state=active]:bg-primary data-[state=active]:text-background p-4 flex items-center justify-center gap-2 sm:col-span-4"><ShieldCheck className="h-4 w-4" /> KYC Verification</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="chats" className="space-y-8">
+          <div className="flex justify-between items-center bg-card/20 p-6 rounded-3xl border border-white/5">
+            <div>
+              <h2 className="text-sm font-headline font-bold uppercase tracking-widest text-primary">Live Support Matrix</h2>
+              <p className="text-[8px] text-muted-foreground uppercase">Monitor and engage with encrypted user protocols</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-[7px] text-muted-foreground uppercase font-black">Support Status</p>
+                <Badge variant={chatConfig?.isActive ? "default" : "destructive"} className="text-[8px] uppercase">{chatConfig?.isActive ? "Operational" : "Offline"}</Badge>
+              </div>
+              <Switch checked={chatConfig?.isActive} onCheckedChange={async (val) => { await updateDoc(doc(db, 'system_settings', 'chat_config'), { isActive: val }); }} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Active Sessions List */}
+            <div className="lg:col-span-4 space-y-4">
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-2"><CircleDot size={14} className="text-primary animate-pulse" /> Live Channels</h3>
+              <div className="grid gap-3">
+                {chatSessions.length === 0 ? (
+                  <p className="text-[8px] text-muted-foreground uppercase p-4 glass-card rounded-2xl text-center">No active signals detected.</p>
+                ) : chatSessions.map((s: any) => (
+                  <button key={s.id} onClick={() => setActiveChat(s)} className={cn("w-full glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between hover:border-primary/40 transition-all text-left", activeChat?.id === s.id && "border-primary/60 bg-primary/5")}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-primary font-headline text-xs">@{s.username[0]}</div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-headline font-bold">@{s.username}</p>
+                          <Badge variant="outline" className="text-[6px] h-4 border-primary/20 text-primary uppercase">{s.caseId}</Badge>
+                        </div>
+                        <p className="text-[8px] text-muted-foreground truncate max-w-[120px]">{s.lastMessage}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[6px] text-muted-foreground uppercase">{new Date(s.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      {s.status === 'open' && <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse ml-auto mt-1" />}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Archived Sessions List */}
+              <h3 className="text-[10px] font-headline font-bold uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2 px-2 pt-4"><History size={14} /> Chat Archive History</h3>
+              <div className="grid gap-3 max-h-[400px] overflow-y-auto no-scrollbar">
+                {archivedSessions.length === 0 ? (
+                  <p className="text-[8px] text-muted-foreground uppercase p-4 glass-card rounded-2xl text-center">Archive is empty.</p>
+                ) : archivedSessions.map((s: any) => (
+                  <div key={s.id} className="glass-card p-4 rounded-2xl border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground font-headline text-[10px]">@{s.username[0]}</div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-headline font-bold text-white/60">@{s.username}</p>
+                          <span className="text-[7px] text-muted-foreground font-bold uppercase">ID: {s.caseId}</span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {[1, 2, 3, 4, 5].map(star => <Star key={star} size={8} className={cn(s.rating >= star ? "text-primary" : "text-white/10")} fill="currentColor" />)}
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteSession(s.id)} className="p-2 text-red-500/40 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Chat Interface */}
+            <div className="lg:col-span-8">
+              {activeChat ? (
+                <div className="glass-card rounded-[2.5rem] border-white/5 flex flex-col h-[650px] overflow-hidden relative">
+                  <div className="p-5 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><UserIcon size={24} /></div>
+                      <div>
+                        <h4 className="text-xs font-headline font-bold uppercase">Protocol: {activeChat.caseId}</h4>
+                        <p className="text-[8px] text-muted-foreground uppercase tracking-widest">User: @{activeChat.username} • {activeChat.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {activeChat.status === 'open' ? (
+                        <Button onClick={() => handleJoinChat(activeChat)} disabled={isJoiningChat} className="bg-primary text-background h-10 rounded-xl font-headline text-[8px] font-black uppercase gold-glow">Authorize Entry</Button>
+                      ) : (
+                        <Button onClick={handleCloseChat} disabled={isClosingChat} variant="destructive" className="h-10 rounded-xl font-headline text-[8px] font-black uppercase">Terminate Session</Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+                    {chatMessages.map((msg) => (
+                      <div key={msg.id} className={cn("flex flex-col max-w-[80%]", msg.isAdmin ? "ml-auto items-end" : "mr-auto items-start")}>
+                        <div className={cn("p-4 rounded-2xl text-[11px] font-headline leading-relaxed", msg.isAdmin ? "bg-primary text-background rounded-tr-none gold-glow" : "bg-white/5 text-foreground rounded-tl-none border border-white/5")}>
+                          {msg.text}
+                        </div>
+                        <span className="text-[7px] text-muted-foreground mt-2 uppercase">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    ))}
+                    <div ref={chatScrollRef} />
+                  </div>
+
+                  {activeChat.status === 'active' && (
+                    <form onSubmit={handleSendReply} className="p-5 bg-black/40 border-t border-white/5 flex gap-3">
+                      <Input value={chatReply} onChange={(e) => setChatReply(e.target.value)} placeholder="TRANSMIT SECURE RESPONSE..." className="h-14 bg-white/5 border-white/10 rounded-2xl font-headline text-[10px] tracking-widest" />
+                      <button type="submit" disabled={!chatReply.trim()} className="w-14 h-14 bg-primary text-background rounded-2xl flex items-center justify-center hover:scale-105 transition-all disabled:opacity-20"><SendHorizontal size={24} /></button>
+                    </form>
+                  )}
+                </div>
+              ) : (
+                <div className="glass-card rounded-[2.5rem] border-white/5 h-[650px] flex flex-col items-center justify-center text-center space-y-6 opacity-40 grayscale">
+                  <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center text-muted-foreground border border-white/10"><MessageSquare size={40} /></div>
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-headline font-bold uppercase tracking-widest">No Active Protocol</h3>
+                    <p className="text-[10px] text-muted-foreground uppercase max-w-xs mx-auto">Select a communication channel from the ledger to engage with user entities.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
 
         <TabsContent value="users" className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
